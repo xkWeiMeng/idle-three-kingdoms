@@ -1,0 +1,485 @@
+/** 装备面板 UI */
+const EquipmentPanel = {
+  _container: null,
+  _selectedHero: null,
+  _selectedEquip: null,
+  _filter: 'all',
+
+  _qualityColors: { 1: '#aaaaaa', 2: '#4caf50', 3: '#2196f3', 4: '#9c27b0', 5: '#ff9800' },
+  _qualityNames: { 1: '白·普通', 2: '绿·精良', 3: '蓝·稀有', 4: '紫·史诗', 5: '橙·传说' },
+  _slotNames: { weapon: '⚔武器', armor: '🛡防具', accessory: '💍饰品', mount: '🐴坐骑' },
+  _statLabels: { atk: '⚔ATK', def: '🛡DEF', hp: '❤HP', spd: '💨SPD' },
+  _filterNames: { all: '全部', weapon: '武器', armor: '防具', accessory: '饰品', mount: '坐骑' },
+
+  init: function () {
+    this._container = document.getElementById('panel-equipment');
+    this._render();
+
+    var self = this;
+    EventBus.on('equip:changed', function () { self._render(); });
+    EventBus.on('resource:changed', function () { self._updateDetail(); });
+    EventBus.on('hero:added', function () { self._render(); });
+    EventBus.on('hero:team_changed', function () { self._render(); });
+  },
+
+  _render: function () {
+    if (!this._container) return;
+
+    var heroes = HeroManager.getAll();
+    if (heroes.length > 0 && !this._selectedHero) {
+      this._selectedHero = heroes[0].uid;
+    }
+    // Clear selection if hero no longer exists
+    if (this._selectedHero && !HeroManager.getHeroByUid(this._selectedHero)) {
+      this._selectedHero = heroes.length > 0 ? heroes[0].uid : null;
+    }
+    // Clear equip selection if no longer in inventory
+    if (this._selectedEquip && !EquipmentManager.getEquipment(this._selectedEquip)) {
+      this._selectedEquip = null;
+    }
+
+    var inventory = EquipmentManager.getInventory();
+    var maxSlots = 50;
+
+    var html = '';
+
+    // --- Header ---
+    html += '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">';
+    html += '<span style="font-size:1.05rem;font-weight:bold;">🗡️ 装备</span>';
+    html += '<span style="color:var(--color-text-dim);font-size:0.85rem;">' + inventory.length + '/' + maxSlots + '</span>';
+    html += '</div>';
+
+    // --- Overflow alert ---
+    var overflow = EquipmentManager.getOverflow();
+    if (overflow.length > 0) {
+      html += '<div class="card" style="background:#f4433622;border:1px solid #f44336;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+      html += '<span style="color:#f44336;font-size:0.85rem;">⚠️ 溢出栏有 ' + overflow.length + ' 件装备待领取</span>';
+      html += '<button class="btn equip-btn-claim" style="font-size:0.75rem;padding:4px 10px;">领取</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+
+    // --- Hero Selector ---
+    html += this._renderHeroSelector(heroes);
+
+    // --- Equipment Slots ---
+    html += this._renderEquipSlots();
+
+    // --- Inventory ---
+    html += this._renderInventory();
+
+    // --- Detail Panel ---
+    html += this._renderDetail();
+
+    this._container.innerHTML = html;
+    this._bindEvents();
+  },
+
+  _renderHeroSelector: function (heroes) {
+    if (heroes.length === 0) {
+      return '<div class="card" style="text-align:center;color:var(--color-text-dim);">暂无武将，先去招募吧！</div>';
+    }
+
+    var html = '<div class="card" style="padding:8px;">';
+    html += '<div style="font-size:0.8rem;color:var(--color-text-dim);margin-bottom:6px;">👤 选择武将</div>';
+    html += '<div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;">';
+
+    for (var i = 0; i < heroes.length; i++) {
+      var hero = heroes[i];
+      var template = HeroManager.getTemplate(hero.id);
+      if (!template) continue;
+
+      var color = this._qualityColors[template.quality] || '#aaa';
+      var isSelected = hero.uid === this._selectedHero;
+      var borderStyle = isSelected ? '3px solid ' + color : '2px solid var(--color-secondary)';
+      var bgStyle = isSelected ? color + '22' : 'var(--color-secondary)';
+
+      html += '<div class="equip-hero-tab" data-hero-uid="' + hero.uid + '" ';
+      html += 'style="text-align:center;padding:6px 8px;border-radius:6px;cursor:pointer;min-width:48px;';
+      html += 'background:' + bgStyle + ';border:' + borderStyle + ';transition:all 0.2s;">';
+      html += '<div style="font-size:1.1rem;">' + (template.emoji || '🧑') + '</div>';
+      html += '<div style="font-size:0.6rem;color:' + color + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48px;">' + template.name + '</div>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+    html += '</div>';
+    return html;
+  },
+
+  _renderEquipSlots: function () {
+    if (!this._selectedHero) return '';
+
+    var hero = HeroManager.getHeroByUid(this._selectedHero);
+    if (!hero) return '';
+
+    var template = HeroManager.getTemplate(hero.id);
+    var heroColor = template ? (this._qualityColors[template.quality] || '#aaa') : '#aaa';
+
+    var html = '<div class="card">';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">';
+    html += '<span style="font-weight:bold;font-size:0.85rem;">🎒 武将装备栏</span>';
+    if (template) {
+      html += '<span style="font-size:0.75rem;color:' + heroColor + ';">' + template.name + '</span>';
+    }
+    html += '</div>';
+
+    var slots = ['weapon', 'armor', 'accessory', 'mount'];
+    for (var i = 0; i < slots.length; i++) {
+      var slot = slots[i];
+      var equipUid = hero.equipment ? hero.equipment[slot] : null;
+      var equip = equipUid ? EquipmentManager.getEquipment(equipUid) : null;
+
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;';
+      html += 'border-radius:6px;background:var(--color-bg);">';
+
+      // Slot label
+      html += '<span style="font-size:0.78rem;color:var(--color-text-dim);width:60px;">' + this._slotNames[slot] + '</span>';
+
+      if (equip) {
+        var eColor = this._qualityColors[equip.quality] || '#aaa';
+        var statKey = Object.keys(equip.stats)[0];
+        var statVal = EquipmentManager.getEquipStatValue(equip);
+
+        html += '<div style="flex:1;display:flex;align-items:center;gap:6px;">';
+        html += '<span style="font-size:1rem;">' + (equip.emoji || '📦') + '</span>';
+        html += '<span style="color:' + eColor + ';font-size:0.82rem;font-weight:bold;">' + equip.name;
+        if (equip.level > 0) html += ' +' + equip.level;
+        html += '</span>';
+        html += '<span style="font-size:0.72rem;color:var(--color-text-dim);margin-left:auto;">';
+        html += (this._statLabels[statKey] || statKey) + '+' + Math.floor(statVal);
+        html += '</span>';
+        html += '</div>';
+        html += '<button class="btn equip-btn-unequip" data-equip-uid="' + equip.uid + '" ';
+        html += 'style="font-size:0.7rem;padding:3px 8px;background:var(--color-secondary);">卸下</button>';
+      } else {
+        html += '<span style="flex:1;font-size:0.8rem;color:var(--color-text-dim);">空</span>';
+      }
+
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  },
+
+  _renderInventory: function () {
+    var inventory = EquipmentManager.getInventory();
+    var self = this;
+
+    // Filter to unequipped items (or all with filter)
+    var items = [];
+    for (var i = 0; i < inventory.length; i++) {
+      var eq = inventory[i];
+      if (eq.equippedBy) continue;
+      if (this._filter !== 'all' && eq.type !== this._filter) continue;
+      items.push(eq);
+    }
+
+    var html = '<div class="card">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+    html += '<span style="font-weight:bold;font-size:0.85rem;">📦 背包</span>';
+    html += '<span style="font-size:0.75rem;color:var(--color-text-dim);">' + items.length + ' 件</span>';
+    html += '</div>';
+
+    // Filter buttons
+    html += '<div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;">';
+    var filters = ['all', 'weapon', 'armor', 'accessory', 'mount'];
+    for (var f = 0; f < filters.length; f++) {
+      var fKey = filters[f];
+      var isActive = this._filter === fKey;
+      html += '<button class="btn equip-filter-btn" data-filter="' + fKey + '" ';
+      html += 'style="font-size:0.7rem;padding:3px 8px;';
+      if (isActive) {
+        html += 'background:var(--color-primary);';
+      } else {
+        html += 'background:var(--color-secondary);';
+      }
+      html += '">' + this._filterNames[fKey] + '</button>';
+    }
+    html += '</div>';
+
+    // Grid of items
+    if (items.length === 0) {
+      html += '<div style="text-align:center;color:var(--color-text-dim);padding:16px 0;font-size:0.85rem;">背包空空如也</div>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">';
+      for (var j = 0; j < items.length; j++) {
+        html += this._renderInventoryCard(items[j]);
+      }
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  },
+
+  _renderInventoryCard: function (equip) {
+    var color = this._qualityColors[equip.quality] || '#aaa';
+    var isSelected = equip.uid === this._selectedEquip;
+    var statKey = Object.keys(equip.stats)[0];
+    var statVal = EquipmentManager.getEquipStatValue(equip);
+    var glowStyle = equip.quality >= 4 ? 'box-shadow:0 0 8px ' + color + '40;' : '';
+    var selectedStyle = isSelected ? 'box-shadow:0 0 0 2px var(--color-gold),0 0 10px var(--color-gold)44;' : '';
+
+    var html = '<div class="equip-inv-card" data-equip-uid="' + equip.uid + '" ';
+    html += 'style="text-align:center;padding:8px 4px;border-radius:6px;cursor:pointer;';
+    html += 'background:var(--color-secondary);border:2px solid ' + color + ';';
+    html += glowStyle + selectedStyle + 'transition:all 0.2s;">';
+
+    // Emoji + level
+    html += '<div style="font-size:1.3rem;position:relative;">';
+    html += equip.emoji || '📦';
+    if (equip.level > 0) {
+      html += '<span style="position:absolute;top:-2px;right:2px;font-size:0.55rem;color:var(--color-gold);font-weight:bold;">+' + equip.level + '</span>';
+    }
+    html += '</div>';
+
+    // Name
+    html += '<div style="font-size:0.68rem;color:' + color + ';margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + equip.name + '</div>';
+
+    // Stat
+    html += '<div style="font-size:0.62rem;color:var(--color-text-dim);margin-top:2px;">';
+    html += (this._statLabels[statKey] || statKey) + '+' + Math.floor(statVal);
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  },
+
+  _renderDetail: function () {
+    if (!this._selectedEquip) return '';
+
+    var equip = EquipmentManager.getEquipment(this._selectedEquip);
+    if (!equip) return '';
+
+    var color = this._qualityColors[equip.quality] || '#aaa';
+    var qName = this._qualityNames[equip.quality] || '白·普通';
+    var statKey = Object.keys(equip.stats)[0];
+    var baseVal = equip.stats[statKey];
+    var totalVal = EquipmentManager.getEquipStatValue(equip);
+    var bonusVal = totalVal - baseVal;
+    var maxLevel = EquipMaxLevel[equip.quality] || 5;
+    var isMaxLevel = equip.level >= maxLevel;
+    var reinforceCost = EquipmentManager.getReinforceCost(equip.uid);
+    var sellPrice = EquipSellPrice[equip.quality] || 50;
+    var canReinforce = !isMaxLevel && ResourceManager.canAfford('gold', reinforceCost);
+    var isEquipped = !!equip.equippedBy;
+    var glowStyle = equip.quality >= 4 ? 'box-shadow:0 0 10px ' + color + '40;' : '';
+
+    var html = '<div class="card" style="border:1px solid ' + color + ';' + glowStyle + '">';
+    html += '<div style="font-weight:bold;font-size:0.85rem;margin-bottom:8px;">📋 装备详情</div>';
+
+    // Title row
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+    html += '<span style="font-size:1.5rem;">' + (equip.emoji || '📦') + '</span>';
+    html += '<div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;">';
+    html += '<span style="font-weight:bold;color:' + color + ';font-size:1rem;">' + equip.name;
+    if (equip.level > 0) html += ' +' + equip.level;
+    html += '</span>';
+    html += '<span style="font-size:0.6rem;padding:1px 5px;border-radius:3px;background:' + color + '22;color:' + color + ';border:1px solid ' + color + '55;">' + qName + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:0.72rem;color:var(--color-text-dim);">' + this._slotNames[equip.type] + '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Stat display
+    html += '<div style="padding:6px 8px;border-radius:4px;background:var(--color-bg);margin-bottom:8px;">';
+    html += '<span style="font-size:0.85rem;">' + (this._statLabels[statKey] || statKey) + ' +' + Math.floor(totalVal) + '</span>';
+    if (bonusVal > 0) {
+      html += '<span style="font-size:0.72rem;color:var(--color-success);margin-left:8px;">(+' + bonusVal.toFixed(1) + ' 强化加成)</span>';
+    }
+    html += '</div>';
+
+    // Reinforcement progress
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--color-text-dim);margin-bottom:3px;">';
+    html += '<span>强化等级</span>';
+    html += '<span>' + equip.level + '/' + maxLevel + '</span>';
+    html += '</div>';
+    var lvlPct = Math.floor((equip.level / maxLevel) * 100);
+    html += '<div style="height:6px;background:var(--color-bg);border-radius:3px;overflow:hidden;">';
+    html += '<div style="height:100%;width:' + lvlPct + '%;background:var(--color-gold);border-radius:3px;transition:width 0.3s;"></div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Description
+    if (equip.description) {
+      html += '<div style="font-size:0.75rem;color:var(--color-text-dim);font-style:italic;margin-bottom:10px;">';
+      html += '"' + equip.description + '"';
+      html += '</div>';
+    }
+
+    // Equipped status
+    if (isEquipped) {
+      var equipHero = HeroManager.getHeroByUid(equip.equippedBy);
+      var equipTemplate = equipHero ? HeroManager.getTemplate(equipHero.id) : null;
+      html += '<div style="font-size:0.75rem;color:var(--color-gold);margin-bottom:8px;">';
+      html += '已装备于: ' + (equipTemplate ? equipTemplate.emoji + ' ' + equipTemplate.name : '未知武将');
+      html += '</div>';
+    }
+
+    // Action buttons
+    html += '<div style="display:flex;gap:6px;">';
+
+    // Equip/Unequip button
+    if (isEquipped) {
+      html += '<button class="btn equip-detail-unequip" data-equip-uid="' + equip.uid + '" ';
+      html += 'style="flex:1;font-size:0.78rem;background:var(--color-secondary);">卸下</button>';
+    } else if (this._selectedHero) {
+      html += '<button class="btn equip-detail-equip" data-equip-uid="' + equip.uid + '" ';
+      html += 'style="flex:1;font-size:0.78rem;">装备</button>';
+    }
+
+    // Reinforce button
+    if (!isMaxLevel) {
+      html += '<button class="btn equip-detail-reinforce" data-equip-uid="' + equip.uid + '" ';
+      html += 'style="flex:1;font-size:0.78rem;background:var(--color-gold);color:#111;';
+      if (!canReinforce) html += 'opacity:0.5;cursor:not-allowed;';
+      html += '"';
+      if (!canReinforce) html += ' disabled';
+      html += '>强化 💰' + Utils.formatNumber(reinforceCost) + '</button>';
+    } else {
+      html += '<button class="btn" style="flex:1;font-size:0.78rem;background:var(--color-gold);color:#111;opacity:0.5;" disabled>已满级</button>';
+    }
+
+    // Sell button
+    html += '<button class="btn equip-detail-sell" data-equip-uid="' + equip.uid + '" ';
+    html += 'style="flex:1;font-size:0.78rem;background:var(--color-danger);">出售 💰' + sellPrice + '</button>';
+
+    html += '</div>';
+    html += '</div>';
+    return html;
+  },
+
+  _updateDetail: function () {
+    if (!this._container || !this._selectedEquip) return;
+    // Re-render just the detail section by doing a full re-render
+    // (keeps logic simple and consistent)
+    this._render();
+  },
+
+  _bindEvents: function () {
+    var self = this;
+
+    // Hero selector tabs
+    var heroTabs = this._container.querySelectorAll('.equip-hero-tab');
+    for (var i = 0; i < heroTabs.length; i++) {
+      heroTabs[i].addEventListener('click', function () {
+        var uid = this.getAttribute('data-hero-uid');
+        if (uid) self._onSelectHero(uid);
+      });
+    }
+
+    // Unequip buttons in slots
+    var unequipBtns = this._container.querySelectorAll('.equip-btn-unequip');
+    for (var j = 0; j < unequipBtns.length; j++) {
+      unequipBtns[j].addEventListener('click', function () {
+        var uid = this.getAttribute('data-equip-uid');
+        if (uid) self._onUnequip(uid);
+      });
+    }
+
+    // Inventory cards
+    var invCards = this._container.querySelectorAll('.equip-inv-card');
+    for (var k = 0; k < invCards.length; k++) {
+      invCards[k].addEventListener('click', function () {
+        var uid = this.getAttribute('data-equip-uid');
+        if (uid) self._onSelectEquip(uid);
+      });
+    }
+
+    // Filter buttons
+    var filterBtns = this._container.querySelectorAll('.equip-filter-btn');
+    for (var f = 0; f < filterBtns.length; f++) {
+      filterBtns[f].addEventListener('click', function () {
+        var filter = this.getAttribute('data-filter');
+        if (filter) {
+          self._filter = filter;
+          self._render();
+        }
+      });
+    }
+
+    // Detail: equip
+    var equipBtn = this._container.querySelector('.equip-detail-equip');
+    if (equipBtn) {
+      equipBtn.addEventListener('click', function () {
+        var uid = this.getAttribute('data-equip-uid');
+        if (uid) self._onEquip(uid);
+      });
+    }
+
+    // Detail: unequip
+    var detailUnequipBtn = this._container.querySelector('.equip-detail-unequip');
+    if (detailUnequipBtn) {
+      detailUnequipBtn.addEventListener('click', function () {
+        var uid = this.getAttribute('data-equip-uid');
+        if (uid) self._onUnequip(uid);
+      });
+    }
+
+    // Detail: reinforce
+    var reinforceBtn = this._container.querySelector('.equip-detail-reinforce');
+    if (reinforceBtn) {
+      reinforceBtn.addEventListener('click', function () {
+        var uid = this.getAttribute('data-equip-uid');
+        if (uid) self._onReinforce(uid);
+      });
+    }
+
+    // Detail: sell
+    var sellBtn = this._container.querySelector('.equip-detail-sell');
+    if (sellBtn) {
+      sellBtn.addEventListener('click', function () {
+        var uid = this.getAttribute('data-equip-uid');
+        if (uid) self._onSell(uid);
+      });
+    }
+
+    // Overflow claim button
+    var claimBtn = this._container.querySelector('.equip-btn-claim');
+    if (claimBtn) {
+      claimBtn.addEventListener('click', function () {
+        EquipmentManager.claimOverflow();
+        self._render();
+      });
+    }
+  },
+
+  _onSelectHero: function (uid) {
+    this._selectedHero = uid;
+    this._render();
+  },
+
+  _onSelectEquip: function (uid) {
+    this._selectedEquip = uid;
+    this._render();
+  },
+
+  _onEquip: function (equipUid) {
+    if (this._selectedHero) {
+      EquipmentManager.equip(equipUid, this._selectedHero);
+    }
+  },
+
+  _onUnequip: function (equipUid) {
+    var equip = EquipmentManager.getEquipment(equipUid);
+    if (equip && equip.equippedBy) {
+      EquipmentManager.unequip(equipUid, equip.equippedBy);
+    }
+  },
+
+  _onReinforce: function (equipUid) {
+    EquipmentManager.reinforce(equipUid);
+    this._render();
+  },
+
+  _onSell: function (equipUid) {
+    EquipmentManager.sell(equipUid);
+    this._selectedEquip = null;
+    this._render();
+  }
+};
