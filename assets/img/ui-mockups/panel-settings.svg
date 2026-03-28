@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="720" viewBox="0 0 390 720">
+  <defs>
+    <linearGradient id="hg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0f3460"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="390" height="720" fill="#1a1a2e"/>
+
+  <!-- ═══ HEADER ═══ -->
+  <rect width="390" height="68" fill="url(#hg)"/>
+  <rect y="67" width="390" height="1" fill="#0f3460"/>
+  <rect x="172" y="0" width="46" height="3" fill="#f5c518" opacity="0.6"/>
+  <text x="195" y="26" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="19" font-weight="bold" fill="#f5c518" letter-spacing="3">幻想三国</text>
+  <text x="195" y="41" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#777">三国放置策略游戏</text>
+  <rect x="6"   y="51" width="82" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="47"  y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#f5c518">💰 12,345</text>
+  <rect x="94"  y="51" width="58" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="123" y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#eee">💎 88</text>
+  <rect x="158" y="51" width="68" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="192" y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#eee">🍚 4,200</text>
+  <rect x="232" y="51" width="68" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="266" y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#eee">⭐ 3,600</text>
+
+  <!-- ═══ TAB BAR ═══ -->
+  <rect y="68" width="390" height="44" fill="#0d1b2a"/>
+  <!-- Active: 设置 (tab 5, x=325) -->
+  <rect y="68" x="325" width="65" height="44" fill="#16213e"/>
+  <rect y="109" x="325" width="65" height="3" fill="#f5c518"/>
+  <text x="32"  y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">⚔️ 武将</text>
+  <text x="97"  y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">🏟️ 战斗</text>
+  <text x="162" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">📖 剧情</text>
+  <text x="227" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">⭐ 招募</text>
+  <text x="292" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">🗡️ 装备</text>
+  <text x="357" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#f5c518">⚙️ 设置</text>
+  <line x1="65"  y1="73" x2="65"  y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="130" y1="73" x2="130" y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="195" y1="73" x2="195" y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="260" y1="73" x2="260" y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="325" y1="73" x2="325" y2="108" stroke="#0f3460" stroke-width="1"/>
+
+  <!-- ═══ CONTENT ═══ -->
+
+  <!-- ══ GROUP 1: 存档管理 ══ -->
+  <rect x="10" y="118" width="370" height="200" rx="8" fill="#16213e" stroke="#0f3460" stroke-width="1"/>
+  <!-- Group title bar -->
+  <rect x="10" y="118" width="370" height="34" rx="8" fill="#0f3460"/>
+  <rect x="10" y="140" width="370" height="12" fill="#0f3460"/>
+  <text x="24" y="140" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" font-weight="bold" fill="#eee">💾 存档管理</text>
+  <!-- Row: 保存游戏 -->
+  <line x1="10" y1="152" x2="380" y2="152" stroke="#0a1428" stroke-width="1"/>
+  <text x="24" y="172" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#ccc">保存游戏</text>
+  <text x="175" y="172" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">上次保存: 3分钟前</text>
+  <rect x="308" y="160" width="62" height="24" rx="6" fill="#4caf50"/>
+  <text x="339" y="177" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#fff">立即保存</text>
+  <!-- Row: 导出存档 -->
+  <line x1="10" y1="192" x2="380" y2="192" stroke="#0a1428" stroke-width="1"/>
+  <text x="24" y="212" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#ccc">导出存档</text>
+  <text x="175" y="212" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">复制存档字符串</text>
+  <rect x="308" y="200" width="62" height="24" rx="6" fill="#0f3460" stroke="#1e5080" stroke-width="1"/>
+  <text x="339" y="217" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#aaa">导出</text>
+  <!-- Row: 导入存档 -->
+  <line x1="10" y1="232" x2="380" y2="232" stroke="#0a1428" stroke-width="1"/>
+  <text x="24" y="252" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#ccc">导入存档</text>
+  <text x="175" y="252" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">粘贴存档字符串</text>
+  <rect x="308" y="240" width="62" height="24" rx="6" fill="#0f3460" stroke="#1e5080" stroke-width="1"/>
+  <text x="339" y="257" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#aaa">导入</text>
+  <!-- Row: 删除存档 -->
+  <line x1="10" y1="272" x2="380" y2="272" stroke="#0a1428" stroke-width="1"/>
+  <text x="24" y="292" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#f44336">删除存档</text>
+  <text x="175" y="292" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">清除所有游戏数据</text>
+  <rect x="308" y="280" width="62" height="24" rx="6" fill="#2a0808" stroke="#f44336" stroke-width="1"/>
+  <text x="339" y="297" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#f44336">删除</text>
+
+  <!-- ══ GROUP 2: 游戏统计 ══ -->
+  <rect x="10" y="332" width="370" height="180" rx="8" fill="#16213e" stroke="#0f3460" stroke-width="1"/>
+  <rect x="10" y="332" width="370" height="34" rx="8" fill="#0f3460"/>
+  <rect x="10" y="354" width="370" height="12" fill="#0f3460"/>
+  <text x="24" y="354" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" font-weight="bold" fill="#eee">📊 游戏统计</text>
+  <!-- 2×2 stat cards grid -->
+  <!-- Card 1: 游戏时长 -->
+  <rect x="18" y="374" width="164" height="60" rx="6" fill="#0d1b2a" stroke="#0f3460" stroke-width="1"/>
+  <text x="30" y="393" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#777">⏱ 游戏时长</text>
+  <text x="30" y="418" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="18" font-weight="bold" fill="#f5c518">12</text>
+  <text x="62" y="418" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#eee">小时 34 分</text>
+
+  <!-- Card 2: 总战斗 -->
+  <rect x="198" y="374" width="164" height="60" rx="6" fill="#0d1b2a" stroke="#0f3460" stroke-width="1"/>
+  <text x="210" y="393" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#777">⚔️ 总战斗次数</text>
+  <text x="210" y="418" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="18" font-weight="bold" fill="#e94560">2,841</text>
+  <text x="268" y="418" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#eee">次</text>
+
+  <!-- Card 3: 最高通关 -->
+  <rect x="18" y="442" width="164" height="60" rx="6" fill="#0d1b2a" stroke="#0f3460" stroke-width="1"/>
+  <text x="30" y="461" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#777">🏆 最高通关</text>
+  <text x="30" y="487" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="18" font-weight="bold" fill="#4caf50">2-3</text>
+  <text x="64" y="487" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#eee">章节</text>
+
+  <!-- Card 4: 招募次数 -->
+  <rect x="198" y="442" width="164" height="60" rx="6" fill="#0d1b2a" stroke="#0f3460" stroke-width="1"/>
+  <text x="210" y="461" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#777">⭐ 招募次数</text>
+  <text x="210" y="487" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="18" font-weight="bold" fill="#9c27b0">142</text>
+  <text x="248" y="487" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" fill="#eee">次</text>
+
+  <!-- ══ GROUP 3: 关于游戏 ══ -->
+  <rect x="10" y="526" width="370" height="136" rx="8" fill="#16213e" stroke="#0f3460" stroke-width="1"/>
+  <rect x="10" y="526" width="370" height="34" rx="8" fill="#0f3460"/>
+  <rect x="10" y="548" width="370" height="12" fill="#0f3460"/>
+  <text x="24" y="548" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="12" font-weight="bold" fill="#eee">ℹ️ 关于游戏</text>
+  <!-- Game logo area -->
+  <text x="195" y="590" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="22" font-weight="bold" fill="#f5c518" letter-spacing="3">幻想三国</text>
+  <text x="195" y="608" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#777">Idle Three Kingdoms · 三国放置策略游戏</text>
+  <!-- Version row -->
+  <line x1="20" y1="616" x2="370" y2="616" stroke="#0a1428" stroke-width="1"/>
+  <text x="24" y="636" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#888">版本号</text>
+  <text x="370" y="636" text-anchor="end" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#555">v0.1.0-alpha</text>
+  <text x="24" y="654" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#888">开源协议</text>
+  <text x="370" y="654" text-anchor="end" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="11" fill="#555">MIT License</text>
+</svg>

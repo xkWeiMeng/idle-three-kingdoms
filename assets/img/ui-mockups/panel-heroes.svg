@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="720" viewBox="0 0 390 720">
+  <defs>
+    <linearGradient id="hg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0f3460"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="expGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f5c518"/>
+      <stop offset="100%" stop-color="#e8a800"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="390" height="720" fill="#1a1a2e"/>
+
+  <!-- ═══ HEADER ═══ -->
+  <rect width="390" height="68" fill="url(#hg)"/>
+  <rect y="67" width="390" height="1" fill="#0f3460"/>
+  <!-- Decorative accent -->
+  <rect x="172" y="0" width="46" height="3" fill="#f5c518" opacity="0.6"/>
+  <text x="195" y="26" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="19" font-weight="bold" fill="#f5c518" letter-spacing="3">幻想三国</text>
+  <text x="195" y="41" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#777">三国放置策略游戏</text>
+  <!-- Resource chips -->
+  <rect x="6" y="51" width="82" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="47" y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#f5c518">💰 12,345</text>
+  <rect x="94" y="51" width="58" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="123" y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#eee">💎 88</text>
+  <rect x="158" y="51" width="68" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="192" y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#eee">🍚 4,200</text>
+  <rect x="232" y="51" width="68" height="14" rx="7" fill="#0f3460" opacity="0.8"/>
+  <text x="266" y="62" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#eee">⭐ 3,600</text>
+
+  <!-- ═══ TAB BAR ═══ -->
+  <rect y="68" width="390" height="44" fill="#0d1b2a"/>
+  <!-- Active: ⚔️武将 (tab 0, x=0) -->
+  <rect y="68" x="0" width="65" height="44" fill="#16213e"/>
+  <rect y="109" x="0" width="65" height="3" fill="#f5c518"/>
+  <text x="32" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#f5c518">⚔️ 武将</text>
+  <!-- Inactive tabs -->
+  <text x="97"  y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">🏟️ 战斗</text>
+  <text x="162" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">📖 剧情</text>
+  <text x="227" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">⭐ 招募</text>
+  <text x="292" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">🗡️ 装备</text>
+  <text x="357" y="94" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#555">⚙️ 设置</text>
+  <!-- Dividers -->
+  <line x1="65"  y1="73" x2="65"  y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="130" y1="73" x2="130" y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="195" y1="73" x2="195" y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="260" y1="73" x2="260" y2="108" stroke="#0f3460" stroke-width="1"/>
+  <line x1="325" y1="73" x2="325" y2="108" stroke="#0f3460" stroke-width="1"/>
+
+  <!-- ═══ CONTENT ═══ -->
+  <!-- Section header -->
+  <text x="12" y="131" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="13" font-weight="bold" fill="#eee">⚔️ 我的武将</text>
+  <rect x="310" y="119" width="68" height="20" rx="10" fill="#0f3460"/>
+  <text x="344" y="133" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#999">出战 3/5</text>
+
+  <!-- ── Formation grid (5 slots) ── -->
+  <!-- Slot 1: 诸葛亮 (legendary) -->
+  <rect x="10"  y="140" width="68" height="68" rx="7" fill="#16213e" stroke="#9c27b0" stroke-width="2"/>
+  <rect x="10"  y="140" width="68" height="3" rx="1" fill="#9c27b0" opacity="0.6"/>
+  <circle cx="44" cy="165" r="20" fill="#2a1040"/>
+  <text x="44" y="173" text-anchor="middle" font-size="20" font-family="sans-serif">🧙</text>
+  <text x="44" y="201" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#d8b4fe">诸葛亮</text>
+  <!-- Slot 2: 关羽 (epic) -->
+  <rect x="84"  y="140" width="68" height="68" rx="7" fill="#16213e" stroke="#2196f3" stroke-width="2"/>
+  <rect x="84"  y="140" width="68" height="3" rx="1" fill="#2196f3" opacity="0.6"/>
+  <circle cx="118" cy="165" r="20" fill="#0a1830"/>
+  <text x="118" y="173" text-anchor="middle" font-size="20" font-family="sans-serif">⚔️</text>
+  <text x="118" y="201" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#93c5fd">关羽</text>
+  <!-- Slot 3: 赵云 (rare) -->
+  <rect x="158" y="140" width="68" height="68" rx="7" fill="#16213e" stroke="#4caf50" stroke-width="2"/>
+  <rect x="158" y="140" width="68" height="3" rx="1" fill="#4caf50" opacity="0.6"/>
+  <circle cx="192" cy="165" r="20" fill="#0a2010"/>
+  <text x="192" y="173" text-anchor="middle" font-size="20" font-family="sans-serif">🛡️</text>
+  <text x="192" y="201" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#86efac">赵云</text>
+  <!-- Slot 4: Empty -->
+  <rect x="232" y="140" width="68" height="68" rx="7" fill="#0d1b2a" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="266" y="180" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#1e3a5f">+</text>
+  <text x="266" y="202" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#333">空位</text>
+  <!-- Slot 5: Empty -->
+  <rect x="306" y="140" width="68" height="68" rx="7" fill="#0d1b2a" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="340" y="180" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#1e3a5f">+</text>
+  <text x="340" y="202" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#333">空位</text>
+
+  <!-- ── Hero Card 1: 诸葛亮 (legendary/purple) ── -->
+  <rect x="10" y="222" width="370" height="96" rx="8" fill="#16213e" stroke="#9c27b0" stroke-width="1.5"/>
+  <rect x="10" y="222" width="5"   height="96" rx="2" fill="#9c27b0"/>
+  <circle cx="52" cy="270" r="28" fill="#2a1040"/>
+  <circle cx="52" cy="270" r="28" fill="none" stroke="#9c27b0" stroke-width="1.5"/>
+  <text x="52" y="279" text-anchor="middle" font-size="24" font-family="sans-serif">🧙</text>
+  <text x="92" y="242" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="14" font-weight="bold" fill="#eee">诸葛亮</text>
+  <rect x="152" y="228" width="34" height="16" rx="8" fill="#9c27b0"/>
+  <text x="169" y="240" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#fff">传说</text>
+  <rect x="192" y="228" width="34" height="16" rx="8" fill="#e94560" opacity="0.85"/>
+  <text x="209" y="240" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#fff">出战</text>
+  <text x="92" y="259" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#888">卧龙先生 · Lv.32</text>
+  <text x="92"  y="276" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">攻 850</text>
+  <text x="142" y="276" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">防 420</text>
+  <text x="192" y="276" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">血 4200</text>
+  <text x="252" y="276" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">速 95</text>
+  <!-- EXP bar -->
+  <rect x="92" y="284" width="170" height="5" rx="2.5" fill="#0f3460"/>
+  <rect x="92" y="284" width="119" height="5" rx="2.5" fill="url(#expGrad)"/>
+  <text x="268" y="291" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#888">70%</text>
+  <!-- Action buttons -->
+  <rect x="92"  y="296" width="52" height="18" rx="4" fill="#e94560"/>
+  <text x="118" y="309" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#fff">撤回</text>
+  <rect x="150" y="296" width="52" height="18" rx="4" fill="#0f3460"/>
+  <text x="176" y="309" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#ccc">升级</text>
+  <rect x="208" y="296" width="52" height="18" rx="4" fill="#0f3460"/>
+  <text x="234" y="309" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#ccc">装备</text>
+
+  <!-- ── Hero Card 2: 关羽 (epic/blue) ── -->
+  <rect x="10" y="326" width="370" height="96" rx="8" fill="#16213e" stroke="#2196f3" stroke-width="1.5"/>
+  <rect x="10" y="326" width="5"   height="96" rx="2" fill="#2196f3"/>
+  <circle cx="52" cy="374" r="28" fill="#0a1830"/>
+  <circle cx="52" cy="374" r="28" fill="none" stroke="#2196f3" stroke-width="1.5"/>
+  <text x="52" y="383" text-anchor="middle" font-size="24" font-family="sans-serif">⚔️</text>
+  <text x="92" y="346" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="14" font-weight="bold" fill="#eee">关羽</text>
+  <rect x="128" y="332" width="34" height="16" rx="8" fill="#2196f3"/>
+  <text x="145" y="344" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#fff">史诗</text>
+  <rect x="168" y="332" width="34" height="16" rx="8" fill="#e94560" opacity="0.85"/>
+  <text x="185" y="344" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#fff">出战</text>
+  <text x="92" y="363" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#888">武圣 · Lv.28</text>
+  <text x="92"  y="380" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">攻 1200</text>
+  <text x="148" y="380" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">防 680</text>
+  <text x="198" y="380" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">血 6800</text>
+  <text x="258" y="380" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">速 78</text>
+  <rect x="92" y="388" width="170" height="5" rx="2.5" fill="#0f3460"/>
+  <rect x="92" y="388" width="76"  height="5" rx="2.5" fill="url(#expGrad)"/>
+  <text x="268" y="395" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#888">45%</text>
+  <rect x="92"  y="400" width="52" height="18" rx="4" fill="#e94560"/>
+  <text x="118" y="413" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#fff">撤回</text>
+  <rect x="150" y="400" width="52" height="18" rx="4" fill="#0f3460"/>
+  <text x="176" y="413" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#ccc">升级</text>
+  <rect x="208" y="400" width="52" height="18" rx="4" fill="#0f3460"/>
+  <text x="234" y="413" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#ccc">装备</text>
+
+  <!-- ── Hero Card 3: 赵云 (rare/green) ── -->
+  <rect x="10" y="430" width="370" height="96" rx="8" fill="#16213e" stroke="#4caf50" stroke-width="1.5"/>
+  <rect x="10" y="430" width="5"   height="96" rx="2" fill="#4caf50"/>
+  <circle cx="52" cy="478" r="28" fill="#0a2010"/>
+  <circle cx="52" cy="478" r="28" fill="none" stroke="#4caf50" stroke-width="1.5"/>
+  <text x="52" y="487" text-anchor="middle" font-size="24" font-family="sans-serif">🛡️</text>
+  <text x="92" y="450" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="14" font-weight="bold" fill="#eee">赵云</text>
+  <rect x="128" y="436" width="34" height="16" rx="8" fill="#4caf50"/>
+  <text x="145" y="448" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#fff">稀有</text>
+  <text x="92" y="467" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#888">常山赵子龙 · Lv.24</text>
+  <text x="92"  y="484" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">攻 760</text>
+  <text x="142" y="484" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">防 920</text>
+  <text x="192" y="484" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">血 7500</text>
+  <text x="252" y="484" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#bbb">速 88</text>
+  <rect x="92" y="492" width="170" height="5" rx="2.5" fill="#0f3460"/>
+  <rect x="92" y="492" width="136" height="5" rx="2.5" fill="url(#expGrad)"/>
+  <text x="268" y="499" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="9" fill="#888">80%</text>
+  <rect x="92"  y="504" width="52" height="18" rx="4" fill="#0f3460"/>
+  <text x="118" y="517" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#ccc">出战</text>
+  <rect x="150" y="504" width="52" height="18" rx="4" fill="#0f3460"/>
+  <text x="176" y="517" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#ccc">升级</text>
+  <rect x="208" y="504" width="52" height="18" rx="4" fill="#0f3460"/>
+  <text x="234" y="517" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#ccc">装备</text>
+
+  <!-- Footer hint -->
+  <line x1="40"  y1="548" x2="170" y2="548" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="195" y="552" text-anchor="middle" font-family="'Microsoft YaHei','PingFang SC',sans-serif" font-size="10" fill="#333">还有 5 名武将</text>
+  <line x1="220" y1="548" x2="350" y2="548" stroke="#1e3a5f" stroke-width="1"/>
+</svg>

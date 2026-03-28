@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>幻想三国 - 放置游戏</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="game-header">
+      <h1>幻想三国</h1>
+      <div id="resources-bar"></div>
+    </header>
+
+    <nav id="tab-nav"></nav>
+
+    <main id="game-main">
+      <section id="panel-heroes" class="game-panel active"></section>
+      <section id="panel-battle" class="game-panel"></section>
+      <section id="panel-recruit" class="game-panel"></section>
+      <section id="panel-story" class="game-panel"></section>
+      <section id="panel-equipment" class="game-panel"></section>
+      <section id="panel-settings" class="game-panel"></section>
+    </main>
+  </div>
+
+  <!-- Core -->
+  <script src="js/core/constants.js"></script>
+  <script src="js/core/utils.js"></script>
+  <script src="js/core/event-bus.js"></script>
+  <script src="js/core/save-manager.js"></script>
+  <script src="js/core/game-loop.js"></script>
+
+  <!-- Data -->
+  <script src="js/data/heroes.js"></script>
+  <script src="js/data/stages.js"></script>
+  <script src="js/data/equipment.js"></script>
+  <script src="js/data/story/main-story.js"></script>
+  <script src="js/data/story/character-profiles.js"></script>
+  <script src="js/data/story/character-dialogues.js"></script>
+  <script src="js/data/story/idle-monologues.js"></script>
+
+  <!-- Modules -->
+  <script src="js/modules/resource-manager.js"></script>
+  <script src="js/modules/hero-manager.js"></script>
+  <script src="js/modules/battle-manager.js"></script>
+  <script src="js/modules/recruit-manager.js"></script>
+  <script src="js/modules/equipment-manager.js"></script>
+  <script src="js/modules/story-manager.js"></script>
+
+  <!-- UI -->
+  <script src="js/ui/toast.js"></script>
+  <script src="js/ui/modal.js"></script>
+  <script src="js/ui/tab-controller.js"></script>
+  <script src="js/ui/resources-bar.js"></script>
+  <script src="js/ui/hero-panel.js"></script>
+  <script src="js/ui/battle-panel.js"></script>
+  <script src="js/ui/recruit-panel.js"></script>
+  <script src="js/ui/equipment-panel.js"></script>
+  <script src="js/ui/story-panel.js"></script>
+  <script src="js/ui/settings-panel.js"></script>
+
+  <!-- Entry -->
+  <script src="js/main.js"></script>
+</body>
+</html>

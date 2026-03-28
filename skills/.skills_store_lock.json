@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "game-cog": {
+      "name": "game-cog",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=game-cog",
+      "source": "skillhub",
+      "version": "1.0.3"
+    },
+    "game": {
+      "name": "Game",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=game",
+      "source": "skillhub",
+      "version": "2.0.0"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+# AI Coding Documents (local only)
+/ai-docs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Dependencies
+/node_modules/
+
+# Build output
+/dist/
+
+# Logs
+*.log

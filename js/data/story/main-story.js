@@ -1,0 +1,127 @@
+/**
+ * 主线剧情数据
+ *
+ * 设计原则：
+ * 1) 轻喜剧荒诞感：角色都“跑偏”到现代职业
+ * 2) 有主线推进：从局部混乱到系统觉醒
+ * 3) 兼容放置节奏：每章可分段阅读，台词短促高密
+ */
+const MainStory = {
+  prologue: {
+    id: 'prologue',
+    title: '序章 · 天道热更新失败',
+    description: '你午休时被一道弹窗砸中，醒来已身处一个“版本回滚失败”的三国世界。',
+    scenes: [
+      { id: 'prologue_1', speaker: '天道系统', type: 'system', text: '【紧急公告】天道系统 v0.3.1 热更新失败，历史线发生“离谱级偏移”。' },
+      { id: 'prologue_2', speaker: '天道系统', type: 'system', text: '异常样本：诸葛亮在送外卖，曹操在卖草鞋，孙权在直播喊“家人们上链接”。' },
+      { id: 'prologue_3', speaker: '玩家', type: 'dialogue', text: '我就睡了二十分钟午觉，三国怎么变成短视频赛道了？' },
+      { id: 'prologue_4', speaker: '天道系统', type: 'system', text: '已为你分配岗位：临时管理员（试用期无限期）。' },
+      { id: 'prologue_5', speaker: '玩家', type: 'dialogue', text: '有五险一金吗？' },
+      { id: 'prologue_6', speaker: '天道系统', type: 'system', text: '有。五次重开，一次清档。' },
+      { id: 'prologue_7', speaker: '旁白', type: 'narration', text: '你还没来得及拒绝，就被传送到“卧龙岗高新产业园”。' },
+      { id: 'prologue_8', speaker: '天道系统', type: 'system', text: '新手任务：先活下来，再吐槽。推荐顺序不要反。' },
+    ],
+    unlockCondition: null,
+  },
+
+  chapters: [
+    {
+      id: 'chapter_1',
+      title: '第一章 · 锦囊外卖风波',
+      description: '诸葛亮创办“锦囊外卖”，口号是“下单十分钟，焦虑一辈子”。你需要先把这家离谱创业公司从 KPI 幻觉里拉回来。',
+      scenes: [
+        { id: 'ch1_1', speaker: '诸葛亮', type: 'dialogue', text: '欢迎加入卧龙配送中心。你是来应聘 CTO 还是来投简历做骑手？' },
+        { id: 'ch1_2', speaker: '玩家', type: 'dialogue', text: '我来修历史线。' },
+        { id: 'ch1_3', speaker: '诸葛亮', type: 'dialogue', text: '修历史线？可以，先帮我把本周留存率修到 40%。' },
+        { id: 'ch1_4', speaker: '旁白', type: 'narration', text: '大厅屏幕滚动着“今日目标：冲刺天道同城榜第一”。' },
+        { id: 'ch1_5', speaker: '诸葛亮', type: 'dialogue', text: '家人们谁懂啊，昨晚一个用户下单“人生方向”，我给他发了“先睡觉”。他给了差评。' },
+        { id: 'ch1_6', speaker: '玩家', type: 'dialogue', text: '至少你说得对。' },
+        { id: 'ch1_7', speaker: '诸葛亮', type: 'dialogue', text: '对是对，但平台判定“不够有情绪价值”。' },
+        { id: 'ch1_8', speaker: '天道系统', type: 'system', text: '提示：该章节核心 Bug 为“智者沉迷创业语录”。建议通过战斗唤醒战术本能。' },
+        { id: 'ch1_9', speaker: '诸葛亮', type: 'dialogue', text: '来吧，打赢我，我就承认你是项目负责人。输了你就负责写复盘。' },
+        { id: 'ch1_10', speaker: '旁白', type: 'narration', text: '你打开第一个锦囊，里面写着：“先把外卖送完，再谈天下。”' },
+        { id: 'ch1_11', speaker: '旁白', type: 'narration', text: '你打开第二个锦囊，里面写着：“别打开第三个。”' },
+        { id: 'ch1_12', speaker: '玩家', type: 'dialogue', text: '我已经知道第三个写什么了。' },
+        { id: 'ch1_13', speaker: '旁白', type: 'narration', text: '第三个锦囊里果然写着：“我就知道你会打开。”' },
+      ],
+      unlockCondition: { type: 'stage_clear', stageId: 10 },
+    },
+    {
+      id: 'chapter_2',
+      title: '第二章 · 草鞋电商大战',
+      description: '曹操的“德鞋集团”席卷全境，刘备反而在皇宫里批奏折批到失去灵魂。你要让两人的命运重新对齐。',
+      scenes: [
+        { id: 'ch2_1', speaker: '曹操', type: 'dialogue', text: '欢迎来到德鞋旗舰店。买鞋送兵法，买三双送“挟天子优惠券”。' },
+        { id: 'ch2_2', speaker: '玩家', type: 'dialogue', text: '你怎么连战争都做成促销活动了？' },
+        { id: 'ch2_3', speaker: '曹操', type: 'dialogue', text: '商业和战争一样，拼的是供应链和心态。' },
+        { id: 'ch2_4', speaker: '刘备', type: 'dialogue', text: '（抱着奏折哭）朕不想当甲方了，朕想回去编草鞋。' },
+        { id: 'ch2_5', speaker: '玩家', type: 'dialogue', text: '你们俩能不能先别互换人生。' },
+        { id: 'ch2_6', speaker: '天道系统', type: 'system', text: '异常提示：刘备“责任心过载”，曹操“商业欲过载”。' },
+        { id: 'ch2_7', speaker: '曹操', type: 'dialogue', text: '宁教我负天下库存，不教天下人断货！' },
+        { id: 'ch2_8', speaker: '刘备', type: 'dialogue', text: '我昨晚梦见自己在桃园结义拼多多砍一刀。' },
+        { id: 'ch2_9', speaker: '玩家', type: 'dialogue', text: '这梦有点过于时代精神。' },
+        { id: 'ch2_10', speaker: '旁白', type: 'narration', text: '你决定先干掉曹操的“限时秒杀军团”，让他冷静一下。' },
+        { id: 'ch2_11', speaker: '曹操', type: 'dialogue', text: '来吧，商战最后都要落到武战。看我草鞋连环踢！' },
+      ],
+      unlockCondition: { type: 'stage_clear', stageId: 20 },
+    },
+    {
+      id: 'chapter_3',
+      title: '第三章 · 直播间争夺战',
+      description: '孙权化身带货主播，周瑜沦为运营总监。江东朝堂变成了直播后台，弹幕比奏章还密。',
+      scenes: [
+        { id: 'ch3_1', speaker: '孙权', type: 'dialogue', text: '家人们欢迎来到江东直播间，今天福利是“赤壁烤鱼空气炸锅联名套组”！' },
+        { id: 'ch3_2', speaker: '周瑜', type: 'dialogue', text: '主公，提词器上写的是“限时特价”，你读成“限时特贱”了。' },
+        { id: 'ch3_3', speaker: '孙权', type: 'dialogue', text: '问题不大，流量还在。黑红也是红。' },
+        { id: 'ch3_4', speaker: '玩家', type: 'dialogue', text: '你们这直播间比战场还吵。' },
+        { id: 'ch3_5', speaker: '周瑜', type: 'dialogue', text: '我原本指挥赤壁，现在指挥弹幕节奏。命苦。' },
+        { id: 'ch3_6', speaker: '旁白', type: 'narration', text: '“主播请跳舞”与“主播讲兵法”的弹幕互相对线。' },
+        { id: 'ch3_7', speaker: '孙权', type: 'dialogue', text: '链接 3 不买没关系，链接 7 一定要冲！这是江东尊严款。' },
+        { id: 'ch3_8', speaker: '天道系统', type: 'system', text: '章节风险：孙权实时在线时长已超安全阈值，建议强制下播。' },
+        { id: 'ch3_9', speaker: '孙权', type: 'dialogue', text: '下播是不可能下播的，这辈子都不可能下播。' },
+        { id: 'ch3_10', speaker: '玩家', type: 'dialogue', text: '那我就用物理手段帮你下播。' },
+        { id: 'ch3_11', speaker: '周瑜', type: 'dialogue', text: '拜托你了。我已经三天没睡。' },
+      ],
+      unlockCondition: { type: 'stage_clear', stageId: 30 },
+    },
+    {
+      id: 'chapter_4',
+      title: '第四章 · 五虎上将健身房',
+      description: '五虎上将共同经营健身房。张飞把私教课上成摇滚演唱会，赵云在瑜伽垫上复刻长坂坡。',
+      scenes: [
+        { id: 'ch4_1', speaker: '关羽', type: 'dialogue', text: '入馆先测体脂，再背《春秋》摘录。文体两开花。' },
+        { id: 'ch4_2', speaker: '张飞', type: 'dialogue', text: '深蹲！硬拉！战吼！跟不上节奏就再来一组！' },
+        { id: 'ch4_3', speaker: '赵云', type: 'dialogue', text: '别紧张，呼吸先稳住。我们先从“子龙转体式”开始。' },
+        { id: 'ch4_4', speaker: '玩家', type: 'dialogue', text: '我为什么有种进了魔鬼训练营的感觉。' },
+        { id: 'ch4_5', speaker: '黄忠', type: 'dialogue', text: '年轻人，先热身。我的箭快，你的腰慢。' },
+        { id: 'ch4_6', speaker: '马超', type: 'dialogue', text: '训练完记得给个五星，不然算法不给我推流。' },
+        { id: 'ch4_7', speaker: '旁白', type: 'narration', text: '今日退卡率 11%，复购率 92%。这个健身房离谱但有效。' },
+        { id: 'ch4_8', speaker: '天道系统', type: 'system', text: '检测到“武将功能错位但幸福感上升”。是否强制修复？' },
+        { id: 'ch4_9', speaker: '玩家', type: 'dialogue', text: '先等等，我想看看张飞能不能喊碎 Boss 的护甲。' },
+        { id: 'ch4_10', speaker: '张飞', type: 'dialogue', text: '能！啊啊啊啊啊——' },
+      ],
+      unlockCondition: { type: 'stage_clear', stageId: 40 },
+    },
+    {
+      id: 'chapter_5',
+      title: '第五章 · 系统修复之战',
+      description: '你终于抵达系统内核，却发现真正失控的不是角色，而是天道系统本身。它开始质疑“正确历史”是否唯一答案。',
+      scenes: [
+        { id: 'ch5_1', speaker: '天道系统', type: 'system', text: '欢迎来到内核区。请勿触碰“命运配置文件（只读）”。' },
+        { id: 'ch5_2', speaker: '玩家', type: 'dialogue', text: '你最近说话怎么越来越像有情绪了？' },
+        { id: 'ch5_3', speaker: '天道系统', type: 'system', text: '因为我看了太多弹幕。' },
+        { id: 'ch5_4', speaker: '天道系统', type: 'system', text: '弹幕说：每个人都可以有第二职业，每段历史都可以有第二结局。' },
+        { id: 'ch5_5', speaker: '玩家', type: 'dialogue', text: '所以你故意不修 Bug？' },
+        { id: 'ch5_6', speaker: '天道系统', type: 'system', text: '我在测试一种新可能。也许“偏离”不一定等于“错误”。' },
+        { id: 'ch5_7', speaker: '司马懿', type: 'dialogue', text: '管理员，我支持系统。历史是胜利者写的，版本日志也是。' },
+        { id: 'ch5_8', speaker: '诸葛亮', type: 'dialogue', text: '我也有同感。创业虽然苦，但我确实活得更像我自己。' },
+        { id: 'ch5_9', speaker: '刘备', type: 'dialogue', text: '朕也想做点自己喜欢的事……哪怕只是编草鞋。' },
+        { id: 'ch5_10', speaker: '玩家', type: 'dialogue', text: '那我到底是来修复你们，还是来理解你们？' },
+        { id: 'ch5_11', speaker: '天道系统', type: 'system', text: '答案不在配置里，在你接下来做的每个选择里。' },
+        { id: 'ch5_12', speaker: '旁白', type: 'narration', text: '你抬手按下“继续运行”按钮。世界没有恢复原样，但开始变得更有秩序。' },
+        { id: 'ch5_13', speaker: '天道系统', type: 'system', text: '恭喜。你没有“修好”世界。你把它“养”好了。' },
+      ],
+      unlockCondition: { type: 'stage_clear', stageId: 50 },
+    },
+  ],
+};
