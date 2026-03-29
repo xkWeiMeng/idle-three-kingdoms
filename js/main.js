@@ -18,6 +18,9 @@
       recruit: RecruitManager.getState(),
       equipment: EquipmentManager.getState(),
       story: StoryManager.getState(),
+      town: TownManager.getState(),
+      adventure: AdventureManager.getState(),
+      economy: EconomyManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
@@ -26,31 +29,44 @@
   function initGame() {
     const saved = SaveManager.load();
 
-    // 初始化各模块
+    // 初始化各模块（顺序重要：EconomyManager 需在 ResourceManager 之后）
     ResourceManager.init(saved);
     HeroManager.init(saved);
     BattleManager.init(saved);
     RecruitManager.init(saved);
     EquipmentManager.init(saved);
     StoryManager.init(saved);
+    TownManager.init(saved);
+    AdventureManager.init(saved);
+    EconomyManager.init(saved);
 
     // 初始化 UI
     Toast.init();
     Modal.init();
-    TabController.init();
+    OverlayPanel.init();
+    BottomNav.init();
     ResourcesBar.init();
     HeroPanel.init();
+    BattleAnimations.init();
     BattlePanel.init();
     RecruitPanel.init();
     EquipmentPanel.init();
     StoryPanel.init();
     SettingsPanel.init(saved);
+    TownPanel.init();
+    AdventurePanel.init();
+    EconomyPanel.init();
+    TownWorld.init();
+    TownCharacters.init();
 
     // 注册 tick 回调
     EventBus.on('game:tick', (dt) => {
       ResourceManager.onTick(dt);
       BattleManager.onTick(dt);
       StoryManager.onTick(dt);
+      TownManager.onTick(dt);
+      AdventureManager.onTick(dt);
+      EconomyManager.onTick(dt);
     });
 
     // 离线收益计算
@@ -77,32 +93,58 @@
   }
 
   function _showOfflineRewards(offlineSeconds, saved) {
-    // 离线收益：50%效率
-    const stage = StageData.find(s => s.id === (saved.battle?.currentStage || 'stage_1_1'));
-    if (!stage) return;
+    // 使用 AdventureManager 计算离线收益（如可用）
+    var rewards = null;
+    if (typeof AdventureManager !== 'undefined' && AdventureManager.calculateOfflineRewards) {
+      rewards = AdventureManager.calculateOfflineRewards(saved.timestamp);
+    }
 
-    const hours = Math.floor(offlineSeconds / 3600);
-    const mins = Math.floor((offlineSeconds % 3600) / 60);
+    if (!rewards) {
+      // 兜底：旧逻辑
+      const stage = StageData.find(s => s.id === (saved.battle?.currentStage || 'stage_1_1'));
+      if (!stage) return;
+      var goldPerSec = stage.rewards.gold / 5;
+      var expPerSec = stage.rewards.exp / 5;
+      rewards = {
+        gold: Math.floor(goldPerSec * offlineSeconds * 0.5),
+        exp: Math.floor(expPerSec * offlineSeconds * 0.5),
+        wood: 0, stone: 0, iron: 0,
+        battles: Math.floor(offlineSeconds / 5),
+        offlineSec: offlineSeconds,
+        efficiency: 0.5,
+        region: ''
+      };
+    }
 
-    const goldPerSec = stage.rewards.gold / 5;
-    const expPerSec = stage.rewards.exp / 5;
-    const offlineGold = Math.floor(goldPerSec * offlineSeconds * 0.5);
-    const offlineExp = Math.floor(expPerSec * offlineSeconds * 0.5);
-
-    if (offlineGold > 0) ResourceManager.add('gold', offlineGold);
-    if (offlineExp > 0) ResourceManager.add('exp', offlineExp);
-
+    const hours = Math.floor(rewards.offlineSec / 3600);
+    const mins = Math.floor((rewards.offlineSec % 3600) / 60);
     const timeStr = hours > 0 ? `${hours}小时${mins}分钟` : `${mins}分钟`;
+
+    // 发放资源
+    if (rewards.gold > 0) ResourceManager.add('gold', rewards.gold, 'offline', 'offline_reward');
+    if (rewards.exp > 0) ResourceManager.add('exp', rewards.exp, 'offline', 'offline_reward');
+    if (rewards.wood > 0) ResourceManager.add('wood', rewards.wood, 'offline', 'offline_reward');
+    if (rewards.stone > 0) ResourceManager.add('stone', rewards.stone, 'offline', 'offline_reward');
+    if (rewards.iron > 0) ResourceManager.add('iron', rewards.iron, 'offline', 'offline_reward');
+
+    var effPct = Math.round((rewards.efficiency || 0.5) * 100);
+    var regionLine = rewards.region ? `<p>英雄们在「${rewards.region}」替你战斗了</p>` : '';
 
     setTimeout(() => {
       Modal.show({
-        title: '🌙 离线收益',
+        title: '☀ 欢迎回来！',
         content: `
           <div style="text-align:center;line-height:2;">
             <p>你离开了 <b style="color:#f5c518">${timeStr}</b></p>
-            <p>获得 💰 <b style="color:#f5c518">${Utils.formatNumber(offlineGold)}</b> 金币</p>
-            <p>获得 ⭐ <b style="color:#f5c518">${Utils.formatNumber(offlineExp)}</b> 经验</p>
-            <p style="color:#999;font-size:0.68rem;">（离线效率50%）</p>
+            ${regionLine}
+            <p>共完成 <b style="color:#f5c518">${Utils.formatNumber(rewards.battles)}</b> 场战斗</p>
+            <hr style="border-color:#333;margin:8px 0;">
+            <p>💰 金币 <b style="color:#f5c518">+${Utils.formatNumber(rewards.gold)}</b></p>
+            <p>⭐ 经验 <b style="color:#f5c518">+${Utils.formatNumber(rewards.exp)}</b></p>
+            ${rewards.wood > 0 ? `<p>🪵 木材 <b style="color:#8b6914">+${Utils.formatNumber(rewards.wood)}</b></p>` : ''}
+            ${rewards.stone > 0 ? `<p>🪨 石材 <b style="color:#9e9e9e">+${Utils.formatNumber(rewards.stone)}</b></p>` : ''}
+            ${rewards.iron > 0 ? `<p>⛏️ 铁矿 <b style="color:#607d8b">+${Utils.formatNumber(rewards.iron)}</b></p>` : ''}
+            <p style="color:#999;font-size:0.68rem;">（离线效率${effPct}%）</p>
           </div>
         `,
         confirmText: '收下！',

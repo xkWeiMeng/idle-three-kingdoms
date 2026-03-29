@@ -11,6 +11,17 @@ const EquipmentPanel = {
   _statLabels: { atk: '⚔ATK', def: '🛡DEF', hp: '❤HP', spd: '💨SPD' },
   _filterNames: { all: '全部', weapon: '武器', armor: '防具', accessory: '饰品', mount: '坐骑' },
 
+  /** 获取装备图标的 img 标签或 emoji 回退 */
+  _equipIcon: function (equip, size) {
+    size = size || 32;
+    var iconKey = SpriteAtlas.getEquipmentIconKey(equip.type, equip.quality);
+    var dataURL = SpriteEngine.getIconDataURL('equipment', iconKey, size);
+    if (dataURL) {
+      return '<img src="' + dataURL + '" style="width:' + size + 'px;height:' + size + 'px;image-rendering:pixelated;vertical-align:middle;" alt="' + equip.name + '">';
+    }
+    return equip.emoji || '📦';
+  },
+
   init: function () {
     this._container = document.getElementById('panel-equipment');
     this._render();
@@ -143,7 +154,7 @@ const EquipmentPanel = {
         var statVal = EquipmentManager.getEquipStatValue(equip);
 
         html += '<div style="flex:1;display:flex;align-items:center;gap:6px;">';
-        html += '<span style="font-size:1rem;">' + (equip.emoji || '📦') + '</span>';
+        html += '<span style="font-size:1rem;">' + this._equipIcon(equip, 28) + '</span>';
         html += '<span style="color:' + eColor + ';font-size:0.82rem;font-weight:bold;">' + equip.name;
         if (equip.level > 0) html += ' +' + equip.level;
         html += '</span>';
@@ -228,9 +239,9 @@ const EquipmentPanel = {
     html += 'background:var(--color-secondary);border:2px solid ' + color + ';';
     html += glowStyle + selectedStyle + 'transition:all 0.2s;">';
 
-    // Emoji + level
+    // Icon + level
     html += '<div style="font-size:1.3rem;position:relative;">';
-    html += equip.emoji || '📦';
+    html += this._equipIcon(equip, 36);
     if (equip.level > 0) {
       html += '<span style="position:absolute;top:-2px;right:2px;font-size:0.55rem;color:var(--color-gold);font-weight:bold;">+' + equip.level + '</span>';
     }
@@ -273,7 +284,7 @@ const EquipmentPanel = {
 
     // Title row
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
-    html += '<span style="font-size:1.5rem;">' + (equip.emoji || '📦') + '</span>';
+    html += '<span style="font-size:1.5rem;">' + this._equipIcon(equip, 48) + '</span>';
     html += '<div>';
     html += '<div style="display:flex;align-items:center;gap:6px;">';
     html += '<span style="font-weight:bold;color:' + color + ';font-size:1rem;">' + equip.name;

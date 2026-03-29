@@ -4,10 +4,13 @@
 const TabController = {
   _tabs: [
     { id: 'heroes', label: '武将' },
+    { id: 'adventure', label: '冒险' },
     { id: 'battle', label: '战斗' },
-    { id: 'story', label: '剧情' },
+    { id: 'town', label: '城镇' },
+    { id: 'economy', label: '经济' },
     { id: 'recruit', label: '招募' },
     { id: 'equipment', label: '装备' },
+    { id: 'story', label: '剧情' },
     { id: 'settings', label: '设置' },
   ],
 

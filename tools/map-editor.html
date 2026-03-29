@@ -1,0 +1,2349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地图编辑器 - Map Editor</title>
+<style>
+/* ========== CSS Variables ========== */
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #1c2a4a;
+  --primary: #e94560;
+  --secondary: #0f3460;
+  --gold: #f5c518;
+  --text: #eee;
+  --text-dim: #999;
+  --success: #4caf50;
+  --danger: #f44336;
+  --info: #2196f3;
+  --border: #2a2a4a;
+  --border-light: #3a3a5a;
+  --shadow: rgba(0,0,0,0.4);
+  --left-w: 280px;
+  --right-w: 300px;
+  --header-h: 48px;
+  --toolbar-h: 40px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+}
+h2 { font-size: 0.95rem; margin-bottom: 6px; color: var(--gold); }
+h3 { font-size: 0.85rem; margin-bottom: 4px; color: var(--text-dim); }
+
+/* ========== Layout ========== */
+.app {
+  display: grid;
+  grid-template-columns: var(--left-w) 1fr var(--right-w);
+  grid-template-rows: var(--header-h) var(--toolbar-h) 1fr;
+  height: 100vh;
+}
+
+/* ========== Header ========== */
+.header {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+}
+.header h1 { font-size: 1.1rem; color: var(--gold); white-space: nowrap; }
+.header .sep { width: 1px; height: 24px; background: var(--border); }
+.header-actions { display: flex; gap: 6px; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.header-right .map-name-input {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--gold);
+  padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; width: 160px; text-align: center;
+}
+.header-right .coords { color: var(--text-dim); font-size: 0.75rem; font-family: monospace; }
+
+/* ========== Toolbar ========== */
+.toolbar {
+  grid-column: 1 / -1;
+  background: var(--surface2);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  z-index: 99;
+  overflow-x: auto;
+}
+.toolbar .tool-group {
+  display: flex; gap: 2px;
+  padding: 0 6px;
+  border-right: 1px solid var(--border);
+}
+.toolbar .tool-group:last-child { border-right: none; }
+.tool-group label { font-size: 0.7rem; color: var(--text-dim); margin-right: 4px; align-self: center; }
+
+/* ========== Buttons ========== */
+.btn {
+  padding: 4px 10px; border: 1px solid var(--border); background: var(--secondary);
+  color: var(--text); border-radius: 4px; cursor: pointer; font-size: 0.78rem;
+  white-space: nowrap; transition: all 0.15s;
+}
+.btn:hover { background: #1a4a7a; border-color: var(--primary); }
+.btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-sm { padding: 2px 6px; font-size: 0.72rem; }
+.btn-icon {
+  width: 30px; height: 30px; padding: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 1rem; border: 1px solid var(--border);
+  background: var(--secondary); color: var(--text); border-radius: 4px; cursor: pointer;
+}
+.btn-icon:hover { background: #1a4a7a; }
+.btn-icon.active { background: var(--primary); border-color: var(--primary); }
+.btn-success { background: #2e7d32; border-color: #388e3c; }
+.btn-success:hover { background: #388e3c; }
+.btn-danger { background: #c62828; border-color: #d32f2f; }
+.btn-danger:hover { background: #d32f2f; }
+
+/* ========== Side Panels ========== */
+.panel-left, .panel-right {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.panel-right { border-right: none; border-left: 1px solid var(--border); }
+.panel-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-section.collapsed .panel-section-body { display: none; }
+.panel-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none; margin-bottom: 6px;
+}
+.panel-section-header:hover h2 { color: #fff; }
+.panel-section-header .toggle { color: var(--text-dim); font-size: 0.7rem; }
+
+/* ========== Canvas Area ========== */
+.canvas-area {
+  position: relative;
+  overflow: hidden;
+  background: #0d0d1a;
+  cursor: crosshair;
+}
+.canvas-area canvas {
+  position: absolute;
+  top: 0; left: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ========== Tileset Palette ========== */
+.tileset-drop-zone {
+  border: 2px dashed var(--border-light);
+  border-radius: 6px;
+  padding: 16px 8px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  margin-bottom: 8px;
+}
+.tileset-drop-zone:hover, .tileset-drop-zone.drag-over {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.tileset-drop-zone input { display: none; }
+
+.import-btns { display: flex; gap: 4px; margin-bottom: 8px; }
+
+.tileset-tabs {
+  display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px;
+}
+.tileset-tab {
+  padding: 2px 8px; font-size: 0.7rem; border-radius: 3px;
+  background: var(--surface2); border: 1px solid var(--border);
+  cursor: pointer; color: var(--text-dim); position: relative;
+}
+.tileset-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tileset-tab .close-tab {
+  margin-left: 4px; color: var(--text-dim); font-size: 0.65rem; cursor: pointer;
+}
+.tileset-tab .close-tab:hover { color: var(--danger); }
+
+.tile-size-row {
+  display: flex; gap: 4px; align-items: center; margin-bottom: 6px; font-size: 0.75rem;
+}
+.tile-size-row input {
+  width: 45px; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 2px 4px; border-radius: 3px; text-align: center;
+  font-size: 0.75rem;
+}
+.tile-size-row label { color: var(--text-dim); min-width: 14px; }
+
+.palette-canvas-wrap {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 300px;
+  background: #0a0a1a;
+  position: relative;
+}
+.palette-canvas-wrap canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: pointer;
+}
+
+/* ========== Folder Browser ========== */
+.folder-browser { max-height: 400px; overflow-y: auto; }
+.folder-group { margin-bottom: 4px; }
+.folder-header {
+  display: flex; align-items: center; gap: 4px; padding: 3px 6px;
+  background: var(--surface2); border-radius: 4px; cursor: pointer;
+  font-size: 0.78rem; user-select: none; margin-bottom: 2px;
+}
+.folder-header:hover { background: #1a3a5a; }
+.folder-header .folder-toggle { font-size: 0.65rem; color: var(--text-dim); width: 12px; }
+.folder-header .folder-name { flex: 1; color: var(--gold); }
+.folder-header .folder-count { color: var(--text-dim); font-size: 0.65rem; }
+.folder-header .folder-del {
+  border: none; background: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 0 2px;
+}
+.folder-header .folder-del:hover { color: var(--danger); }
+.folder-group.collapsed .folder-tiles { display: none; }
+.folder-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 3px;
+  padding: 4px 4px 6px 4px;
+}
+.folder-tile {
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  background: #0a0a1a;
+  overflow: hidden;
+  aspect-ratio: 1;
+}
+.folder-tile:hover { border-color: var(--primary); }
+.folder-tile.selected { border-color: var(--gold); box-shadow: 0 0 6px rgba(245,197,24,0.5); }
+.folder-tile img {
+  width: 100%; height: 100%; object-fit: contain;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  display: block;
+}
+.folder-tile .tile-label {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.7); color: var(--text-dim);
+  font-size: 0.55rem; padding: 1px 2px; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ========== Tile Properties ========== */
+.tile-props { font-size: 0.78rem; }
+.tile-props .prop-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.tile-props .prop-row label { color: var(--text-dim); min-width: 40px; }
+.tile-props .prop-row input, .tile-props .prop-row select {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 2px 6px; border-radius: 3px; font-size: 0.75rem;
+}
+.tile-preview-box {
+  display: inline-block; border: 2px solid var(--gold); background: #000;
+  image-rendering: pixelated; margin-right: 8px;
+}
+
+/* ========== Layers Panel ========== */
+.layer-list { list-style: none; }
+.layer-item {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+  border: 1px solid transparent; border-radius: 4px; margin-bottom: 2px;
+  cursor: pointer; font-size: 0.78rem;
+}
+.layer-item:hover { background: var(--surface2); }
+.layer-item.active { border-color: var(--primary); background: rgba(233,69,96,0.15); }
+.layer-item .vis-btn {
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 0.8rem; border: none; background: none; color: var(--text);
+}
+.layer-item .vis-btn.hidden { opacity: 0.3; }
+.layer-item .layer-name { flex: 1; }
+.layer-item .layer-type { color: var(--text-dim); font-size: 0.65rem; }
+.layer-actions { display: flex; gap: 4px; margin-top: 6px; }
+
+/* ========== Map Properties ========== */
+.map-prop-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 5px; font-size: 0.78rem;
+}
+.map-prop-row label { color: var(--text-dim); min-width: 50px; }
+.map-prop-row input, .map-prop-row select {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 3px 6px; border-radius: 3px; font-size: 0.75rem;
+}
+
+/* ========== Spawn/Trigger List ========== */
+.marker-list { list-style: none; max-height: 200px; overflow-y: auto; }
+.marker-item {
+  display: flex; align-items: center; gap: 6px; padding: 3px 6px;
+  border-radius: 3px; margin-bottom: 2px; font-size: 0.72rem;
+  background: var(--surface2);
+}
+.marker-item .marker-icon { font-size: 0.9rem; }
+.marker-item .marker-info { flex: 1; }
+.marker-item .marker-pos { color: var(--text-dim); font-family: monospace; }
+.marker-item .del-btn {
+  cursor: pointer; color: var(--text-dim); border: none; background: none; font-size: 0.8rem;
+}
+.marker-item .del-btn:hover { color: var(--danger); }
+
+/* ========== Map Index ========== */
+.map-list { list-style: none; max-height: 250px; overflow-y: auto; }
+.map-list-item {
+  display: flex; align-items: center; gap: 6px; padding: 5px 8px;
+  border-radius: 4px; margin-bottom: 3px; font-size: 0.78rem;
+  background: var(--surface2); cursor: pointer;
+}
+.map-list-item:hover { background: #1a3a5a; }
+.map-list-item.active { border: 1px solid var(--primary); }
+.map-list-item .map-item-name { flex: 1; }
+.map-list-item .map-item-size { color: var(--text-dim); font-size: 0.68rem; }
+
+/* ========== Toast ========== */
+.toast {
+  position: fixed; top: 60px; right: 20px; padding: 10px 18px;
+  border-radius: 6px; font-size: 0.82rem; z-index: 9999;
+  animation: toastIn 0.3s ease; pointer-events: none;
+}
+.toast.success { background: var(--success); color: #fff; }
+.toast.error { background: var(--danger); color: #fff; }
+.toast.info { background: var(--info); color: #fff; }
+@keyframes toastIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+
+/* ========== Modal ========== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 20px; min-width: 360px; max-width: 520px; max-height: 80vh; overflow-y: auto;
+}
+.modal h2 { margin-bottom: 12px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+/* ========== Misc ========== */
+.zoom-display {
+  font-size: 0.7rem; color: var(--text-dim); font-family: monospace;
+  padding: 2px 6px; background: var(--surface2); border-radius: 3px;
+}
+.shortcut-hint { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===== Header ===== -->
+  <div class="header">
+    <h1>🗺️ 地图编辑器</h1>
+    <div class="sep"></div>
+    <div class="header-actions">
+      <button class="btn" onclick="App.newMap()" title="新建地图 (Ctrl+N)">📄 新建</button>
+      <button class="btn" onclick="MapIO.importJSON()" title="导入 JSON">📂 导入</button>
+      <button class="btn btn-success" onclick="MapIO.saveToLocal()" title="保存到浏览器 (Ctrl+S)">💾 保存</button>
+      <button class="btn" onclick="MapIO.exportJSON()" title="导出 JSON 文件">📦 导出</button>
+      <button class="btn" onclick="MapIO.exportRegistry()" title="导出注册表">📋 导出注册表</button>
+    </div>
+    <div class="header-right">
+      <input class="map-name-input" id="map-name" value="未命名地图" placeholder="地图名称"
+             oninput="MapData.current.name=this.value">
+      <span class="coords" id="cursor-coords">X:0 Y:0</span>
+      <span class="zoom-display" id="zoom-display">100%</span>
+    </div>
+  </div>
+
+  <!-- ===== Toolbar ===== -->
+  <div class="toolbar">
+    <div class="tool-group">
+      <button class="btn-icon active" data-tool="brush" onclick="PaintTools.setTool('brush')" title="画笔 (B)">🖌️</button>
+      <button class="btn-icon" data-tool="rect" onclick="PaintTools.setTool('rect')" title="矩形填充 (R)">⬜</button>
+      <button class="btn-icon" data-tool="fill" onclick="PaintTools.setTool('fill')" title="油漆桶 (G)">🪣</button>
+      <button class="btn-icon" data-tool="eraser" onclick="PaintTools.setTool('eraser')" title="橡皮擦 (E)">🧹</button>
+      <button class="btn-icon" data-tool="eyedrop" onclick="PaintTools.setTool('eyedrop')" title="取色器 (I)">💉</button>
+      <button class="btn-icon" data-tool="spawn" onclick="PaintTools.setTool('spawn')" title="放置出生点 (P)">📍</button>
+      <button class="btn-icon" data-tool="trigger" onclick="PaintTools.setTool('trigger')" title="放置触发器 (T)">🚪</button>
+    </div>
+    <div class="tool-group">
+      <button class="btn-icon" onclick="UndoManager.undo()" title="撤销 (Ctrl+Z)">↩️</button>
+      <button class="btn-icon" onclick="UndoManager.redo()" title="重做 (Ctrl+Y)">↪️</button>
+    </div>
+    <div class="tool-group">
+      <label>网格</label>
+      <button class="btn-icon active" id="btn-grid" onclick="MapCanvas.toggleGrid()" title="显示/隐藏网格">🔲</button>
+    </div>
+    <div class="tool-group">
+      <button class="btn-icon" onclick="MapCanvas.zoomIn()" title="放大 (+)">🔍+</button>
+      <button class="btn-icon" onclick="MapCanvas.zoomOut()" title="缩小 (-)">🔍-</button>
+      <button class="btn-icon" onclick="MapCanvas.resetView()" title="重置视图">🏠</button>
+    </div>
+    <div class="tool-group">
+      <label>笔刷</label>
+      <select id="brush-size" onchange="PaintTools.setBrushSize(+this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:2px;border-radius:3px;font-size:0.72rem;">
+        <option value="1">1×1</option>
+        <option value="2">2×2</option>
+        <option value="3">3×3</option>
+        <option value="5">5×5</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ===== Left Panel ===== -->
+  <div class="panel-left">
+    <!-- Tileset Loading -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>📦 贴图集管理</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <div class="tileset-drop-zone" id="tileset-drop" onclick="document.getElementById('tileset-file').click()">
+          拖放 PNG 到此处<br>或点击选择贴图集
+          <input type="file" id="tileset-file" accept="image/png,image/jpeg,image/webp" multiple
+                 onchange="TilesetManager.onFileSelect(this.files)">
+        </div>
+        <div class="import-btns">
+          <button class="btn btn-sm" onclick="document.getElementById('folder-file').click()">📁 导入文件夹</button>
+          <input type="file" id="folder-file" webkitdirectory multiple style="display:none"
+                 onchange="FolderBrowser.onFolderSelect(this.files)">
+          <button class="btn btn-sm" onclick="document.getElementById('multi-png-file').click()">🖼️ 多个PNG</button>
+          <input type="file" id="multi-png-file" accept="image/png,image/jpeg,image/webp" multiple style="display:none"
+                 onchange="FolderBrowser.onMultiFileSelect(this.files)">
+        </div>
+        <div class="tileset-tabs" id="tileset-tabs"></div>
+        <div class="tile-size-row">
+          <label>W:</label>
+          <input type="number" id="tile-w" value="16" min="4" max="256" onchange="TilesetManager.updateTileSize()">
+          <label>H:</label>
+          <input type="number" id="tile-h" value="16" min="4" max="256" onchange="TilesetManager.updateTileSize()">
+          <button class="btn btn-sm" onclick="TilesetManager.autoDetectSize()">自动</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Folder Browser (individual tiles) -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>📁 瓦片文件夹</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <div class="folder-browser" id="folder-browser">
+          <div style="color:var(--text-dim);font-size:0.72rem;padding:4px;">
+            点击上方「导入文件夹」选择含 PNG 的文件夹
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tile Palette -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>🎨 瓦片调色板</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <div class="palette-canvas-wrap" id="palette-wrap">
+          <canvas id="palette-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selected Tile Info -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>🔍 瓦片属性</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body tile-props" id="tile-props">
+        <div style="color:var(--text-dim);font-size:0.75rem;">点击调色板选择瓦片</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Center Canvas ===== -->
+  <div class="canvas-area" id="canvas-area">
+    <canvas id="map-canvas"></canvas>
+  </div>
+
+  <!-- ===== Right Panel ===== -->
+  <div class="panel-right">
+    <!-- Layers -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>📚 图层</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <ul class="layer-list" id="layer-list"></ul>
+        <div class="layer-actions">
+          <button class="btn btn-sm" onclick="LayerPanel.addLayer('tile')">+ 瓦片层</button>
+          <button class="btn btn-sm" onclick="LayerPanel.addLayer('collision')">+ 碰撞层</button>
+          <button class="btn btn-sm btn-danger" onclick="LayerPanel.deleteLayer()">删除</button>
+          <button class="btn btn-sm" onclick="LayerPanel.moveLayer(-1)">↑</button>
+          <button class="btn btn-sm" onclick="LayerPanel.moveLayer(1)">↓</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map Properties -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>⚙️ 地图属性</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <div class="map-prop-row">
+          <label>ID:</label>
+          <input id="map-id" value="map_001" oninput="MapData.current.id=this.value">
+        </div>
+        <div class="map-prop-row">
+          <label>宽度:</label>
+          <input type="number" id="map-width" value="30" min="5" max="200" onchange="App.resizeMap()">
+        </div>
+        <div class="map-prop-row">
+          <label>高度:</label>
+          <input type="number" id="map-height" value="20" min="5" max="200" onchange="App.resizeMap()">
+        </div>
+        <div class="map-prop-row">
+          <label>瓦片:</label>
+          <span id="map-tile-info" style="color:var(--text-dim);font-size:0.72rem;">16×16</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spawns -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>📍 出生点</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <ul class="marker-list" id="spawn-list"></ul>
+        <p class="shortcut-hint">使用 📍 工具在地图上点击放置</p>
+      </div>
+    </div>
+
+    <!-- Triggers -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>🚪 触发器</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <ul class="marker-list" id="trigger-list"></ul>
+        <p class="shortcut-hint">使用 🚪 工具在地图上点击放置</p>
+      </div>
+    </div>
+
+    <!-- Map Index -->
+    <div class="panel-section">
+      <div class="panel-section-header" onclick="toggleSection(this)">
+        <h2>📋 地图索引</h2>
+        <span class="toggle">▼</span>
+      </div>
+      <div class="panel-section-body">
+        <ul class="map-list" id="map-index-list"></ul>
+        <div class="layer-actions" style="margin-top:8px;">
+          <button class="btn btn-sm btn-success" onclick="MapIndex.addCurrent()">添加当前地图</button>
+          <button class="btn btn-sm btn-danger" onclick="MapIndex.removeCurrent()">移除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="MapIO.onImportFile(this.files)">
+
+<script>
+/* ============================================================
+ *  UTILITY HELPERS
+ * ============================================================ */
+function toggleSection(header) {
+  header.parentElement.classList.toggle('collapsed');
+  var t = header.querySelector('.toggle');
+  t.textContent = t.textContent === '▼' ? '▶' : '▼';
+}
+
+function showToast(msg, type) {
+  type = type || 'info';
+  var el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.remove(); }, 2500);
+}
+
+function showModal(title, bodyHTML, actions) {
+  var ov = document.getElementById('modal-overlay');
+  var mc = document.getElementById('modal-content');
+  var actHTML = '';
+  (actions || []).forEach(function(a) {
+    actHTML += '<button class="btn ' + (a.cls || '') + '" onclick="' + a.onclick + '">' + a.label + '</button>';
+  });
+  mc.innerHTML = '<h2>' + title + '</h2>' + bodyHTML + '<div class="modal-actions">' + actHTML + '</div>';
+  ov.classList.remove('hidden');
+}
+function hideModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+}
+
+// Global spacebar state for canvas panning
+var _spaceHeld = false;
+document.addEventListener('keydown', function(e) {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    _spaceHeld = true;
+    var area = document.getElementById('canvas-area');
+    if (area && !MapCanvas._panning) area.style.cursor = 'grab';
+  }
+});
+document.addEventListener('keyup', function(e) {
+  if (e.code === 'Space') {
+    _spaceHeld = false;
+    var area = document.getElementById('canvas-area');
+    if (area && !MapCanvas._panning) area.style.cursor = 'crosshair';
+  }
+});
+
+/* ============================================================
+ *  TILESET MANAGER — Load, slice, manage tilesets
+ * ============================================================ */
+var TilesetManager = {
+  tilesets: [],       // Array of { id, name, src (dataURL), img (Image), tw, th, cols, rows, tiles[] }
+  activeIdx: -1,      // Active tileset index
+  selectedTile: null, // { tilesetIdx, tileId }
+
+  onFileSelect: function(files) {
+    for (var i = 0; i < files.length; i++) {
+      this._loadFile(files[i]);
+    }
+  },
+
+  _loadFile: function(file) {
+    var self = this;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var tw = parseInt(document.getElementById('tile-w').value) || 16;
+        var th = parseInt(document.getElementById('tile-h').value) || 16;
+        var ts = {
+          id: 'ts_' + uid(),
+          name: file.name.replace(/\.\w+$/, ''),
+          src: e.target.result,
+          img: img,
+          tw: tw,
+          th: th,
+          cols: Math.floor(img.width / tw),
+          rows: Math.floor(img.height / th),
+          tiles: []
+        };
+        // Generate tile metadata
+        var count = ts.cols * ts.rows;
+        for (var t = 0; t < count; t++) {
+          ts.tiles.push({ id: t, name: '', type: 'floor', walkable: true });
+        }
+        self.tilesets.push(ts);
+        self.activeIdx = self.tilesets.length - 1;
+        self._renderTabs();
+        self._renderPalette();
+        showToast('已加载: ' + ts.name + ' (' + ts.cols + '×' + ts.rows + ' tiles)', 'success');
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  },
+
+  updateTileSize: function() {
+    if (this.activeIdx < 0) return;
+    var ts = this.tilesets[this.activeIdx];
+    ts.tw = parseInt(document.getElementById('tile-w').value) || 16;
+    ts.th = parseInt(document.getElementById('tile-h').value) || 16;
+    ts.cols = Math.floor(ts.img.width / ts.tw);
+    ts.rows = Math.floor(ts.img.height / ts.th);
+    var count = ts.cols * ts.rows;
+    // Regenerate tiles if count changed
+    if (ts.tiles.length !== count) {
+      var old = ts.tiles;
+      ts.tiles = [];
+      for (var t = 0; t < count; t++) {
+        ts.tiles.push(old[t] || { id: t, name: '', type: 'floor', walkable: true });
+      }
+    }
+    this._renderPalette();
+  },
+
+  autoDetectSize: function() {
+    if (this.activeIdx < 0) { showToast('请先加载贴图集', 'error'); return; }
+    var img = this.tilesets[this.activeIdx].img;
+    // Common tile sizes to try
+    var sizes = [16, 32, 24, 48, 8, 64];
+    var bestSize = 16;
+    for (var i = 0; i < sizes.length; i++) {
+      if (img.width % sizes[i] === 0 && img.height % sizes[i] === 0) {
+        bestSize = sizes[i];
+        break;
+      }
+    }
+    document.getElementById('tile-w').value = bestSize;
+    document.getElementById('tile-h').value = bestSize;
+    this.updateTileSize();
+    showToast('检测到瓦片尺寸: ' + bestSize + '×' + bestSize, 'info');
+  },
+
+  setActive: function(idx) {
+    this.activeIdx = idx;
+    if (idx >= 0 && this.tilesets[idx]) {
+      document.getElementById('tile-w').value = this.tilesets[idx].tw;
+      document.getElementById('tile-h').value = this.tilesets[idx].th;
+    }
+    this._renderTabs();
+    this._renderPalette();
+  },
+
+  removeTileset: function(idx) {
+    this.tilesets.splice(idx, 1);
+    if (this.activeIdx >= this.tilesets.length) this.activeIdx = this.tilesets.length - 1;
+    this._renderTabs();
+    this._renderPalette();
+  },
+
+  _renderTabs: function() {
+    var el = document.getElementById('tileset-tabs');
+    var html = '';
+    for (var i = 0; i < this.tilesets.length; i++) {
+      var ts = this.tilesets[i];
+      var cls = i === this.activeIdx ? 'tileset-tab active' : 'tileset-tab';
+      html += '<div class="' + cls + '" onclick="TilesetManager.setActive(' + i + ')">' +
+              ts.name +
+              '<span class="close-tab" onclick="event.stopPropagation();TilesetManager.removeTileset(' + i + ')">✕</span>' +
+              '</div>';
+    }
+    el.innerHTML = html;
+  },
+
+  _renderPalette: function() {
+    var cvs = document.getElementById('palette-canvas');
+    var ctx = cvs.getContext('2d');
+    if (this.activeIdx < 0 || !this.tilesets[this.activeIdx]) {
+      cvs.width = 256; cvs.height = 100;
+      ctx.fillStyle = '#0a0a1a';
+      ctx.fillRect(0, 0, 256, 100);
+      ctx.fillStyle = '#666';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('加载贴图集以显示瓦片', 128, 55);
+      return;
+    }
+    var ts = this.tilesets[this.activeIdx];
+    var scale = 2;  // 2x zoom for palette
+    cvs.width = ts.img.width * scale;
+    cvs.height = ts.img.height * scale;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(ts.img, 0, 0, cvs.width, cvs.height);
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1;
+    for (var x = 0; x <= ts.cols; x++) {
+      ctx.beginPath();
+      ctx.moveTo(x * ts.tw * scale + 0.5, 0);
+      ctx.lineTo(x * ts.tw * scale + 0.5, cvs.height);
+      ctx.stroke();
+    }
+    for (var y = 0; y <= ts.rows; y++) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * ts.th * scale + 0.5);
+      ctx.lineTo(cvs.width, y * ts.th * scale + 0.5);
+      ctx.stroke();
+    }
+    // Highlight selected
+    if (this.selectedTile && this.selectedTile.tilesetIdx === this.activeIdx) {
+      var tid = this.selectedTile.tileId;
+      var col = tid % ts.cols;
+      var row = Math.floor(tid / ts.cols);
+      ctx.strokeStyle = '#f5c518';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(col * ts.tw * scale, row * ts.th * scale, ts.tw * scale, ts.th * scale);
+    }
+  },
+
+  onPaletteClick: function(e) {
+    if (this.activeIdx < 0) return;
+    var ts = this.tilesets[this.activeIdx];
+    var rect = e.target.getBoundingClientRect();
+    var scale = 2;
+    var x = e.clientX - rect.left;
+    var y = e.clientY - rect.top;
+    var col = Math.floor(x / (ts.tw * scale));
+    var row = Math.floor(y / (ts.th * scale));
+    if (col < 0 || col >= ts.cols || row < 0 || row >= ts.rows) return;
+    var tileId = row * ts.cols + col;
+    this.selectedTile = { tilesetIdx: this.activeIdx, tileId: tileId };
+    this._renderPalette();
+    this._renderTileProps();
+  },
+
+  _renderTileProps: function() {
+    var el = document.getElementById('tile-props');
+    if (!this.selectedTile) {
+      el.innerHTML = '<div style="color:var(--text-dim);font-size:0.75rem;">点击调色板选择瓦片</div>';
+      return;
+    }
+    var ts = this.tilesets[this.selectedTile.tilesetIdx];
+    var tile = ts.tiles[this.selectedTile.tileId];
+    var col = this.selectedTile.tileId % ts.cols;
+    var row = Math.floor(this.selectedTile.tileId / ts.cols);
+    // Create a small preview
+    var pcvs = document.createElement('canvas');
+    pcvs.width = 48; pcvs.height = 48;
+    var pctx = pcvs.getContext('2d');
+    pctx.imageSmoothingEnabled = false;
+    pctx.drawImage(ts.img, col * ts.tw, row * ts.th, ts.tw, ts.th, 0, 0, 48, 48);
+    var dataURL = pcvs.toDataURL();
+
+    var tsIdx = this.selectedTile.tilesetIdx;
+    var tId = this.selectedTile.tileId;
+    el.innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+        '<img class="tile-preview-box" src="' + dataURL + '" width="48" height="48">' +
+        '<div><div style="font-size:0.72rem;color:var(--text-dim);">贴图集: ' + ts.name + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-dim);">ID: ' + tId + ' (' + col + ',' + row + ')</div></div>' +
+      '</div>' +
+      '<div class="prop-row">' +
+        '<label>名称:</label>' +
+        '<input value="' + (tile.name || '') + '" oninput="TilesetManager.setTileProp(' + tsIdx + ',' + tId + ',\'name\',this.value)">' +
+      '</div>' +
+      '<div class="prop-row">' +
+        '<label>类型:</label>' +
+        '<select onchange="TilesetManager.setTileProp(' + tsIdx + ',' + tId + ',\'type\',this.value)">' +
+          '<option value="floor"' + (tile.type==='floor'?' selected':'') + '>地面</option>' +
+          '<option value="wall"' + (tile.type==='wall'?' selected':'') + '>墙壁</option>' +
+          '<option value="water"' + (tile.type==='water'?' selected':'') + '>水</option>' +
+          '<option value="decoration"' + (tile.type==='decoration'?' selected':'') + '>装饰</option>' +
+          '<option value="obstacle"' + (tile.type==='obstacle'?' selected':'') + '>障碍</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="prop-row">' +
+        '<label>可行走:</label>' +
+        '<input type="checkbox"' + (tile.walkable ? ' checked' : '') +
+        ' onchange="TilesetManager.setTileProp(' + tsIdx + ',' + tId + ',\'walkable\',this.checked)" style="flex:none;width:16px;">' +
+      '</div>';
+  },
+
+  setTileProp: function(tsIdx, tileId, prop, value) {
+    this.tilesets[tsIdx].tiles[tileId][prop] = value;
+  },
+
+  // Serialize for export (without Image objects)
+  serialize: function() {
+    return this.tilesets.map(function(ts) {
+      return {
+        id: ts.id,
+        name: ts.name,
+        src: ts.src,
+        tw: ts.tw,
+        th: ts.th,
+        cols: ts.cols,
+        rows: ts.rows,
+        tiles: ts.tiles
+      };
+    });
+  },
+
+  // Restore from serialized data
+  deserialize: function(arr) {
+    var self = this;
+    this.tilesets = [];
+    this.activeIdx = -1;
+    var promises = [];
+    arr.forEach(function(data, idx) {
+      var img = new Image();
+      var p = new Promise(function(resolve) {
+        img.onload = function() {
+          data.img = img;
+          self.tilesets.push(data);
+          resolve();
+        };
+        img.onerror = function() {
+          showToast('加载贴图失败: ' + data.name, 'error');
+          resolve();
+        };
+      });
+      img.src = data.src;
+      promises.push(p);
+    });
+    return Promise.all(promises).then(function() {
+      if (self.tilesets.length > 0) self.activeIdx = 0;
+      self._renderTabs();
+      self._renderPalette();
+    });
+  }
+};
+
+/* ============================================================
+ *  FOLDER BROWSER — Import folders of individual PNG tiles
+ * ============================================================ */
+var FolderBrowser = {
+  // Array of { id, folderName, collapsed, tiles: [{ name, fileName, path, dataURL, img }] }
+  folders: [],
+  selectedTile: null, // { folderId, tileIdx }
+
+  onFolderSelect: function(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    // Group files by folder path
+    var folderMap = {};
+    for (var i = 0; i < fileList.length; i++) {
+      var f = fileList[i];
+      if (!f.type.startsWith('image/')) continue;
+      // webkitRelativePath gives "FolderName/subfolder/file.png"
+      var parts = f.webkitRelativePath.split('/');
+      // Use the top-level folder as the group name, preserve subfolder structure in display
+      var folderName = parts.length > 1 ? parts[0] : '未分类';
+      // For deeper nesting, use parent folder chain as the key
+      var folderKey = parts.length > 2 ? parts.slice(0, -1).join('/') : folderName;
+      if (!folderMap[folderKey]) folderMap[folderKey] = [];
+      folderMap[folderKey].push(f);
+    }
+
+    var self = this;
+    var totalLoaded = 0;
+    Object.keys(folderMap).forEach(function(folderKey) {
+      var files = folderMap[folderKey];
+      var folder = {
+        id: 'folder_' + uid(),
+        folderName: folderKey,
+        collapsed: false,
+        tiles: []
+      };
+      files.forEach(function(file) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            folder.tiles.push({
+              name: file.name.replace(/\.\w+$/, ''),
+              fileName: file.name,
+              path: file.webkitRelativePath || file.name,
+              dataURL: e.target.result,
+              img: img,
+              width: img.width,
+              height: img.height
+            });
+            totalLoaded++;
+            // Sort tiles by name for consistent ordering
+            folder.tiles.sort(function(a, b) { return a.name.localeCompare(b.name); });
+            self.render();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      self.folders.push(folder);
+    });
+
+    // Also register as a virtual tileset for each folder
+    showToast('正在加载文件夹...', 'info');
+    this.render();
+    // Reset input
+    document.getElementById('folder-file').value = '';
+  },
+
+  onMultiFileSelect: function(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    var self = this;
+    var folder = {
+      id: 'folder_' + uid(),
+      folderName: '选择的文件 (' + fileList.length + ')',
+      collapsed: false,
+      tiles: []
+    };
+    for (var i = 0; i < fileList.length; i++) {
+      (function(file) {
+        if (!file.type.startsWith('image/')) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            folder.tiles.push({
+              name: file.name.replace(/\.\w+$/, ''),
+              fileName: file.name,
+              path: file.name,
+              dataURL: e.target.result,
+              img: img,
+              width: img.width,
+              height: img.height
+            });
+            folder.tiles.sort(function(a, b) { return a.name.localeCompare(b.name); });
+            self.render();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      })(fileList[i]);
+    }
+    this.folders.push(folder);
+    this.render();
+    document.getElementById('multi-png-file').value = '';
+  },
+
+  // Select a tile from folder browser to use as brush
+  selectTile: function(folderId, tileIdx) {
+    var folder = this.folders.find(function(f) { return f.id === folderId; });
+    if (!folder || !folder.tiles[tileIdx]) return;
+    var tile = folder.tiles[tileIdx];
+
+    // Register as a single-tile tileset in TilesetManager if not already
+    var tsId = 'ftile_' + folderId + '_' + tileIdx;
+    var existingIdx = -1;
+    for (var i = 0; i < TilesetManager.tilesets.length; i++) {
+      if (TilesetManager.tilesets[i].id === tsId) { existingIdx = i; break; }
+    }
+
+    if (existingIdx < 0) {
+      // Create a 1-tile tileset from this image
+      var ts = {
+        id: tsId,
+        name: tile.name,
+        src: tile.dataURL,
+        img: tile.img,
+        tw: tile.width,
+        th: tile.height,
+        cols: 1,
+        rows: 1,
+        tiles: [{ id: 0, name: tile.name, type: 'floor', walkable: true }]
+      };
+      TilesetManager.tilesets.push(ts);
+      existingIdx = TilesetManager.tilesets.length - 1;
+      TilesetManager._renderTabs();
+    }
+
+    TilesetManager.selectedTile = { tilesetIdx: existingIdx, tileId: 0 };
+    TilesetManager.activeIdx = existingIdx;
+    TilesetManager._renderTabs();
+    TilesetManager._renderPalette();
+    TilesetManager._renderTileProps();
+    PaintTools.setTool('brush');
+
+    this.selectedTile = { folderId: folderId, tileIdx: tileIdx };
+    this.render();
+    showToast('已选择: ' + tile.name, 'info');
+  },
+
+  toggleFolder: function(folderId) {
+    var folder = this.folders.find(function(f) { return f.id === folderId; });
+    if (folder) {
+      folder.collapsed = !folder.collapsed;
+      this.render();
+    }
+  },
+
+  removeFolder: function(folderId) {
+    this.folders = this.folders.filter(function(f) { return f.id !== folderId; });
+    this.render();
+  },
+
+  render: function() {
+    var el = document.getElementById('folder-browser');
+    if (this.folders.length === 0) {
+      el.innerHTML = '<div style="color:var(--text-dim);font-size:0.72rem;padding:4px;">点击上方「导入文件夹」选择含 PNG 的文件夹</div>';
+      return;
+    }
+    var self = this;
+    var html = '';
+    this.folders.forEach(function(folder) {
+      var collapsedCls = folder.collapsed ? ' collapsed' : '';
+      var toggleIcon = folder.collapsed ? '▶' : '▼';
+      html += '<div class="folder-group' + collapsedCls + '">';
+      html += '<div class="folder-header" onclick="FolderBrowser.toggleFolder(\'' + folder.id + '\')">';
+      html += '<span class="folder-toggle">' + toggleIcon + '</span>';
+      html += '<span class="folder-name">📁 ' + folder.folderName + '</span>';
+      html += '<span class="folder-count">' + folder.tiles.length + '</span>';
+      html += '<button class="folder-del" onclick="event.stopPropagation();FolderBrowser.removeFolder(\'' + folder.id + '\')">✕</button>';
+      html += '</div>';
+      html += '<div class="folder-tiles">';
+      folder.tiles.forEach(function(tile, idx) {
+        var selected = self.selectedTile &&
+          self.selectedTile.folderId === folder.id &&
+          self.selectedTile.tileIdx === idx;
+        var selectedCls = selected ? ' selected' : '';
+        html += '<div class="folder-tile' + selectedCls + '" ' +
+                'onclick="FolderBrowser.selectTile(\'' + folder.id + '\',' + idx + ')" ' +
+                'title="' + tile.fileName + ' (' + tile.width + '×' + tile.height + ')">';
+        html += '<img src="' + tile.dataURL + '">';
+        html += '<span class="tile-label">' + tile.name + '</span>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+    el.innerHTML = html;
+  },
+
+  serialize: function() {
+    return this.folders.map(function(f) {
+      return {
+        id: f.id,
+        folderName: f.folderName,
+        collapsed: f.collapsed,
+        tiles: f.tiles.map(function(t) {
+          return { name: t.name, fileName: t.fileName, path: t.path, dataURL: t.dataURL, width: t.width, height: t.height };
+        })
+      };
+    });
+  },
+
+  deserialize: function(arr) {
+    var self = this;
+    this.folders = [];
+    if (!arr || !arr.length) { this.render(); return Promise.resolve(); }
+    var promises = [];
+    arr.forEach(function(folderData) {
+      var folder = {
+        id: folderData.id,
+        folderName: folderData.folderName,
+        collapsed: folderData.collapsed || false,
+        tiles: []
+      };
+      folderData.tiles.forEach(function(tileData) {
+        var img = new Image();
+        var p = new Promise(function(resolve) {
+          img.onload = function() {
+            folder.tiles.push({
+              name: tileData.name,
+              fileName: tileData.fileName,
+              path: tileData.path,
+              dataURL: tileData.dataURL,
+              img: img,
+              width: tileData.width || img.width,
+              height: tileData.height || img.height
+            });
+            resolve();
+          };
+          img.onerror = resolve;
+        });
+        img.src = tileData.dataURL;
+        promises.push(p);
+      });
+      self.folders.push(folder);
+    });
+    return Promise.all(promises).then(function() {
+      self.render();
+    });
+  }
+};
+
+/* ============================================================
+ *  MAP DATA — Map data model
+ * ============================================================ */
+var MapData = {
+  current: null,
+
+  createNew: function(opts) {
+    opts = opts || {};
+    var w = opts.width || 30;
+    var h = opts.height || 20;
+    this.current = {
+      id: opts.id || 'map_' + uid(),
+      name: opts.name || '未命名地图',
+      width: w,
+      height: h,
+      tileWidth: opts.tileWidth || 16,
+      tileHeight: opts.tileHeight || 16,
+      layers: [
+        this._createLayer('地面', 'tile', w, h),
+        this._createLayer('装饰', 'tile', w, h),
+        this._createLayer('碰撞', 'collision', w, h)
+      ],
+      spawns: [],
+      triggers: [],
+      tilesetRefs: []
+    };
+    return this.current;
+  },
+
+  _createLayer: function(name, type, w, h) {
+    var data = new Array(w * h);
+    for (var i = 0; i < data.length; i++) {
+      data[i] = type === 'collision' ? 0 : null;  // null = empty, [tsIdx, tileId] for tiles
+    }
+    return { name: name, type: type, visible: true, opacity: 1, data: data };
+  },
+
+  getTile: function(layerIdx, x, y) {
+    if (!this.current || layerIdx < 0 || layerIdx >= this.current.layers.length) return null;
+    if (x < 0 || x >= this.current.width || y < 0 || y >= this.current.height) return null;
+    return this.current.layers[layerIdx].data[y * this.current.width + x];
+  },
+
+  setTile: function(layerIdx, x, y, value) {
+    if (!this.current || layerIdx < 0 || layerIdx >= this.current.layers.length) return;
+    if (x < 0 || x >= this.current.width || y < 0 || y >= this.current.height) return;
+    this.current.layers[layerIdx].data[y * this.current.width + x] = value;
+  },
+
+  resizeMap: function(newW, newH) {
+    if (!this.current) return;
+    var oldW = this.current.width;
+    var oldH = this.current.height;
+    this.current.layers.forEach(function(layer) {
+      var newData = new Array(newW * newH);
+      var defaultVal = layer.type === 'collision' ? 0 : null;
+      for (var i = 0; i < newData.length; i++) newData[i] = defaultVal;
+      for (var y = 0; y < Math.min(oldH, newH); y++) {
+        for (var x = 0; x < Math.min(oldW, newW); x++) {
+          newData[y * newW + x] = layer.data[y * oldW + x];
+        }
+      }
+      layer.data = newData;
+    });
+    this.current.width = newW;
+    this.current.height = newH;
+  },
+
+  serialize: function() {
+    if (!this.current) return null;
+    return JSON.parse(JSON.stringify(this.current));
+  },
+
+  deserialize: function(data) {
+    this.current = data;
+  }
+};
+
+/* ============================================================
+ *  UNDO MANAGER
+ * ============================================================ */
+var UndoManager = {
+  _undoStack: [],
+  _redoStack: [],
+  _maxHistory: 80,
+
+  pushState: function() {
+    if (!MapData.current) return;
+    this._undoStack.push(JSON.stringify(MapData.current.layers.map(function(l) { return l.data.slice(); })));
+    if (this._undoStack.length > this._maxHistory) this._undoStack.shift();
+    this._redoStack = [];
+  },
+
+  undo: function() {
+    if (this._undoStack.length === 0) { showToast('无法撤销', 'info'); return; }
+    // Save current to redo
+    this._redoStack.push(JSON.stringify(MapData.current.layers.map(function(l) { return l.data.slice(); })));
+    var state = JSON.parse(this._undoStack.pop());
+    for (var i = 0; i < MapData.current.layers.length && i < state.length; i++) {
+      MapData.current.layers[i].data = state[i];
+    }
+    MapCanvas.render();
+  },
+
+  redo: function() {
+    if (this._redoStack.length === 0) { showToast('无法重做', 'info'); return; }
+    this._undoStack.push(JSON.stringify(MapData.current.layers.map(function(l) { return l.data.slice(); })));
+    var state = JSON.parse(this._redoStack.pop());
+    for (var i = 0; i < MapData.current.layers.length && i < state.length; i++) {
+      MapData.current.layers[i].data = state[i];
+    }
+    MapCanvas.render();
+  },
+
+  clear: function() {
+    this._undoStack = [];
+    this._redoStack = [];
+  }
+};
+
+/* ============================================================
+ *  PAINT TOOLS
+ * ============================================================ */
+var PaintTools = {
+  currentTool: 'brush',
+  brushSize: 1,
+  _painting: false,
+  _rectStart: null,
+
+  setTool: function(tool) {
+    this.currentTool = tool;
+    document.querySelectorAll('.toolbar [data-tool]').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.tool === tool);
+    });
+    var area = document.getElementById('canvas-area');
+    area.style.cursor = tool === 'eyedrop' ? 'crosshair' :
+                        tool === 'spawn' ? 'cell' :
+                        tool === 'trigger' ? 'cell' :
+                        tool === 'eraser' ? 'not-allowed' : 'crosshair';
+  },
+
+  setBrushSize: function(s) {
+    this.brushSize = s;
+  },
+
+  onMouseDown: function(gx, gy, e) {
+    if (!MapData.current) return;
+    if (e.button === 1 || (e.button === 0 && e.shiftKey) || _spaceHeld) return; // pan modes
+
+    if (this.currentTool === 'spawn') {
+      this._placeSpawn(gx, gy);
+      return;
+    }
+    if (this.currentTool === 'trigger') {
+      this._placeTrigger(gx, gy);
+      return;
+    }
+    if (this.currentTool === 'eyedrop') {
+      this._eyedrop(gx, gy);
+      return;
+    }
+
+    if (this.currentTool === 'rect') {
+      this._rectStart = { x: gx, y: gy };
+      return;
+    }
+
+    if (this.currentTool === 'fill') {
+      UndoManager.pushState();
+      this._floodFill(gx, gy);
+      MapCanvas.render();
+      return;
+    }
+
+    this._painting = true;
+    UndoManager.pushState();
+    this._applyBrush(gx, gy);
+    MapCanvas.render();
+  },
+
+  onMouseMove: function(gx, gy) {
+    if (!this._painting) return;
+    this._applyBrush(gx, gy);
+    MapCanvas.render();
+  },
+
+  onMouseUp: function(gx, gy) {
+    if (this.currentTool === 'rect' && this._rectStart) {
+      UndoManager.pushState();
+      var x1 = Math.min(this._rectStart.x, gx);
+      var y1 = Math.min(this._rectStart.y, gy);
+      var x2 = Math.max(this._rectStart.x, gx);
+      var y2 = Math.max(this._rectStart.y, gy);
+      for (var y = y1; y <= y2; y++) {
+        for (var x = x1; x <= x2; x++) {
+          this._applyTile(x, y);
+        }
+      }
+      this._rectStart = null;
+      MapCanvas.render();
+    }
+    this._painting = false;
+  },
+
+  _applyBrush: function(gx, gy) {
+    var half = Math.floor(this.brushSize / 2);
+    for (var dy = -half; dy < this.brushSize - half; dy++) {
+      for (var dx = -half; dx < this.brushSize - half; dx++) {
+        this._applyTile(gx + dx, gy + dy);
+      }
+    }
+  },
+
+  _applyTile: function(x, y) {
+    var layerIdx = LayerPanel.activeLayer;
+    var layer = MapData.current.layers[layerIdx];
+    if (!layer) return;
+
+    if (layer.type === 'collision') {
+      MapData.setTile(layerIdx, x, y, this.currentTool === 'eraser' ? 0 : 1);
+      return;
+    }
+
+    if (this.currentTool === 'eraser') {
+      MapData.setTile(layerIdx, x, y, null);
+      return;
+    }
+
+    if (!TilesetManager.selectedTile) return;
+    var st = TilesetManager.selectedTile;
+    MapData.setTile(layerIdx, x, y, [st.tilesetIdx, st.tileId]);
+  },
+
+  _floodFill: function(startX, startY) {
+    var layerIdx = LayerPanel.activeLayer;
+    var layer = MapData.current.layers[layerIdx];
+    if (!layer) return;
+    var w = MapData.current.width;
+    var h = MapData.current.height;
+
+    var target = MapData.getTile(layerIdx, startX, startY);
+    var targetStr = JSON.stringify(target);
+
+    var fillValue;
+    if (layer.type === 'collision') {
+      fillValue = this.currentTool === 'eraser' ? 0 : 1;
+    } else if (this.currentTool === 'eraser') {
+      fillValue = null;
+    } else {
+      if (!TilesetManager.selectedTile) return;
+      var st = TilesetManager.selectedTile;
+      fillValue = [st.tilesetIdx, st.tileId];
+    }
+
+    if (JSON.stringify(fillValue) === targetStr) return;
+
+    var stack = [[startX, startY]];
+    var visited = {};
+    while (stack.length > 0) {
+      var p = stack.pop();
+      var px = p[0], py = p[1];
+      var key = px + ',' + py;
+      if (visited[key]) continue;
+      if (px < 0 || px >= w || py < 0 || py >= h) continue;
+      if (JSON.stringify(MapData.getTile(layerIdx, px, py)) !== targetStr) continue;
+      visited[key] = true;
+      MapData.setTile(layerIdx, px, py, layer.type === 'collision' ? fillValue : (fillValue ? fillValue.slice() : null));
+      stack.push([px-1, py], [px+1, py], [px, py-1], [px, py+1]);
+    }
+  },
+
+  _eyedrop: function(gx, gy) {
+    var layerIdx = LayerPanel.activeLayer;
+    var tile = MapData.getTile(layerIdx, gx, gy);
+    if (tile && Array.isArray(tile)) {
+      TilesetManager.selectedTile = { tilesetIdx: tile[0], tileId: tile[1] };
+      TilesetManager.setActive(tile[0]);
+      TilesetManager._renderTileProps();
+      this.setTool('brush');
+      showToast('已取色: 贴图集 ' + tile[0] + ', 瓦片 ' + tile[1], 'info');
+    }
+  },
+
+  _placeSpawn: function(gx, gy) {
+    if (!MapData.current) return;
+    showModal('添加出生点', 
+      '<div class="map-prop-row"><label>ID:</label><input id="spawn-id-input" value="spawn_' + uid() + '"></div>' +
+      '<div class="map-prop-row"><label>类型:</label><select id="spawn-type-input">' +
+        '<option value="player">玩家</option><option value="npc">NPC</option>' +
+        '<option value="enemy">敌人</option><option value="item">物品</option></select></div>' +
+      '<div class="map-prop-row"><label>位置:</label><span style="color:var(--gold);">' + gx + ', ' + gy + '</span></div>',
+      [
+        { label: '取消', onclick: 'hideModal()', cls: '' },
+        { label: '确定', onclick: 'PaintTools._confirmSpawn(' + gx + ',' + gy + ')', cls: 'btn-success' }
+      ]
+    );
+  },
+
+  _confirmSpawn: function(gx, gy) {
+    MapData.current.spawns.push({
+      id: document.getElementById('spawn-id-input').value,
+      type: document.getElementById('spawn-type-input').value,
+      x: gx, y: gy
+    });
+    hideModal();
+    MarkerPanel.renderSpawns();
+    MapCanvas.render();
+    showToast('出生点已添加', 'success');
+  },
+
+  _placeTrigger: function(gx, gy) {
+    if (!MapData.current) return;
+    showModal('添加触发器',
+      '<div class="map-prop-row"><label>ID:</label><input id="trig-id-input" value="trigger_' + uid() + '"></div>' +
+      '<div class="map-prop-row"><label>类型:</label><select id="trig-type-input">' +
+        '<option value="portal">传送门</option><option value="event">事件</option>' +
+        '<option value="dialog">对话</option><option value="battle">战斗</option></select></div>' +
+      '<div class="map-prop-row"><label>宽度:</label><input type="number" id="trig-w-input" value="1" min="1" max="20"></div>' +
+      '<div class="map-prop-row"><label>高度:</label><input type="number" id="trig-h-input" value="1" min="1" max="20"></div>' +
+      '<div class="map-prop-row"><label>目标:</label><input id="trig-target-input" placeholder="目标地图ID或事件ID"></div>' +
+      '<div class="map-prop-row"><label>位置:</label><span style="color:var(--gold);">' + gx + ', ' + gy + '</span></div>',
+      [
+        { label: '取消', onclick: 'hideModal()', cls: '' },
+        { label: '确定', onclick: 'PaintTools._confirmTrigger(' + gx + ',' + gy + ')', cls: 'btn-success' }
+      ]
+    );
+  },
+
+  _confirmTrigger: function(gx, gy) {
+    MapData.current.triggers.push({
+      id: document.getElementById('trig-id-input').value,
+      type: document.getElementById('trig-type-input').value,
+      x: gx, y: gy,
+      w: parseInt(document.getElementById('trig-w-input').value) || 1,
+      h: parseInt(document.getElementById('trig-h-input').value) || 1,
+      target: document.getElementById('trig-target-input').value
+    });
+    hideModal();
+    MarkerPanel.renderTriggers();
+    MapCanvas.render();
+    showToast('触发器已添加', 'success');
+  }
+};
+
+/* ============================================================
+ *  LAYER PANEL
+ * ============================================================ */
+var LayerPanel = {
+  activeLayer: 0,
+
+  render: function() {
+    if (!MapData.current) return;
+    var el = document.getElementById('layer-list');
+    var html = '';
+    var layers = MapData.current.layers;
+    for (var i = layers.length - 1; i >= 0; i--) {
+      var l = layers[i];
+      var cls = i === this.activeLayer ? 'layer-item active' : 'layer-item';
+      var visIcon = l.visible ? '👁️' : '🚫';
+      var visCls = l.visible ? 'vis-btn' : 'vis-btn hidden';
+      var typeLabel = l.type === 'collision' ? '碰撞' : '瓦片';
+      html += '<li class="' + cls + '" onclick="LayerPanel.setActive(' + i + ')">' +
+              '<button class="' + visCls + '" onclick="event.stopPropagation();LayerPanel.toggleVis(' + i + ')">' + visIcon + '</button>' +
+              '<span class="layer-name">' + l.name + '</span>' +
+              '<span class="layer-type">[' + typeLabel + ']</span>' +
+              '</li>';
+    }
+    el.innerHTML = html;
+  },
+
+  setActive: function(idx) {
+    this.activeLayer = idx;
+    this.render();
+  },
+
+  toggleVis: function(idx) {
+    MapData.current.layers[idx].visible = !MapData.current.layers[idx].visible;
+    this.render();
+    MapCanvas.render();
+  },
+
+  addLayer: function(type) {
+    if (!MapData.current) return;
+    var name = type === 'collision' ? '碰撞层' : '瓦片层_' + (MapData.current.layers.length + 1);
+    var layer = MapData._createLayer(name, type, MapData.current.width, MapData.current.height);
+    MapData.current.layers.push(layer);
+    this.activeLayer = MapData.current.layers.length - 1;
+    this.render();
+    MapCanvas.render();
+  },
+
+  deleteLayer: function() {
+    if (!MapData.current || MapData.current.layers.length <= 1) {
+      showToast('至少保留一个图层', 'error');
+      return;
+    }
+    MapData.current.layers.splice(this.activeLayer, 1);
+    if (this.activeLayer >= MapData.current.layers.length) {
+      this.activeLayer = MapData.current.layers.length - 1;
+    }
+    this.render();
+    MapCanvas.render();
+  },
+
+  moveLayer: function(dir) {
+    if (!MapData.current) return;
+    var newIdx = this.activeLayer + dir;
+    if (newIdx < 0 || newIdx >= MapData.current.layers.length) return;
+    var layers = MapData.current.layers;
+    var temp = layers[this.activeLayer];
+    layers[this.activeLayer] = layers[newIdx];
+    layers[newIdx] = temp;
+    this.activeLayer = newIdx;
+    this.render();
+    MapCanvas.render();
+  }
+};
+
+/* ============================================================
+ *  MARKER PANEL — Spawns & Triggers list
+ * ============================================================ */
+var MarkerPanel = {
+  renderSpawns: function() {
+    var el = document.getElementById('spawn-list');
+    if (!MapData.current) { el.innerHTML = ''; return; }
+    var html = '';
+    MapData.current.spawns.forEach(function(s, i) {
+      var icon = s.type === 'player' ? '🧑' : s.type === 'npc' ? '👤' : s.type === 'enemy' ? '👹' : '📦';
+      html += '<li class="marker-item">' +
+              '<span class="marker-icon">' + icon + '</span>' +
+              '<span class="marker-info">' + s.id + '</span>' +
+              '<span class="marker-pos">(' + s.x + ',' + s.y + ')</span>' +
+              '<button class="del-btn" onclick="MarkerPanel.deleteSpawn(' + i + ')">✕</button>' +
+              '</li>';
+    });
+    el.innerHTML = html || '<li style="color:var(--text-dim);font-size:0.72rem;padding:4px;">无出生点</li>';
+  },
+
+  renderTriggers: function() {
+    var el = document.getElementById('trigger-list');
+    if (!MapData.current) { el.innerHTML = ''; return; }
+    var html = '';
+    MapData.current.triggers.forEach(function(t, i) {
+      var icon = t.type === 'portal' ? '🚪' : t.type === 'battle' ? '⚔️' : t.type === 'dialog' ? '💬' : '⚡';
+      html += '<li class="marker-item">' +
+              '<span class="marker-icon">' + icon + '</span>' +
+              '<span class="marker-info">' + t.id + '</span>' +
+              '<span class="marker-pos">(' + t.x + ',' + t.y + ' ' + t.w + '×' + t.h + ')</span>' +
+              '<button class="del-btn" onclick="MarkerPanel.deleteTrigger(' + i + ')">✕</button>' +
+              '</li>';
+    });
+    el.innerHTML = html || '<li style="color:var(--text-dim);font-size:0.72rem;padding:4px;">无触发器</li>';
+  },
+
+  deleteSpawn: function(i) {
+    MapData.current.spawns.splice(i, 1);
+    this.renderSpawns();
+    MapCanvas.render();
+  },
+
+  deleteTrigger: function(i) {
+    MapData.current.triggers.splice(i, 1);
+    this.renderTriggers();
+    MapCanvas.render();
+  }
+};
+
+/* ============================================================
+ *  MAP CANVAS — Central editor canvas
+ * ============================================================ */
+var MapCanvas = {
+  _cvs: null,
+  _ctx: null,
+  _area: null,
+  _cam: { x: 0, y: 0, zoom: 2 },
+  _showGrid: true,
+  _panning: false,
+  _panStart: null,
+  _lastGridPos: { x: -1, y: -1 },
+  _rectPreview: null,
+  _animFrameId: null,
+
+  init: function() {
+    this._cvs = document.getElementById('map-canvas');
+    this._ctx = this._cvs.getContext('2d');
+    this._area = document.getElementById('canvas-area');
+    this._setupEvents();
+    this._resize();
+    window.addEventListener('resize', this._resize.bind(this));
+  },
+
+  _resize: function() {
+    this._cvs.width = this._area.clientWidth;
+    this._cvs.height = this._area.clientHeight;
+    this.render();
+  },
+
+  _setupEvents: function() {
+    var self = this;
+    var area = this._area;
+
+    area.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      // Space + any button, middle click, shift+click, alt+click, or right-click while space held → pan
+      if (e.button === 1 || (e.button === 0 && e.shiftKey) || (e.button === 0 && e.altKey)
+          || (_spaceHeld) || (e.button === 2 && _spaceHeld)) {
+        self._panning = true;
+        self._panStart = { x: e.clientX, y: e.clientY, camX: self._cam.x, camY: self._cam.y };
+        area.style.cursor = 'grabbing';
+        return;
+      }
+      var gp = self._screenToGrid(e.clientX, e.clientY);
+      PaintTools.onMouseDown(gp.x, gp.y, e);
+      self.render();
+    });
+
+    // Prevent context menu on canvas so right-click panning works
+    area.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+
+    area.addEventListener('mousemove', function(e) {
+      if (self._panning) {
+        self._cam.x = self._panStart.camX + (e.clientX - self._panStart.x);
+        self._cam.y = self._panStart.camY + (e.clientY - self._panStart.y);
+        self.render();
+        return;
+      }
+      var gp = self._screenToGrid(e.clientX, e.clientY);
+      document.getElementById('cursor-coords').textContent = 'X:' + gp.x + ' Y:' + gp.y;
+      if (gp.x !== self._lastGridPos.x || gp.y !== self._lastGridPos.y) {
+        self._lastGridPos = gp;
+        PaintTools.onMouseMove(gp.x, gp.y);
+      }
+      // Rect preview
+      if (PaintTools.currentTool === 'rect' && PaintTools._rectStart) {
+        self._rectPreview = { x1: PaintTools._rectStart.x, y1: PaintTools._rectStart.y, x2: gp.x, y2: gp.y };
+        self.render();
+      }
+    });
+
+    area.addEventListener('mouseup', function(e) {
+      if (self._panning) {
+        self._panning = false;
+        area.style.cursor = _spaceHeld ? 'grab' : 'crosshair';
+        return;
+      }
+      var gp = self._screenToGrid(e.clientX, e.clientY);
+      PaintTools.onMouseUp(gp.x, gp.y);
+      self._rectPreview = null;
+      self.render();
+    });
+
+    area.addEventListener('mouseleave', function() {
+      self._panning = false;
+      PaintTools._painting = false;
+      self._rectPreview = null;
+    });
+
+    area.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      var rect = area.getBoundingClientRect();
+      var mx = e.clientX - rect.left;
+      var my = e.clientY - rect.top;
+      var oldZoom = self._cam.zoom;
+      if (e.deltaY < 0) {
+        self._cam.zoom = Math.min(self._cam.zoom * 1.15, 10);
+      } else {
+        self._cam.zoom = Math.max(self._cam.zoom / 1.15, 0.25);
+      }
+      // Zoom toward cursor
+      var zr = self._cam.zoom / oldZoom;
+      self._cam.x = mx - (mx - self._cam.x) * zr;
+      self._cam.y = my - (my - self._cam.y) * zr;
+      document.getElementById('zoom-display').textContent = Math.round(self._cam.zoom * 100) + '%';
+      self.render();
+    }, { passive: false });
+
+    // Palette click
+    document.getElementById('palette-canvas').addEventListener('click', function(e) {
+      TilesetManager.onPaletteClick(e);
+    });
+  },
+
+  _screenToGrid: function(clientX, clientY) {
+    var rect = this._area.getBoundingClientRect();
+    var sx = clientX - rect.left;
+    var sy = clientY - rect.top;
+    if (!MapData.current) return { x: 0, y: 0 };
+    var tw = MapData.current.tileWidth * this._cam.zoom;
+    var th = MapData.current.tileHeight * this._cam.zoom;
+    var gx = Math.floor((sx - this._cam.x) / tw);
+    var gy = Math.floor((sy - this._cam.y) / th);
+    return { x: gx, y: gy };
+  },
+
+  toggleGrid: function() {
+    this._showGrid = !this._showGrid;
+    document.getElementById('btn-grid').classList.toggle('active', this._showGrid);
+    this.render();
+  },
+
+  zoomIn: function() {
+    this._cam.zoom = Math.min(this._cam.zoom * 1.25, 10);
+    document.getElementById('zoom-display').textContent = Math.round(this._cam.zoom * 100) + '%';
+    this.render();
+  },
+  zoomOut: function() {
+    this._cam.zoom = Math.max(this._cam.zoom / 1.25, 0.25);
+    document.getElementById('zoom-display').textContent = Math.round(this._cam.zoom * 100) + '%';
+    this.render();
+  },
+  resetView: function() {
+    this._cam = { x: 20, y: 20, zoom: 2 };
+    document.getElementById('zoom-display').textContent = '200%';
+    this.render();
+  },
+
+  render: function() {
+    var ctx = this._ctx;
+    var cvs = this._cvs;
+    var cam = this._cam;
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+    if (!MapData.current) {
+      ctx.fillStyle = '#333';
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('按「新建」创建地图或「导入」加载已有地图', cvs.width / 2, cvs.height / 2);
+      return;
+    }
+
+    var map = MapData.current;
+    var tw = map.tileWidth * cam.zoom;
+    var th = map.tileHeight * cam.zoom;
+
+    ctx.imageSmoothingEnabled = false;
+
+    // Draw layers from bottom to top
+    for (var li = 0; li < map.layers.length; li++) {
+      var layer = map.layers[li];
+      if (!layer.visible) continue;
+
+      if (layer.type === 'collision') {
+        // Draw collision overlay
+        for (var y = 0; y < map.height; y++) {
+          for (var x = 0; x < map.width; x++) {
+            var val = layer.data[y * map.width + x];
+            if (val === 1) {
+              var px = cam.x + x * tw;
+              var py = cam.y + y * th;
+              if (px + tw < 0 || px > cvs.width || py + th < 0 || py > cvs.height) continue;
+              ctx.fillStyle = 'rgba(255,0,0,0.3)';
+              ctx.fillRect(px, py, tw, th);
+              ctx.strokeStyle = 'rgba(255,0,0,0.6)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(px, py);
+              ctx.lineTo(px + tw, py + th);
+              ctx.moveTo(px + tw, py);
+              ctx.lineTo(px, py + th);
+              ctx.stroke();
+            }
+          }
+        }
+        continue;
+      }
+
+      // Tile layer
+      for (var y = 0; y < map.height; y++) {
+        for (var x = 0; x < map.width; x++) {
+          var tile = layer.data[y * map.width + x];
+          if (!tile) continue;
+          var tsIdx = tile[0];
+          var tileId = tile[1];
+          var ts = TilesetManager.tilesets[tsIdx];
+          if (!ts) continue;
+          var px = cam.x + x * tw;
+          var py = cam.y + y * th;
+          if (px + tw < 0 || px > cvs.width || py + th < 0 || py > cvs.height) continue;
+          var sc = tileId % ts.cols;
+          var sr = Math.floor(tileId / ts.cols);
+          ctx.drawImage(ts.img, sc * ts.tw, sr * ts.th, ts.tw, ts.th, px, py, tw, th);
+        }
+      }
+    }
+
+    // Map boundary
+    ctx.strokeStyle = '#f5c518';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cam.x, cam.y, map.width * tw, map.height * th);
+
+    // Grid
+    if (this._showGrid) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      var startX = Math.max(0, Math.floor(-cam.x / tw));
+      var endX = Math.min(map.width, Math.ceil((cvs.width - cam.x) / tw));
+      var startY = Math.max(0, Math.floor(-cam.y / th));
+      var endY = Math.min(map.height, Math.ceil((cvs.height - cam.y) / th));
+      for (var x = startX; x <= endX; x++) {
+        var px = cam.x + x * tw;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(px) + 0.5, cam.y);
+        ctx.lineTo(Math.round(px) + 0.5, cam.y + map.height * th);
+        ctx.stroke();
+      }
+      for (var y = startY; y <= endY; y++) {
+        var py = cam.y + y * th;
+        ctx.beginPath();
+        ctx.moveTo(cam.x, Math.round(py) + 0.5);
+        ctx.lineTo(cam.x + map.width * tw, Math.round(py) + 0.5);
+        ctx.stroke();
+      }
+    }
+
+    // Active layer highlight (current cell under cursor)
+    if (this._lastGridPos && MapData.current) {
+      var gx = this._lastGridPos.x;
+      var gy = this._lastGridPos.y;
+      if (gx >= 0 && gx < map.width && gy >= 0 && gy < map.height) {
+        var bs = PaintTools.brushSize;
+        var half = Math.floor(bs / 2);
+        ctx.strokeStyle = 'rgba(233,69,96,0.7)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          cam.x + (gx - half) * tw,
+          cam.y + (gy - half) * th,
+          bs * tw, bs * th
+        );
+      }
+    }
+
+    // Rect preview
+    if (this._rectPreview) {
+      var rp = this._rectPreview;
+      var rx1 = Math.min(rp.x1, rp.x2), ry1 = Math.min(rp.y1, rp.y2);
+      var rx2 = Math.max(rp.x1, rp.x2), ry2 = Math.max(rp.y1, rp.y2);
+      ctx.strokeStyle = 'rgba(245,197,24,0.8)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(cam.x + rx1 * tw, cam.y + ry1 * th, (rx2 - rx1 + 1) * tw, (ry2 - ry1 + 1) * th);
+      ctx.setLineDash([]);
+    }
+
+    // Draw spawns
+    if (MapData.current.spawns) {
+      MapData.current.spawns.forEach(function(s) {
+        var px = cam.x + s.x * tw + tw / 2;
+        var py = cam.y + s.y * th + th / 2;
+        ctx.fillStyle = 'rgba(76,175,80,0.5)';
+        ctx.beginPath();
+        ctx.arc(px, py, tw * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = Math.max(10, tw * 0.4) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(s.type === 'player' ? 'P' : s.type === 'npc' ? 'N' : s.type === 'enemy' ? 'E' : '?', px, py);
+      });
+    }
+
+    // Draw triggers
+    if (MapData.current.triggers) {
+      MapData.current.triggers.forEach(function(t) {
+        var px = cam.x + t.x * tw;
+        var py = cam.y + t.y * th;
+        ctx.fillStyle = 'rgba(33,150,243,0.3)';
+        ctx.fillRect(px, py, t.w * tw, t.h * th);
+        ctx.strokeStyle = 'rgba(33,150,243,0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px, py, t.w * tw, t.h * th);
+        ctx.fillStyle = '#fff';
+        ctx.font = Math.max(9, tw * 0.35) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(t.type === 'portal' ? '🚪' : '⚡', px + t.w * tw / 2, py + t.h * th / 2);
+      });
+    }
+  }
+};
+
+/* ============================================================
+ *  MAP I/O — Import, Export, LocalStorage
+ * ============================================================ */
+var MapIO = {
+  _autoSaveKey: 'map_editor_autosave',
+  _indexKey: 'map_editor_index',
+
+  saveToLocal: function() {
+    if (!MapData.current) { showToast('无地图数据', 'error'); return; }
+    var data = {
+      map: MapData.serialize(),
+      tilesets: TilesetManager.serialize(),
+      folders: FolderBrowser.serialize(),
+      activeLayer: LayerPanel.activeLayer
+    };
+    try {
+      localStorage.setItem(this._autoSaveKey, JSON.stringify(data));
+      showToast('已保存到浏览器', 'success');
+    } catch (e) {
+      showToast('保存失败: ' + e.message, 'error');
+    }
+  },
+
+  loadFromLocal: function() {
+    try {
+      var raw = localStorage.getItem(this._autoSaveKey);
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      return Promise.all([
+        TilesetManager.deserialize(data.tilesets || []),
+        FolderBrowser.deserialize(data.folders || [])
+      ]).then(function() {
+        MapData.deserialize(data.map);
+        LayerPanel.activeLayer = data.activeLayer || 0;
+        App._syncUI();
+        showToast('已从浏览器恢复', 'info');
+        return true;
+      });
+    } catch (e) {
+      console.error('Load failed:', e);
+      return Promise.resolve(false);
+    }
+  },
+
+  exportJSON: function() {
+    if (!MapData.current) { showToast('无地图数据', 'error'); return; }
+    var exportData = {
+      map: MapData.serialize(),
+      tilesets: TilesetManager.serialize().map(function(ts) {
+        // For export, include tileset metadata but make src a relative path reference
+        return {
+          id: ts.id,
+          name: ts.name,
+          src: ts.src,  // keeps dataURL so maps are self-contained
+          tw: ts.tw,
+          th: ts.th,
+          cols: ts.cols,
+          rows: ts.rows,
+          tiles: ts.tiles
+        };
+      }),
+      folders: FolderBrowser.serialize()
+    };
+    var json = JSON.stringify(exportData, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (MapData.current.id || 'map') + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('已导出: ' + a.download, 'success');
+  },
+
+  exportRegistry: function() {
+    var index = MapIndex.getAll();
+    // Generate a JS data file for the game runtime
+    var lines = [
+      '/**',
+      ' * 地图注册表 — 自动生成，请勿手动编辑',
+      ' * 生成时间: ' + new Date().toLocaleString(),
+      ' */',
+      'var MapRegistryData = {',
+      '  maps: {'
+    ];
+    var entries = [];
+    for (var id in index) {
+      var m = index[id];
+      entries.push('    "' + id + '": ' + JSON.stringify({
+        name: m.name,
+        width: m.width,
+        height: m.height,
+        file: 'js/data/maps/' + id + '.json',
+        tilesets: m.tilesets || []
+      }));
+    }
+    lines.push(entries.join(',\n'));
+    lines.push('  }');
+    lines.push('};');
+    var text = lines.join('\n');
+    var blob = new Blob([text], { type: 'text/javascript' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'map-registry.js';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('注册表已导出', 'success');
+  },
+
+  // Export map data without tileset image data (for game runtime - smaller file)
+  exportMapDataOnly: function() {
+    if (!MapData.current) { showToast('无地图数据', 'error'); return; }
+    var map = MapData.serialize();
+    // Reference tileset IDs instead of embedding data
+    map.tilesetRefs = TilesetManager.tilesets.map(function(ts) {
+      return { id: ts.id, name: ts.name, tw: ts.tw, th: ts.th, cols: ts.cols, rows: ts.rows };
+    });
+    var json = JSON.stringify(map, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (MapData.current.id || 'map') + '_data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('地图数据已导出（不含贴图）', 'success');
+  },
+
+  importJSON: function() {
+    document.getElementById('import-file').click();
+  },
+
+  onImportFile: function(files) {
+    if (!files || files.length === 0) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var data = JSON.parse(e.target.result);
+        if (data.tilesets) {
+          Promise.all([
+            TilesetManager.deserialize(data.tilesets),
+            FolderBrowser.deserialize(data.folders || [])
+          ]).then(function() {
+            if (data.map) {
+              MapData.deserialize(data.map);
+            }
+            LayerPanel.activeLayer = 0;
+            App._syncUI();
+            UndoManager.clear();
+            showToast('地图已导入', 'success');
+          });
+        } else if (data.layers) {
+          // Raw map data without tilesets
+          MapData.deserialize(data);
+          App._syncUI();
+          UndoManager.clear();
+          showToast('地图数据已导入（无贴图集）', 'info');
+        } else {
+          showToast('无法识别的文件格式', 'error');
+        }
+      } catch (err) {
+        showToast('导入失败: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(files[0]);
+    // Reset file input
+    document.getElementById('import-file').value = '';
+  }
+};
+
+/* ============================================================
+ *  MAP INDEX — Registry of all maps
+ * ============================================================ */
+var MapIndex = {
+  _storageKey: 'map_editor_index',
+
+  getAll: function() {
+    try {
+      return JSON.parse(localStorage.getItem(this._storageKey)) || {};
+    } catch (e) { return {}; }
+  },
+
+  save: function(index) {
+    localStorage.setItem(this._storageKey, JSON.stringify(index));
+  },
+
+  addCurrent: function() {
+    if (!MapData.current) { showToast('无地图数据', 'error'); return; }
+    var index = this.getAll();
+    var m = MapData.current;
+    index[m.id] = {
+      id: m.id,
+      name: m.name,
+      width: m.width,
+      height: m.height,
+      tilesets: TilesetManager.tilesets.map(function(ts) { return ts.id; }),
+      updatedAt: Date.now()
+    };
+    this.save(index);
+    // Also save the full map data to localStorage under its ID
+    var data = {
+      map: MapData.serialize(),
+      tilesets: TilesetManager.serialize(),
+      folders: FolderBrowser.serialize(),
+    };
+    localStorage.setItem('map_data_' + m.id, JSON.stringify(data));
+    this.renderList();
+    showToast('已添加到索引: ' + m.name, 'success');
+  },
+
+  removeCurrent: function() {
+    if (!MapData.current) return;
+    var index = this.getAll();
+    delete index[MapData.current.id];
+    localStorage.removeItem('map_data_' + MapData.current.id);
+    this.save(index);
+    this.renderList();
+    showToast('已从索引移除', 'info');
+  },
+
+  loadMap: function(id) {
+    try {
+      var raw = localStorage.getItem('map_data_' + id);
+      if (!raw) { showToast('找不到地图数据: ' + id, 'error'); return; }
+      var data = JSON.parse(raw);
+      Promise.all([
+        TilesetManager.deserialize(data.tilesets || []),
+        FolderBrowser.deserialize(data.folders || [])
+      ]).then(function() {
+        MapData.deserialize(data.map);
+        LayerPanel.activeLayer = 0;
+        App._syncUI();
+        UndoManager.clear();
+        showToast('已加载: ' + MapData.current.name, 'success');
+      });
+    } catch (e) {
+      showToast('加载失败: ' + e.message, 'error');
+    }
+  },
+
+  renderList: function() {
+    var el = document.getElementById('map-index-list');
+    var index = this.getAll();
+    var keys = Object.keys(index);
+    if (keys.length === 0) {
+      el.innerHTML = '<li style="color:var(--text-dim);font-size:0.72rem;padding:4px;">索引为空，添加地图到索引</li>';
+      return;
+    }
+    var html = '';
+    keys.forEach(function(id) {
+      var m = index[id];
+      var activeCls = MapData.current && MapData.current.id === id ? ' active' : '';
+      html += '<li class="map-list-item' + activeCls + '" onclick="MapIndex.loadMap(\'' + id + '\')">' +
+              '<span class="map-item-name">🗺️ ' + (m.name || id) + '</span>' +
+              '<span class="map-item-size">' + m.width + '×' + m.height + '</span>' +
+              '</li>';
+    });
+    el.innerHTML = html;
+  }
+};
+
+/* ============================================================
+ *  APP — Main application controller
+ * ============================================================ */
+var App = {
+  init: function() {
+    MapCanvas.init();
+    // Try to load from localStorage
+    var loaded = MapIO.loadFromLocal();
+    if (loaded && loaded.then) {
+      loaded.then(function(success) {
+        if (!success) App.newMap();
+        MapIndex.renderList();
+      });
+    } else {
+      this.newMap();
+      MapIndex.renderList();
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.ctrlKey && e.key === 'z') { e.preventDefault(); UndoManager.undo(); }
+      else if (e.ctrlKey && e.key === 'y') { e.preventDefault(); UndoManager.redo(); }
+      else if (e.ctrlKey && e.key === 's') { e.preventDefault(); MapIO.saveToLocal(); }
+      else if (e.ctrlKey && e.key === 'n') { e.preventDefault(); App.newMap(); }
+      else if (e.key === 'b') PaintTools.setTool('brush');
+      else if (e.key === 'r') PaintTools.setTool('rect');
+      else if (e.key === 'g') PaintTools.setTool('fill');
+      else if (e.key === 'e') PaintTools.setTool('eraser');
+      else if (e.key === 'i') PaintTools.setTool('eyedrop');
+      else if (e.key === 'p') PaintTools.setTool('spawn');
+      else if (e.key === 't') PaintTools.setTool('trigger');
+      else if (e.key === '=' || e.key === '+') MapCanvas.zoomIn();
+      else if (e.key === '-') MapCanvas.zoomOut();
+    });
+
+    // Drag & drop for tileset
+    var dropZone = document.getElementById('tileset-drop');
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      // Check for folder drops via dataTransfer.items (contains directories)
+      var items = e.dataTransfer.items;
+      if (items) {
+        var imageFiles = [];
+        for (var i = 0; i < items.length; i++) {
+          var item = items[i];
+          if (item.kind === 'file') {
+            var file = item.getAsFile();
+            if (file && file.type.startsWith('image/')) imageFiles.push(file);
+          }
+        }
+        if (imageFiles.length > 0) {
+          // If multiple individual PNGs dropped, add to folder browser
+          if (imageFiles.length > 1) {
+            FolderBrowser.onMultiFileSelect(imageFiles);
+          } else {
+            TilesetManager.onFileSelect(imageFiles);
+          }
+        }
+      } else {
+        TilesetManager.onFileSelect(e.dataTransfer.files);
+      }
+    });
+
+    // Also support dropping on the whole page
+    document.body.addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.body.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (e.target.id !== 'tileset-drop' && !e.target.closest('#tileset-drop')) {
+        var imageFiles = [];
+        for (var i = 0; i < e.dataTransfer.files.length; i++) {
+          if (e.dataTransfer.files[i].type.startsWith('image/')) {
+            imageFiles.push(e.dataTransfer.files[i]);
+          }
+        }
+        if (imageFiles.length > 1) {
+          FolderBrowser.onMultiFileSelect(imageFiles);
+        } else if (imageFiles.length === 1) {
+          TilesetManager.onFileSelect(imageFiles);
+        }
+      }
+    });
+
+    // Auto-save every 60 seconds
+    setInterval(function() {
+      if (MapData.current) {
+        MapIO.saveToLocal();
+      }
+    }, 60000);
+  },
+
+  newMap: function() {
+    MapData.createNew({
+      width: parseInt(document.getElementById('map-width').value) || 30,
+      height: parseInt(document.getElementById('map-height').value) || 20,
+      tileWidth: parseInt(document.getElementById('tile-w').value) || 16,
+      tileHeight: parseInt(document.getElementById('tile-h').value) || 16
+    });
+    UndoManager.clear();
+    LayerPanel.activeLayer = 0;
+    this._syncUI();
+    showToast('新地图已创建', 'info');
+  },
+
+  resizeMap: function() {
+    if (!MapData.current) return;
+    var newW = parseInt(document.getElementById('map-width').value) || 30;
+    var newH = parseInt(document.getElementById('map-height').value) || 20;
+    UndoManager.pushState();
+    MapData.resizeMap(newW, newH);
+    MapCanvas.render();
+    showToast('地图已调整为 ' + newW + '×' + newH, 'info');
+  },
+
+  _syncUI: function() {
+    if (!MapData.current) return;
+    document.getElementById('map-name').value = MapData.current.name;
+    document.getElementById('map-id').value = MapData.current.id;
+    document.getElementById('map-width').value = MapData.current.width;
+    document.getElementById('map-height').value = MapData.current.height;
+    document.getElementById('map-tile-info').textContent = MapData.current.tileWidth + '×' + MapData.current.tileHeight;
+    LayerPanel.render();
+    MarkerPanel.renderSpawns();
+    MarkerPanel.renderTriggers();
+    MapCanvas.render();
+  }
+};
+
+/* ============================================================
+ *  INIT
+ * ============================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+  App.init();
+});
+</script>
+</body>
+</html>

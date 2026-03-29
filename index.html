@@ -2,27 +2,39 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>幻想三国 - 放置游戏</title>
   <link rel="stylesheet" href="css/main.css" />
 </head>
 <body>
   <div id="app">
+    <!-- Resource bar (top HUD) -->
     <header id="game-header">
-      <h1>幻想三国</h1>
       <div id="resources-bar"></div>
     </header>
 
-    <nav id="tab-nav"></nav>
+    <!-- Town world canvas (main view) -->
+    <div id="town-world-container">
+      <canvas id="town-canvas"></canvas>
+      <!-- Build button floating -->
+      <button id="btn-build" class="btn-fab" onclick="BuildMenu.show()">🔨</button>
+    </div>
 
-    <main id="game-main">
-      <section id="panel-heroes" class="game-panel active"></section>
+    <!-- Hidden panel container (panels get moved into overlay when opened) -->
+    <div id="game-panels" style="display:none;">
+      <section id="panel-heroes" class="game-panel"></section>
+      <section id="panel-adventure" class="game-panel"></section>
       <section id="panel-battle" class="game-panel"></section>
+      <section id="panel-town" class="game-panel"></section>
+      <section id="panel-economy" class="game-panel"></section>
       <section id="panel-recruit" class="game-panel"></section>
       <section id="panel-story" class="game-panel"></section>
       <section id="panel-equipment" class="game-panel"></section>
       <section id="panel-settings" class="game-panel"></section>
-    </main>
+    </div>
+
+    <!-- Bottom navigation -->
+    <nav id="bottom-nav"></nav>
   </div>
 
   <!-- Core -->
@@ -31,15 +43,22 @@
   <script src="js/core/event-bus.js"></script>
   <script src="js/core/save-manager.js"></script>
   <script src="js/core/game-loop.js"></script>
+  <script src="js/core/sprite-engine.js"></script>
+  <script src="js/core/map-loader.js"></script>
 
   <!-- Data -->
   <script src="js/data/heroes.js"></script>
   <script src="js/data/stages.js"></script>
   <script src="js/data/equipment.js"></script>
+  <script src="js/data/buildings.js"></script>
+  <script src="js/data/regions.js"></script>
+  <script src="js/data/sprite-atlas.js"></script>
+  <script src="js/data/map-registry.js"></script>
   <script src="js/data/story/main-story.js"></script>
   <script src="js/data/story/character-profiles.js"></script>
   <script src="js/data/story/character-dialogues.js"></script>
   <script src="js/data/story/idle-monologues.js"></script>
+  <script src="js/data/npc-dialogues.js"></script>
 
   <!-- Modules -->
   <script src="js/modules/resource-manager.js"></script>
@@ -48,18 +67,31 @@
   <script src="js/modules/recruit-manager.js"></script>
   <script src="js/modules/equipment-manager.js"></script>
   <script src="js/modules/story-manager.js"></script>
+  <script src="js/modules/town-manager.js"></script>
+  <script src="js/modules/adventure-manager.js"></script>
+  <script src="js/modules/economy-manager.js"></script>
 
   <!-- UI -->
   <script src="js/ui/toast.js"></script>
   <script src="js/ui/modal.js"></script>
+  <script src="js/ui/overlay-panel.js"></script>
+  <script src="js/ui/bottom-nav.js"></script>
+  <script src="js/ui/build-menu.js"></script>
   <script src="js/ui/tab-controller.js"></script>
   <script src="js/ui/resources-bar.js"></script>
   <script src="js/ui/hero-panel.js"></script>
+  <script src="js/ui/battle-animations.js"></script>
   <script src="js/ui/battle-panel.js"></script>
   <script src="js/ui/recruit-panel.js"></script>
   <script src="js/ui/equipment-panel.js"></script>
   <script src="js/ui/story-panel.js"></script>
   <script src="js/ui/settings-panel.js"></script>
+  <script src="js/ui/chart-engine.js"></script>
+  <script src="js/ui/town-panel.js"></script>
+  <script src="js/ui/adventure-panel.js"></script>
+  <script src="js/ui/economy-panel.js"></script>
+  <script src="js/ui/town-world.js"></script>
+  <script src="js/ui/town-characters.js"></script>
 
   <!-- Entry -->
   <script src="js/main.js"></script>

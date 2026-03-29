@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<rect x="10" y="84" width="108" height="36" rx="4" fill="#5D4037"/>
+<rect x="18" y="44" width="92" height="44" fill="#6D4C41"/>
+<rect x="22" y="48" width="84" height="38" fill="#8D6E63"/>
+<polygon points="10,48 64,14 118,48" fill="#33691E"/>
+<polygon points="16,48 64,18 112,48" fill="#4CAF50"/>
+<rect x="40" y="22" width="48" height="16" rx="2" fill="#A38040"/>
+<rect x="42" y="24" width="44" height="12" rx="1" fill="#8B6914"/>
+<text x="64" y="34" text-anchor="middle" font-size="9" fill="#FFF" font-weight="bold" font-family="sans-serif">公会</text>
+<rect x="48" y="60" width="32" height="28" rx="2" fill="#4E342E"/>
+<rect x="50" y="62" width="13" height="24" fill="#3E2723"/>
+<rect x="65" y="62" width="13" height="24" fill="#3E2723"/>
+<circle cx="30" cy="62" r="8" fill="#A38040"/>
+<circle cx="30" cy="62" r="6" fill="#BFA76A"/>
+<line x1="30" y1="56" x2="30" y2="68" stroke="#E53935" stroke-width="1"/>
+<line x1="24" y1="62" x2="36" y2="62" stroke="#333" stroke-width="1"/>
+<line x1="96" y1="52" x2="96" y2="76" stroke="#B0BEC5" stroke-width="2"/>
+<line x1="92" y1="54" x2="100" y2="54" stroke="#F5C518" stroke-width="2"/>
+<rect x="106" y="56" width="3" height="18" fill="#795548"/>
+<circle cx="107" cy="54" r="4" fill="#FF6D00"/>
+<circle cx="107" cy="52" r="2.5" fill="#FFAB00"/>
+</svg>

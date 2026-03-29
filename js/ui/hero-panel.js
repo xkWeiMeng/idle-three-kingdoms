@@ -182,7 +182,7 @@ const HeroPanel = {
         var eColor = this._qualityColors[equip.quality] || '#aaa';
         html += '<div style="width:36px;height:36px;border-radius:4px;display:flex;align-items:center;justify-content:center;';
         html += 'background:var(--color-bg);border:1px solid ' + eColor + ';font-size:1rem;" ';
-        html += 'title="' + equip.name + '">' + (equip.emoji || '📦') + '</div>';
+        html += 'title="' + equip.name + '">' + EquipmentPanel._equipIcon(equip, 28) + '</div>';
       } else {
         html += '<div style="width:36px;height:36px;border-radius:4px;display:flex;align-items:center;justify-content:center;';
         html += 'background:var(--color-bg);border:1px dashed var(--color-text-dim);font-size:0.7rem;color:var(--color-text-dim);" ';

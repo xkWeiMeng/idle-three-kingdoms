@@ -22,6 +22,9 @@ const StageData = [
       gold: 50,
       exp: 30,
       food: 3,
+      wood: 7,
+      stone: 4,
+      iron: 1,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -48,6 +51,9 @@ const StageData = [
       gold: 60,
       exp: 36,
       food: 3,
+      wood: 9,
+      stone: 4,
+      iron: 1,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -74,6 +80,9 @@ const StageData = [
       gold: 70,
       exp: 42,
       food: 3,
+      wood: 10,
+      stone: 5,
+      iron: 2,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -100,6 +109,9 @@ const StageData = [
       gold: 80,
       exp: 48,
       food: 3,
+      wood: 12,
+      stone: 6,
+      iron: 2,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -126,6 +138,9 @@ const StageData = [
       gold: 90,
       exp: 54,
       food: 3,
+      wood: 13,
+      stone: 7,
+      iron: 2,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -153,6 +168,9 @@ const StageData = [
       gold: 100,
       exp: 60,
       food: 3,
+      wood: 15,
+      stone: 8,
+      iron: 3,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -180,6 +198,9 @@ const StageData = [
       gold: 110,
       exp: 66,
       food: 3,
+      wood: 16,
+      stone: 8,
+      iron: 3,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -207,6 +228,9 @@ const StageData = [
       gold: 120,
       exp: 72,
       food: 3,
+      wood: 18,
+      stone: 9,
+      iron: 3,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -234,6 +258,9 @@ const StageData = [
       gold: 130,
       exp: 78,
       food: 3,
+      wood: 19,
+      stone: 10,
+      iron: 3,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -258,6 +285,9 @@ const StageData = [
       gold: 140,
       exp: 84,
       food: 5,
+      wood: 21,
+      stone: 11,
+      iron: 4,
       equipDropRate: 1,
       equipQualityWeights: { 1: 50, 2: 35, 3: 13, 4: 2, 5: 0 }
     },
@@ -286,6 +316,9 @@ const StageData = [
       gold: 150,
       exp: 90,
       food: 4,
+      wood: 12,
+      stone: 22,
+      iron: 9,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -312,6 +345,9 @@ const StageData = [
       gold: 160,
       exp: 96,
       food: 4,
+      wood: 12,
+      stone: 24,
+      iron: 9,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -338,6 +374,9 @@ const StageData = [
       gold: 170,
       exp: 102,
       food: 4,
+      wood: 13,
+      stone: 25,
+      iron: 10,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -364,6 +403,9 @@ const StageData = [
       gold: 180,
       exp: 108,
       food: 4,
+      wood: 14,
+      stone: 27,
+      iron: 10,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -390,6 +432,9 @@ const StageData = [
       gold: 190,
       exp: 114,
       food: 4,
+      wood: 15,
+      stone: 28,
+      iron: 11,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -417,6 +462,9 @@ const StageData = [
       gold: 200,
       exp: 120,
       food: 4,
+      wood: 16,
+      stone: 30,
+      iron: 12,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -444,6 +492,9 @@ const StageData = [
       gold: 210,
       exp: 126,
       food: 4,
+      wood: 16,
+      stone: 31,
+      iron: 12,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -471,6 +522,9 @@ const StageData = [
       gold: 220,
       exp: 132,
       food: 4,
+      wood: 17,
+      stone: 33,
+      iron: 13,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -498,6 +552,9 @@ const StageData = [
       gold: 229,
       exp: 138,
       food: 4,
+      wood: 18,
+      stone: 34,
+      iron: 13,
       equipDropRate: 0.15,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -522,6 +579,9 @@ const StageData = [
       gold: 240,
       exp: 144,
       food: 6,
+      wood: 19,
+      stone: 36,
+      iron: 14,
       equipDropRate: 1,
       equipQualityWeights: { 1: 35, 2: 35, 3: 22, 4: 7, 5: 1 }
     },
@@ -550,6 +610,9 @@ const StageData = [
       gold: 250,
       exp: 150,
       food: 5,
+      wood: 25,
+      stone: 25,
+      iron: 20,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -576,6 +639,9 @@ const StageData = [
       gold: 260,
       exp: 156,
       food: 5,
+      wood: 26,
+      stone: 26,
+      iron: 20,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -602,6 +668,9 @@ const StageData = [
       gold: 270,
       exp: 162,
       food: 5,
+      wood: 27,
+      stone: 27,
+      iron: 21,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -628,6 +697,9 @@ const StageData = [
       gold: 280,
       exp: 168,
       food: 5,
+      wood: 28,
+      stone: 28,
+      iron: 22,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -654,6 +726,9 @@ const StageData = [
       gold: 290,
       exp: 174,
       food: 5,
+      wood: 29,
+      stone: 29,
+      iron: 23,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -681,6 +756,9 @@ const StageData = [
       gold: 300,
       exp: 180,
       food: 5,
+      wood: 30,
+      stone: 30,
+      iron: 24,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -708,6 +786,9 @@ const StageData = [
       gold: 310,
       exp: 186,
       food: 5,
+      wood: 31,
+      stone: 31,
+      iron: 24,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -735,6 +816,9 @@ const StageData = [
       gold: 320,
       exp: 192,
       food: 5,
+      wood: 32,
+      stone: 32,
+      iron: 25,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -762,6 +846,9 @@ const StageData = [
       gold: 330,
       exp: 198,
       food: 5,
+      wood: 33,
+      stone: 33,
+      iron: 26,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -786,6 +873,9 @@ const StageData = [
       gold: 340,
       exp: 204,
       food: 7,
+      wood: 34,
+      stone: 34,
+      iron: 27,
       equipDropRate: 1,
       equipQualityWeights: { 1: 20, 2: 30, 3: 30, 4: 15, 5: 5 }
     },
@@ -814,6 +904,9 @@ const StageData = [
       gold: 350,
       exp: 210,
       food: 6,
+      wood: 21,
+      stone: 28,
+      iron: 52,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -840,6 +933,9 @@ const StageData = [
       gold: 360,
       exp: 216,
       food: 6,
+      wood: 21,
+      stone: 28,
+      iron: 54,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -866,6 +962,9 @@ const StageData = [
       gold: 370,
       exp: 222,
       food: 6,
+      wood: 22,
+      stone: 29,
+      iron: 55,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -892,6 +991,9 @@ const StageData = [
       gold: 380,
       exp: 228,
       food: 6,
+      wood: 22,
+      stone: 30,
+      iron: 57,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -918,6 +1020,9 @@ const StageData = [
       gold: 390,
       exp: 234,
       food: 6,
+      wood: 23,
+      stone: 31,
+      iron: 58,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -945,6 +1050,9 @@ const StageData = [
       gold: 400,
       exp: 240,
       food: 6,
+      wood: 24,
+      stone: 32,
+      iron: 60,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -972,6 +1080,9 @@ const StageData = [
       gold: 409,
       exp: 245,
       food: 6,
+      wood: 24,
+      stone: 32,
+      iron: 61,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -999,6 +1110,9 @@ const StageData = [
       gold: 420,
       exp: 252,
       food: 6,
+      wood: 25,
+      stone: 33,
+      iron: 63,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -1026,6 +1140,9 @@ const StageData = [
       gold: 430,
       exp: 258,
       food: 6,
+      wood: 25,
+      stone: 34,
+      iron: 64,
       equipDropRate: 0.12,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -1050,6 +1167,9 @@ const StageData = [
       gold: 440,
       exp: 264,
       food: 8,
+      wood: 26,
+      stone: 35,
+      iron: 66,
       equipDropRate: 1,
       equipQualityWeights: { 1: 10, 2: 25, 3: 30, 4: 25, 5: 10 }
     },
@@ -1078,6 +1198,9 @@ const StageData = [
       gold: 450,
       exp: 270,
       food: 7,
+      wood: 54,
+      stone: 54,
+      iron: 54,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1104,6 +1227,9 @@ const StageData = [
       gold: 460,
       exp: 276,
       food: 7,
+      wood: 55,
+      stone: 55,
+      iron: 55,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1130,6 +1256,9 @@ const StageData = [
       gold: 470,
       exp: 282,
       food: 7,
+      wood: 56,
+      stone: 56,
+      iron: 56,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1156,6 +1285,9 @@ const StageData = [
       gold: 480,
       exp: 288,
       food: 7,
+      wood: 57,
+      stone: 57,
+      iron: 57,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1182,6 +1314,9 @@ const StageData = [
       gold: 490,
       exp: 294,
       food: 7,
+      wood: 58,
+      stone: 58,
+      iron: 58,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1209,6 +1344,9 @@ const StageData = [
       gold: 500,
       exp: 300,
       food: 7,
+      wood: 60,
+      stone: 60,
+      iron: 60,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1236,6 +1374,9 @@ const StageData = [
       gold: 510,
       exp: 306,
       food: 7,
+      wood: 61,
+      stone: 61,
+      iron: 61,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1263,6 +1404,9 @@ const StageData = [
       gold: 520,
       exp: 312,
       food: 7,
+      wood: 62,
+      stone: 62,
+      iron: 62,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1290,6 +1434,9 @@ const StageData = [
       gold: 530,
       exp: 318,
       food: 7,
+      wood: 63,
+      stone: 63,
+      iron: 63,
       equipDropRate: 0.1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },
@@ -1314,6 +1461,9 @@ const StageData = [
       gold: 540,
       exp: 324,
       food: 9,
+      wood: 64,
+      stone: 64,
+      iron: 64,
       equipDropRate: 1,
       equipQualityWeights: { 1: 5, 2: 15, 3: 30, 4: 35, 5: 15 }
     },

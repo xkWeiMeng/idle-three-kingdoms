@@ -95,7 +95,11 @@ const BattleManager = {
       ResourceManager.spend(CONSTANTS.RESOURCE.FOOD, cost);
     }
 
-    // 构建队友单位
+    // 构建队友单位（含建筑加成）
+    var atkBonus = typeof TownManager !== 'undefined' ? TownManager.getAtkBonus() : 0;
+    var defBonus = typeof TownManager !== 'undefined' ? TownManager.getDefBonus() : 0;
+    var hpBonus  = typeof TownManager !== 'undefined' ? TownManager.getHpBonus() : 0;
+
     var allies = [];
     for (var i = 0; i < team.length; i++) {
       var hero = team[i];
@@ -103,18 +107,22 @@ const BattleManager = {
       var stats = HeroManager.getHeroStats(hero.uid);
       if (!template || !stats) continue;
 
+      var finalAtk = Math.floor(stats.atk * (1 + atkBonus));
+      var finalDef = Math.floor(stats.def * (1 + defBonus));
+      var finalHp  = Math.floor(stats.hp * (1 + hpBonus));
+
       allies.push({
         uid: hero.uid,
         id: hero.id,
         name: template.name,
         emoji: template.emoji || '',
-        currentHp: stats.hp,
-        maxHp: stats.hp,
-        atk: stats.atk,
-        def: stats.def,
+        currentHp: finalHp,
+        maxHp: finalHp,
+        atk: finalAtk,
+        def: finalDef,
         spd: stats.spd,
-        baseAtk: stats.atk,
-        baseDef: stats.def,
+        baseAtk: finalAtk,
+        baseDef: finalDef,
         baseSpd: stats.spd,
         skill: template.skill ? Utils.deepClone(template.skill) : null,
         skillCd: 0,
@@ -257,6 +265,9 @@ const BattleManager = {
       target.isAlive = false;
     }
 
+    // 触发攻击动画
+    BattleAnimations.playAttack(unit.uid, target.uid, result.damage, result.isCrit);
+
     var critText = result.isCrit ? '💥暴击！' : '';
     this._addLog(state,
       '[第' + state.round + '回合] ' +
@@ -265,6 +276,7 @@ const BattleManager = {
     );
 
     if (!target.isAlive) {
+      BattleAnimations.playDeath(target.uid);
       this._addLog(state, '  💀 ' + target.name + ' 被击败！');
     }
   },
@@ -313,6 +325,10 @@ const BattleManager = {
         target.isAlive = false;
       }
 
+      // 触发技能动画
+      BattleAnimations.playSkill(unit.uid, target.uid,
+        { name: skillName, type: 'damage' }, result.damage);
+
       var critText = result.isCrit ? '💥暴击！' : '';
       this._addLog(state,
         '[第' + state.round + '回合] ' +
@@ -321,6 +337,7 @@ const BattleManager = {
       );
 
       if (!target.isAlive) {
+        BattleAnimations.playDeath(target.uid);
         this._addLog(state, '  💀 ' + target.name + ' 被击败！');
       }
     }
@@ -334,7 +351,6 @@ const BattleManager = {
     } else if (targetType === 'self') {
       targets = unit.isAlive ? [unit] : [];
     } else {
-      // 'all' — 全体友军
       targets = this._getAliveUnits(friendlies);
     }
 
@@ -345,6 +361,10 @@ const BattleManager = {
       var before = target.currentHp;
       target.currentHp = Math.min(target.maxHp, target.currentHp + healAmount);
       var actual = target.currentHp - before;
+
+      // 触发治疗动画
+      BattleAnimations.playSkill(unit.uid, target.uid,
+        { name: skillName, type: 'heal' }, actual);
 
       this._addLog(state,
         '[第' + state.round + '回合] ' +
@@ -369,6 +389,8 @@ const BattleManager = {
 
     for (var i = 0; i < targets.length; i++) {
       this._applyBuff(targets[i], effect, skillName);
+      BattleAnimations.playSkill(unit.uid, targets[i].uid,
+        { name: skillName, type: 'buff' }, 0);
     }
 
     var statNames = { atk: '攻击', def: '防御', spd: '速度', hp: '生命' };
@@ -396,6 +418,8 @@ const BattleManager = {
 
     for (var i = 0; i < targets.length; i++) {
       this._applyBuff(targets[i], effect, skillName);
+      BattleAnimations.playSkill(unit.uid, targets[i].uid,
+        { name: skillName, type: 'debuff' }, 0);
     }
 
     var statNames = { atk: '攻击', def: '防御', spd: '速度', hp: '生命' };
@@ -504,18 +528,34 @@ const BattleManager = {
     var rewards = stage ? stage.rewards : {};
     var rewardSummary = [];
 
-    // 基础奖励
+    // 基础奖励（含校场 EXP 加成）
+    var expBonusMult = 1 + (typeof TownManager !== 'undefined' ? TownManager.getExpBonus() : 0);
+
     if (rewards.gold) {
-      ResourceManager.add(CONSTANTS.RESOURCE.GOLD, rewards.gold);
+      ResourceManager.add(CONSTANTS.RESOURCE.GOLD, rewards.gold, 'battle', 'stage_reward', stageId);
       rewardSummary.push('💰' + rewards.gold);
     }
     if (rewards.exp) {
-      ResourceManager.add(CONSTANTS.RESOURCE.EXP, rewards.exp);
-      rewardSummary.push('⭐' + rewards.exp);
+      var actualExp = Math.floor(rewards.exp * expBonusMult);
+      ResourceManager.add(CONSTANTS.RESOURCE.EXP, actualExp, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('⭐' + actualExp);
     }
     if (rewards.food) {
-      ResourceManager.add(CONSTANTS.RESOURCE.FOOD, rewards.food);
+      ResourceManager.add(CONSTANTS.RESOURCE.FOOD, rewards.food, 'battle', 'stage_reward', stageId);
       rewardSummary.push('🍖' + rewards.food);
+    }
+    // 建筑资源掉落
+    if (rewards.wood) {
+      ResourceManager.add(CONSTANTS.RESOURCE.WOOD, rewards.wood, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('🪵' + rewards.wood);
+    }
+    if (rewards.stone) {
+      ResourceManager.add(CONSTANTS.RESOURCE.STONE, rewards.stone, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('🪨' + rewards.stone);
+    }
+    if (rewards.iron) {
+      ResourceManager.add(CONSTANTS.RESOURCE.IRON, rewards.iron, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('⛏️' + rewards.iron);
     }
 
     // 首次通关奖励
@@ -525,7 +565,7 @@ const BattleManager = {
       this._state.clearedStages.push(stageId);
       if (stage && stage.firstClearReward) {
         if (stage.firstClearReward.jade) {
-          ResourceManager.add(CONSTANTS.RESOURCE.JADE, stage.firstClearReward.jade);
+          ResourceManager.add(CONSTANTS.RESOURCE.JADE, stage.firstClearReward.jade, 'battle', 'first_clear', stageId);
           rewardSummary.push('💎' + stage.firstClearReward.jade);
         }
         if (stage.firstClearReward.hero) {
@@ -538,9 +578,11 @@ const BattleManager = {
     // 更新最高关卡
     ResourceManager.setHighestStage(stageId);
 
-    // 装备掉落
+    // 装备掉落（含探险公会加成）
     var droppedEquip = null;
-    if (rewards.equipDropRate && Math.random() < rewards.equipDropRate) {
+    var dropBonus = typeof TownManager !== 'undefined' ? TownManager.getDropRateBonus() : 0;
+    var effectiveDropRate = (rewards.equipDropRate || 0) * (1 + dropBonus);
+    if (effectiveDropRate > 0 && Math.random() < effectiveDropRate) {
       droppedEquip = this._generateEquipDrop(stage);
       if (droppedEquip) {
         rewardSummary.push('🗡️装备');

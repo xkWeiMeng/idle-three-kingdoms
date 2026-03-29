@@ -18,6 +18,24 @@ const CONSTANTS = {
     JADE: 'jade',       // 玉璧 (高级货币)
     EXP: 'exp',
     FOOD: 'food',
+    WOOD: 'wood',       // 木材 (建筑资源)
+    STONE: 'stone',     // 石材 (建筑资源)
+    IRON: 'iron',       // 铁矿 (建筑资源)
+  },
+
+  // 资源图标
+  RESOURCE_EMOJI: {
+    gold: '💰', jade: '💎', exp: '⭐', food: '🍚',
+    wood: '🪵', stone: '🪨', iron: '⛏️',
+  },
+
+  // 基础资源上限
+  RESOURCE_BASE_CAP: {
+    gold: 10000,
+    wood: 500,
+    stone: 500,
+    iron: 300,
+    food: 200,
   },
 
   // 品质
