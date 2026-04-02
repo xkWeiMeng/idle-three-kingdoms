@@ -45,6 +45,7 @@ var TownPanel = {
     var maxBuildSlots = TownManager.getMaxBuildSlots();
 
     // 产出总览
+    var goldRate = TownManager.getProductionRate('gold');
     var woodRate = TownManager.getProductionRate('wood');
     var stoneRate = TownManager.getProductionRate('stone');
     var ironRate = TownManager.getProductionRate('iron');
@@ -58,9 +59,10 @@ var TownPanel = {
       '</div>';
 
     // 产出总览
-    if (woodRate > 0 || stoneRate > 0 || ironRate > 0) {
+    if (goldRate > 0 || woodRate > 0 || stoneRate > 0 || ironRate > 0) {
       html += '<div class="town-production-overview">' +
         '📊 产出: ';
+      if (goldRate > 0) html += '💰 +' + goldRate.toFixed(1) + '/分 ';
       if (woodRate > 0) html += '🪵 +' + woodRate.toFixed(1) + '/分 ';
       if (stoneRate > 0) html += '🪨 +' + stoneRate.toFixed(1) + '/分 ';
       if (ironRate > 0) html += '⛏️ +' + ironRate.toFixed(1) + '/分';
@@ -153,7 +155,21 @@ var TownPanel = {
     var data = BuildingData[buildingId];
     if (data.production) {
       var prod = data.production(level);
-      return CONSTANTS.RESOURCE_EMOJI[prod.resource] + ' +' + prod.perMinute.toFixed(1) + '/分钟';
+      var emoji = CONSTANTS.RESOURCE_EMOJI[prod.resource] || '💰';
+      var rate = prod.perMinute;
+      // 显示加成器乘数
+      var boosterLv = TownManager.getBoosterLevel(buildingId);
+      var boostText = '';
+      if (boosterLv > 0) {
+        var boostData = BuildingData[buildingId] && BuildingData[buildingId].boosts;
+        rate = TownManager.getProductionRate(prod.resource);
+        boostText = ' (含加成 ×' + (1 + boosterLv * 0.05).toFixed(2) + ')';
+      }
+      return emoji + ' +' + rate.toFixed(1) + '/分钟' + boostText;
+    }
+    if (data.boosts) {
+      var fx = data.effects(level);
+      return '⬆ ' + fx.boostTarget + ' 产出 +' + Math.round(fx.productionBoost * 100) + '%';
     }
     if (data.effects) {
       var fx = data.effects(level);
@@ -162,6 +178,10 @@ var TownPanel = {
       if (fx.defBonus) parts.push('DEF +' + Math.round(fx.defBonus * 100) + '%');
       if (fx.hpBonus) parts.push('HP +' + Math.round(fx.hpBonus * 100) + '%');
       if (fx.expBonus) parts.push('EXP +' + Math.round(fx.expBonus * 100) + '%');
+      if (fx.spdBonus) parts.push('SPD +' + Math.round(fx.spdBonus * 100) + '%');
+      if (fx.firstStrikeChance) parts.push('先攻 ' + Math.round(fx.firstStrikeChance * 100) + '%');
+      if (fx.equipQualityBonus) parts.push('品质 +' + Math.round(fx.equipQualityBonus * 100) + '%');
+      if (fx.skillCooldownReduction) parts.push('冷却 -' + Math.round(fx.skillCooldownReduction * 100) + '%');
       if (fx.offlineEfficiency) parts.push('离线效率 ' + Math.round(fx.offlineEfficiency * 100) + '%');
       if (fx.dropRateBonus) parts.push('掉率 +' + Math.round(fx.dropRateBonus * 100) + '%');
       if (fx.recruitDiscount) parts.push('招募折扣 ' + Math.round(fx.recruitDiscount * 100) + '%');

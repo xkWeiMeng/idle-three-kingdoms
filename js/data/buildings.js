@@ -1,6 +1,7 @@
 /**
  * 建筑静态数据表
- * 12 种建筑分为 4 类：核心、资源生产、战斗辅助、功能型
+ * 20 种建筑分为 4 类：核心、资源生产(含加成器)、战斗辅助、功能型
+ * 支持 requires 前置依赖 和 boosts 产出加成
  */
 const BuildingData = {
 
@@ -77,6 +78,7 @@ const BuildingData = {
     emoji: '⚒',
     category: 'production',
     description: '自动生产铁矿',
+    requires: { town_hall: 2 },
     maxLevel: 25,
     unlockOrder: 3,
     costFormula: function (lv) {
@@ -123,6 +125,7 @@ const BuildingData = {
     emoji: '⚔',
     category: 'combat',
     description: '提升全队攻击力',
+    requires: { town_hall: 3 },
     maxLevel: 25,
     unlockOrder: 5,
     costFormula: function (lv) {
@@ -145,6 +148,7 @@ const BuildingData = {
     emoji: '🏋',
     category: 'combat',
     description: '提升战斗经验获取',
+    requires: { barracks: 3 },
     maxLevel: 25,
     unlockOrder: 6,
     costFormula: function (lv) {
@@ -166,6 +170,7 @@ const BuildingData = {
     emoji: '🔨',
     category: 'combat',
     description: '提升装备强化成功率和属性加成',
+    requires: { barracks: 3, iron_mine: 3 },
     maxLevel: 25,
     unlockOrder: 7,
     costFormula: function (lv) {
@@ -190,6 +195,7 @@ const BuildingData = {
     emoji: '🏰',
     category: 'combat',
     description: '提升全队防御力和生命值',
+    requires: { town_hall: 3, quarry: 3 },
     maxLevel: 25,
     unlockOrder: 8,
     costFormula: function (lv) {
@@ -214,6 +220,7 @@ const BuildingData = {
     emoji: '🧭',
     category: 'functional',
     description: '提升离线收益效率和掉落率',
+    requires: { town_hall: 4 },
     maxLevel: 25,
     unlockOrder: 9,
     costFormula: function (lv) {
@@ -237,6 +244,7 @@ const BuildingData = {
     emoji: '🍺',
     category: 'functional',
     description: '降低招募费用，提供免费招募',
+    requires: { town_hall: 5 },
     maxLevel: 25,
     unlockOrder: 10,
     costFormula: function (lv) {
@@ -260,6 +268,7 @@ const BuildingData = {
     emoji: '📦',
     category: 'functional',
     description: '提升资源存储上限',
+    requires: { town_hall: 2 },
     maxLevel: 25,
     unlockOrder: 11,
     costFormula: function (lv) {
@@ -284,6 +293,7 @@ const BuildingData = {
     emoji: '🏪',
     category: 'functional',
     description: '资源间以固定汇率互换',
+    requires: { town_hall: 5, warehouse: 3 },
     maxLevel: 5,
     unlockOrder: 12,
     costFormula: function (lv) {
@@ -306,6 +316,169 @@ const BuildingData = {
           iron: Math.floor(baseRates.iron * (1 - discount))
         }
       };
+    }
+  },
+
+  // ===== 新增：金币产出 =====
+  tax_office: {
+    id: 'tax_office',
+    name: '税务署',
+    emoji: '🏛',
+    category: 'production',
+    description: '自动征收金币税赋',
+    requires: { town_hall: 2 },
+    maxLevel: 25,
+    unlockOrder: 13,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(300 * Math.pow(1.6, lv - 1)),
+        wood:  Math.floor(80 * Math.pow(1.6, lv - 1)),
+        stone: Math.floor(60 * Math.pow(1.6, lv - 1))
+      };
+    },
+    production: function (lv) {
+      return { resource: 'gold', perMinute: 5 * (1 + 0.8 * (lv - 1)) };
+    }
+  },
+
+  // ===== 新增：战斗建筑 =====
+  weapon_workshop: {
+    id: 'weapon_workshop',
+    name: '武器工坊',
+    emoji: '🗡',
+    category: 'combat',
+    description: '打造精良兵器，提升攻击力和装备品质',
+    requires: { barracks: 5, iron_mine: 3 },
+    maxLevel: 15,
+    unlockOrder: 14,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(500 * Math.pow(1.6, lv - 1)),
+        wood:  Math.floor(120 * Math.pow(1.6, lv - 1)),
+        iron:  Math.floor(80 * Math.pow(1.6, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return {
+        atkBonus: 0.02 * lv,
+        equipQualityBonus: 0.03 * lv
+      };
+    }
+  },
+
+  stable: {
+    id: 'stable',
+    name: '马厩',
+    emoji: '🐴',
+    category: 'combat',
+    description: '饲养战马，提升速度和先攻概率',
+    requires: { barracks: 5, town_hall: 5 },
+    maxLevel: 15,
+    unlockOrder: 15,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(400 * Math.pow(1.6, lv - 1)),
+        wood:  Math.floor(150 * Math.pow(1.6, lv - 1)),
+        iron:  Math.floor(40 * Math.pow(1.6, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return {
+        spdBonus: 0.02 * lv,
+        firstStrikeChance: Math.min(0.5, 0.03 * lv)
+      };
+    }
+  },
+
+  // ===== 新增：功能建筑 =====
+  academy: {
+    id: 'academy',
+    name: '书院',
+    emoji: '📚',
+    category: 'functional',
+    description: '研习兵法，大幅提升经验获取和技能效果',
+    requires: { town_hall: 4, training_ground: 3 },
+    maxLevel: 15,
+    unlockOrder: 16,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(600 * Math.pow(1.6, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.6, lv - 1)),
+        stone: Math.floor(80 * Math.pow(1.6, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return {
+        expBonus: 0.15 * lv,
+        skillCooldownReduction: Math.min(0.5, 0.02 * lv)
+      };
+    }
+  },
+
+  // ===== 新增：产出加成器 =====
+  watermill: {
+    id: 'watermill',
+    name: '水车',
+    emoji: '💧',
+    category: 'production',
+    description: '水力驱动，加速伐木场产出',
+    requires: { lumber_camp: 5 },
+    maxLevel: 5,
+    unlockOrder: 17,
+    boosts: { target: 'lumber_camp', bonusPerLevel: 0.05 },
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(400 * Math.pow(1.8, lv - 1)),
+        wood:  Math.floor(200 * Math.pow(1.8, lv - 1)),
+        stone: Math.floor(100 * Math.pow(1.8, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return { productionBoost: 0.05 * lv, boostTarget: '伐木场' };
+    }
+  },
+
+  stone_mason: {
+    id: 'stone_mason',
+    name: '石匠坊',
+    emoji: '🧱',
+    category: 'production',
+    description: '精湛石工技术，加速采石场产出',
+    requires: { quarry: 5 },
+    maxLevel: 5,
+    unlockOrder: 18,
+    boosts: { target: 'quarry', bonusPerLevel: 0.05 },
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(400 * Math.pow(1.8, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.8, lv - 1)),
+        stone: Math.floor(200 * Math.pow(1.8, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return { productionBoost: 0.05 * lv, boostTarget: '采石场' };
+    }
+  },
+
+  smelter: {
+    id: 'smelter',
+    name: '冶炼炉',
+    emoji: '🔥',
+    category: 'production',
+    description: '高温冶炼，加速铁矿场产出',
+    requires: { iron_mine: 5 },
+    maxLevel: 5,
+    unlockOrder: 19,
+    boosts: { target: 'iron_mine', bonusPerLevel: 0.05 },
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(500 * Math.pow(1.8, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.8, lv - 1)),
+        iron:  Math.floor(200 * Math.pow(1.8, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return { productionBoost: 0.05 * lv, boostTarget: '铁矿场' };
     }
   }
 };
@@ -332,14 +505,14 @@ BuildingData._categories = {
  */
 BuildingData._townHallUnlocks = [
   null,
-  { slots: 3,  levelCap: 1,  unlockStage: null },
-  { slots: 5,  levelCap: 3,  unlockStage: 'stage_1_10' },
-  { slots: 7,  levelCap: 5,  unlockStage: 'stage_2_5' },
-  { slots: 9,  levelCap: 7,  unlockStage: 'stage_3_1' },
-  { slots: 11, levelCap: 10, unlockStage: 'stage_3_10' },
-  { slots: 12, levelCap: 12, unlockStage: 'stage_4_5' },
-  { slots: 12, levelCap: 15, unlockStage: 'stage_5_1' },
-  { slots: 12, levelCap: 18, unlockStage: 'stage_5_5' },
-  { slots: 12, levelCap: 20, unlockStage: 'stage_5_10' },
-  { slots: 12, levelCap: 25, unlockStage: null }
+  { slots: 4,  levelCap: 1,  unlockStage: null },
+  { slots: 7,  levelCap: 3,  unlockStage: 'stage_1_10' },
+  { slots: 10, levelCap: 5,  unlockStage: 'stage_2_5' },
+  { slots: 13, levelCap: 7,  unlockStage: 'stage_3_1' },
+  { slots: 16, levelCap: 10, unlockStage: 'stage_3_10' },
+  { slots: 18, levelCap: 12, unlockStage: 'stage_4_5' },
+  { slots: 19, levelCap: 15, unlockStage: 'stage_5_1' },
+  { slots: 19, levelCap: 18, unlockStage: 'stage_5_5' },
+  { slots: 19, levelCap: 20, unlockStage: 'stage_5_10' },
+  { slots: 19, levelCap: 25, unlockStage: null }
 ];

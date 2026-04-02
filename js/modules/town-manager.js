@@ -16,13 +16,20 @@ var TownManager = {
       adventure_guild:  { level: 0, buildEndTime: null },
       tavern:           { level: 0, buildEndTime: null },
       warehouse:        { level: 0, buildEndTime: null },
-      market:           { level: 0, buildEndTime: null }
+      market:           { level: 0, buildEndTime: null },
+      tax_office:       { level: 0, buildEndTime: null },
+      weapon_workshop:  { level: 0, buildEndTime: null },
+      stable:           { level: 0, buildEndTime: null },
+      academy:          { level: 0, buildEndTime: null },
+      watermill:        { level: 0, buildEndTime: null },
+      stone_mason:      { level: 0, buildEndTime: null },
+      smelter:          { level: 0, buildEndTime: null }
     },
     placements: {}
   },
 
   /** 资源产出累加器（秒级精度 → 每分钟产出） */
-  _productionAccum: { wood: 0, stone: 0, iron: 0 },
+  _productionAccum: { wood: 0, stone: 0, iron: 0, gold: 0 },
 
   init: function (saved) {
     var data = (saved && saved.town) ? saved.town : {};
@@ -40,7 +47,7 @@ var TownManager = {
       this._state.buildings = this._getDefaultBuildings();
     }
     this._state.placements = (data && data.placements) ? data.placements : {};
-    this._productionAccum = { wood: 0, stone: 0, iron: 0 };
+    this._productionAccum = { wood: 0, stone: 0, iron: 0, gold: 0 };
   },
 
   _getDefaultBuildings: function () {
@@ -57,7 +64,14 @@ var TownManager = {
       adventure_guild:  { level: 0, buildEndTime: null },
       tavern:           { level: 0, buildEndTime: null },
       warehouse:        { level: 0, buildEndTime: null },
-      market:           { level: 0, buildEndTime: null }
+      market:           { level: 0, buildEndTime: null },
+      tax_office:       { level: 0, buildEndTime: null },
+      weapon_workshop:  { level: 0, buildEndTime: null },
+      stable:           { level: 0, buildEndTime: null },
+      academy:          { level: 0, buildEndTime: null },
+      watermill:        { level: 0, buildEndTime: null },
+      stone_mason:      { level: 0, buildEndTime: null },
+      smelter:          { level: 0, buildEndTime: null }
     };
   },
 
@@ -82,13 +96,25 @@ var TownManager = {
     }
 
     // 2. 资源产出（生产型建筑）
-    var productionBuildings = ['lumber_camp', 'quarry', 'iron_mine'];
+    var productionBuildings = ['lumber_camp', 'quarry', 'iron_mine', 'tax_office'];
+    var boosterMap = { lumber_camp: 'watermill', quarry: 'stone_mason', iron_mine: 'smelter' };
     for (var i = 0; i < productionBuildings.length; i++) {
       var bId = productionBuildings[i];
-      var lv = this._state.buildings[bId].level;
+      var lv = this._state.buildings[bId] ? this._state.buildings[bId].level : 0;
       if (lv <= 0) continue;
       var prod = BuildingData[bId].production(lv);
       var perSecond = prod.perMinute / 60;
+
+      // 应用加成器乘数
+      var boosterId = boosterMap[bId];
+      if (boosterId) {
+        var boosterLv = this._state.buildings[boosterId] ? this._state.buildings[boosterId].level : 0;
+        if (boosterLv > 0) {
+          var boostData = BuildingData[boosterId].boosts;
+          perSecond *= (1 + boosterLv * boostData.bonusPerLevel);
+        }
+      }
+
       this._productionAccum[prod.resource] += perSecond * dt;
 
       // 当累积 >= 1 时，投放资源
@@ -202,6 +228,19 @@ var TownManager = {
       }
     }
 
+    // 检查建筑前置依赖
+    if (data.requires) {
+      for (var reqId in data.requires) {
+        if (data.requires.hasOwnProperty(reqId)) {
+          var reqLevel = data.requires[reqId];
+          if (this.getBuildingLevel(reqId) < reqLevel) {
+            var reqData = BuildingData[reqId];
+            return { ok: false, reason: '需要 ' + reqData.name + ' Lv.' + reqLevel };
+          }
+        }
+      }
+    }
+
     // 检查建筑槽解锁
     if (buildingId !== 'town_hall' && currentLevel === 0) {
       var unlockedCount = this._getUnlockedBuildingCount();
@@ -264,9 +303,13 @@ var TownManager = {
   // ---------- 加成查询 ----------
 
   getAtkBonus: function () {
+    var bonus = 0;
     var lv = this.getBuildingLevel('barracks');
-    if (lv <= 0) return 0;
-    return BuildingData.barracks.effects(lv).atkBonus;
+    if (lv > 0) bonus += BuildingData.barracks.effects(lv).atkBonus;
+    // 武器工坊叠加
+    var wwLv = this.getBuildingLevel('weapon_workshop');
+    if (wwLv > 0) bonus += BuildingData.weapon_workshop.effects(wwLv).atkBonus;
+    return bonus;
   },
 
   getDefBonus: function () {
@@ -282,9 +325,13 @@ var TownManager = {
   },
 
   getExpBonus: function () {
+    var bonus = 0;
     var lv = this.getBuildingLevel('training_ground');
-    if (lv <= 0) return 0;
-    return BuildingData.training_ground.effects(lv).expBonus;
+    if (lv > 0) bonus += BuildingData.training_ground.effects(lv).expBonus;
+    // 书院叠加
+    var acLv = this.getBuildingLevel('academy');
+    if (acLv > 0) bonus += BuildingData.academy.effects(acLv).expBonus;
+    return bonus;
   },
 
   getOfflineEfficiency: function () {
@@ -303,6 +350,37 @@ var TownManager = {
     var lv = this.getBuildingLevel('adventure_guild');
     if (lv <= 0) return 0;
     return BuildingData.adventure_guild.effects(lv).dropRateBonus;
+  },
+
+  getSpdBonus: function () {
+    var lv = this.getBuildingLevel('stable');
+    if (lv <= 0) return 0;
+    return BuildingData.stable.effects(lv).spdBonus;
+  },
+
+  getFirstStrikeChance: function () {
+    var lv = this.getBuildingLevel('stable');
+    if (lv <= 0) return 0;
+    return BuildingData.stable.effects(lv).firstStrikeChance;
+  },
+
+  getEquipQualityBonus: function () {
+    var lv = this.getBuildingLevel('weapon_workshop');
+    if (lv <= 0) return 0;
+    return BuildingData.weapon_workshop.effects(lv).equipQualityBonus;
+  },
+
+  getSkillCooldownReduction: function () {
+    var lv = this.getBuildingLevel('academy');
+    if (lv <= 0) return 0;
+    return BuildingData.academy.effects(lv).skillCooldownReduction;
+  },
+
+  getBoosterLevel: function (productionBuildingId) {
+    var boosterMap = { lumber_camp: 'watermill', quarry: 'stone_mason', iron_mine: 'smelter' };
+    var boosterId = boosterMap[productionBuildingId];
+    if (!boosterId) return 0;
+    return this.getBuildingLevel(boosterId);
   },
 
   getResourceCap: function (resourceType) {
@@ -324,12 +402,24 @@ var TownManager = {
   },
 
   getProductionRate: function (resourceType) {
-    var buildings = { wood: 'lumber_camp', stone: 'quarry', iron: 'iron_mine' };
+    var buildings = { wood: 'lumber_camp', stone: 'quarry', iron: 'iron_mine', gold: 'tax_office' };
     var bId = buildings[resourceType];
     if (!bId) return 0;
     var lv = this.getBuildingLevel(bId);
     if (lv <= 0) return 0;
-    return BuildingData[bId].production(lv).perMinute;
+    var baseRate = BuildingData[bId].production(lv).perMinute;
+
+    // 应用加成器乘数
+    var boosterMap = { lumber_camp: 'watermill', quarry: 'stone_mason', iron_mine: 'smelter' };
+    var boosterId = boosterMap[bId];
+    if (boosterId) {
+      var boosterLv = this.getBuildingLevel(boosterId);
+      if (boosterLv > 0) {
+        var boostData = BuildingData[boosterId].boosts;
+        baseRate *= (1 + boosterLv * boostData.bonusPerLevel);
+      }
+    }
+    return baseRate;
   },
 
   // ---------- 集市交易 ----------
