@@ -8,6 +8,40 @@
 
 ### Added
 
+- **StoryManager 服务规范** (`specs/services/story-manager.md`) — 2026-04-04
+  - 10 个能力：init、onTick、getCurrentChapter/getCurrentScenes、markSceneSeen、advanceChapter、checkUnlock、_triggerMonologue、getDialogue、getProfile、getState
+  - 39 个 WHEN/THEN 验收场景（含正常/边界/错误路径）
+  - 完整的 Hero ID → Story ID 映射表（20 条）、章节对象结构、CharacterProfile 结构定义
+  - 经 spec-reviewer 两轮审查后升为 Active（修复随机选取变量命名、`hero:added` 消费者矛盾、`init` 参数格式、`story:monologue` 载荷不同步等 4 个问题）
+  - 经 drift-detector 漂移检测，规范与实现完全对齐（10/10 能力 PASS）
+
+- **StoryManager 测试骨架** (`tests/story-manager.test.html`) — 2026-04-04
+  - 覆盖 10 个能力的 39 个规范场景，共 42 个测试，100% 覆盖率
+
+- **`core-contracts` 同步更新** (`specs/system/core-contracts.md`) — 2026-04-04
+  - `story:monologue` 载荷补充 `ts` 字段（毫秒时间戳）
+  - `hero:added` 消费者移除 StoryManager（实际通过 HeroManager.getAll() 实时查询，不订阅事件）
+
+### Fixed
+
+- **`StoryManager.getDialogue` 空数组边界** (`js/modules/story-manager.js`) — 2026-04-04
+  - `CharacterDialogues[characterId][category]` 为空数组 `[]` 时，`randInt(0, -1)` 返回 0 导致返回 `undefined`（违反规范"返回 null"）
+  - 新增 `if (lines.length === 0) return null;` 守卫
+
+- **EquipmentManager 服务规范**(`specs/services/equipment-manager.md`) — 2026-04-09
+  - 7 个能力：generateDrop、addToInventory、claimOverflow、equip、unequip、reinforce、sell、getEquipStatValue
+  - 27 个 WHEN/THEN 验收场景（含正常路径、边界、错误路径）
+  - 完整的 EquipmentInstance、EquipmentTemplate 数据模型定义
+  - 品质表（强化上限、出售价格、费用公式、成长率）
+  - 神话套装三套效果（霸王战魂、卧龙星辰、天命皇权）
+  - 事件契约：equip:changed、toast:show
+  - 经 2 轮 spec-reviewer 审查（第 1 轮发现 5 处问题已修复），规范已 Active
+  - 经 drift-detector 漂移检测：零行为级漂移，27/27 场景与规范对齐
+
+- **EquipmentManager 测试文件** (`tests/equipment-manager.test.html`) — 2026-04-09
+  - 覆盖全部 27 个 WHEN/THEN 场景（GD、AI、CO、EQ、UQ、RF、SL、GV）
+  - Mock 隔离策略：ResourceManager、HeroManager、EventBus、EquipmentData
+
 - **AdventureManager 服务规范** (`specs/services/adventure-manager.md`) — 2026-04-04
   - 11 个能力：init、onTick、selectRegion、区域查询、setMode、挂机会话管理、挂机战斗处理、区域解锁、推荐区域、离线结算、getState
   - 27 个 WHEN/THEN 验收场景（含正常/边界/异常路径）

@@ -123,6 +123,27 @@
       ],
       "adr": null
     },
+    "equipment-manager": {
+      "name": "EquipmentManager 装备管理、强化、穿戴",
+      "stage": "COMPLETE",
+      "spec": "specs/services/equipment-manager.md",
+      "execPlan": "specs/exec-plans/equipment-manager.md",
+      "testFiles": ["tests/equipment-manager.test.html"],
+      "changelog": "specs/changelog.md",
+      "adr": null,
+      "history": [
+        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-09", "note": "逆向从现有实现生成规范，25个WHEN/THEN场景" },
+        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-09", "note": "发现5处问题：generateDrop描述不符、claimOverflow缺失场景、equip断言不全、reinforce注释歧义、sell副作用缺失" },
+        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-09", "note": "修复5处问题，补充2个场景，规范升至27个场景" },
+        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-09" },
+        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-09", "note": "3个任务：T1审计、T2套装消费、T3测试生成" },
+        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-09", "note": "27/27场景审计全通过，零代码修改，BattleManager完整消费11种套装效果" },
+        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-09", "note": "27个场景100%覆盖" },
+        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-09", "note": "零行为级漂移，deathImmunityMax为装饰字段（极低严重度）" },
+        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-09" }
+      ],
+      "currentTask": null
+    },
     "economy-manager": {
       "currentTask": null,
       "changelog": "specs/changelog.md",

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>EquipmentManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>EquipmentManager 规范测试</h1>
+<pre>规范引用：specs/services/equipment-manager.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- ===== Mock 全局数据：在模块加载前定义，优先级高于实际数据文件 ===== -->
+<script>
+// EquipmentData mock（weapon 类，品质 1–3，generateDrop 可查）
+var EquipmentData = [
+  { id: 'eq_t1', name: '铁剑',   type: 'weapon', quality: 1, statType: 'atk', statRange: [3,  8],  emoji: '🗡️' },
+  { id: 'eq_t2', name: '碧刃',   type: 'weapon', quality: 2, statType: 'atk', statRange: [8,  15], emoji: '⚔️' },
+  { id: 'eq_t3', name: '霜寒枪', type: 'weapon', quality: 3, statType: 'atk', statRange: [15, 25], emoji: '🔱' }
+];
+
+// EquipMaxLevel mock：与品质表对应
+var EquipMaxLevel = { 1: 5, 2: 10, 3: 15, 4: 20, 5: 25, 6: 30 };
+
+// EquipSellPrice mock
+var EquipSellPrice = { 1: 50, 2: 100, 3: 150, 4: 200, 5: 250, 6: 0 };
+
+// ResourceManager mock
+var ResourceManager = {
+  _gold: 9999,
+  canAfford: function(type, amount) { return this._gold >= amount; },
+  spend:     function(type, amount) { this._gold -= amount; },
+  add:       function(type, amount) { this._gold += amount; }
+};
+
+// HeroManager mock
+var HeroManager = {
+  _heroes: {},
+  getHeroByUid: function(uid) { return this._heroes[uid] || null; }
+};
+</script>
+
+<!-- 核心依赖：EventBus 和 Utils（emit 将在测试脚本中被拦截） -->
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+
+<!-- 被测模块 -->
+<script src="../js/modules/equipment-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/equipment-manager.md
+ * 执行计划：specs/exec-plans/equipment-manager.md
+ *
+ * 测试策略：
+ *   - Mock EquipmentData / EquipMaxLevel / EquipSellPrice（数据文件不加载）
+ *   - Mock ResourceManager / HeroManager（全局 var 覆盖）
+ *   - 拦截 EventBus.emit，记录所有事件调用
+ *   - 控制 Utils.randInt 使 generateDrop 行为确定性
+ *   - 每个测试前执行 resetEM() 清空状态
+ */
+
+// ===== 微型测试框架（与 recruit-manager.test.html 一致）=====
+
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function skip(name, reason) {
+  _results.push({ section: _currentSection, name: name, status: 'skip', error: null });
+  var el = document.createElement('div');
+  el.className = 'skip';
+  el.textContent = '  ⊘ ' + name + (reason ? ' (' + reason + ')' : '');
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error((msg ? msg + ' ' : '') +
+      'expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg ? msg + ' ' : '') +
+      'expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== 拦截 EventBus.emit =====
+
+var _emitted = [];
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+// ===== Utils.randInt 控制 =====
+
+var _origRandInt = Utils.randInt;
+
+function mockRandInt(returnVal) {
+  Utils.randInt = function() { return returnVal; };
+}
+
+function restoreRandInt() {
+  Utils.randInt = _origRandInt;
+}
+
+// ===== 辅助：构建装备实例 =====
+
+var _uidSeq = 0;
+function makeEquip(opts) {
+  _uidSeq++;
+  return Object.assign({
+    uid:         'test-uid-' + _uidSeq,
+    id:          'eq_t1',
+    name:        '铁剑',
+    type:        'weapon',
+    quality:     1,
+    emoji:       '🗡️',
+    description: '',
+    stats:       { atk: 10 },
+    level:       0,
+    equippedBy:  null
+  }, opts || {});
+}
+
+// ===== 重置函数 =====
+
+function resetEM() {
+  EquipmentManager._inventory = [];
+  EquipmentManager._overflow  = [];
+  EquipmentManager._maxSlots  = 50;
+  _emitted = [];
+  ResourceManager._gold = 9999;
+  HeroManager._heroes   = {};
+  restoreRandInt();
+}
+
+// ============================================================
+// 能力 1：生成装备掉落（generateDrop）
+// ============================================================
+
+section('能力 1：generateDrop');
+
+test('GD-1：qualityWeights={3:100}，背包未满 → 生成品质3装备，加入inventory', function() {
+  // WHEN generateDrop(chapter, {3:100})
+  // AND inventory.length < 50
+  // THEN 返回品质3装备，level=0，equippedBy=null，加入_inventory
+  resetEM();
+  // Utils.randInt(0,3)=0 → types[0]='weapon'；Utils.randInt(15,25)=15 → atk=15
+  // qualityWeights={3:100} → totalWeight=100，任意 roll 都命中品质3
+  mockRandInt(0);
+  var result = EquipmentManager.generateDrop(1, { '3': 100 });
+
+  assert(result !== null, 'should return equipment instance');
+  assertEqual(result.quality, 3, 'quality should be 3');
+  assertEqual(result.level, 0, 'level should be 0');
+  assertEqual(result.equippedBy, null, 'equippedBy should be null');
+  assertEqual(EquipmentManager._inventory.length, 1, 'inventory should have 1 item');
+  assertEqual(EquipmentManager._inventory[0].uid, result.uid, 'inventory contains the returned equip');
+  assertEqual(getEmitted('toast:show').length, 0, 'no toast emitted when inventory not full');
+});
+
+test('GD-2：qualityWeights={99:1}（无模板）→ 返回 null', function() {
+  // WHEN qualityWeights={99:1}（品质99在EquipmentData中不存在）
+  // THEN 返回 null，_inventory 和 _overflow 均不变
+  resetEM();
+  mockRandInt(0);
+  var result = EquipmentManager.generateDrop(1, { '99': 1 });
+
+  assertEqual(result, null, 'should return null when no template found');
+  assertEqual(EquipmentManager._inventory.length, 0, 'inventory unchanged');
+  assertEqual(EquipmentManager._overflow.length, 0, 'overflow unchanged');
+  assertEqual(getEmitted('toast:show').length, 0, 'no toast emitted');
+});
+
+test('GD-3：背包满50，overflow未满 → 装备进入overflow + warning toast', function() {
+  // WHEN inventory.length===50, overflow.length===0
+  // THEN 装备推入_overflow，emit toast:show warning，返回该装备
+  resetEM();
+  for (var i = 0; i < 50; i++) EquipmentManager._inventory.push(makeEquip());
+  mockRandInt(0); // type='weapon', quality=3 → eq_t3
+
+  var result = EquipmentManager.generateDrop(1, { '3': 100 });
+
+  assert(result !== null, 'should return equipment even when going to overflow');
+  assertEqual(EquipmentManager._overflow.length, 1, 'overflow should have 1 item');
+  assertEqual(EquipmentManager._overflow[0].uid, result.uid, 'overflow contains the returned equip');
+  assertEqual(EquipmentManager._inventory.length, 50, 'inventory still at 50');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'one toast emitted');
+  assertEqual(toasts[0].args[0].type, 'warning', 'toast type is warning');
+  assert(toasts[0].args[0].message.indexOf('背包已满') >= 0, 'toast message mentions 背包已满');
+});
+
+test('GD-4：背包满，overflow满10 → error toast，返回 null', function() {
+  // WHEN inventory.length===50, overflow.length===10
+  // THEN emit toast:show error，返回 null，inventory 和 overflow 均不变
+  resetEM();
+  for (var i = 0; i < 50; i++) EquipmentManager._inventory.push(makeEquip());
+  for (var i = 0; i < 10; i++) EquipmentManager._overflow.push(makeEquip());
+  mockRandInt(0);
+
+  var result = EquipmentManager.generateDrop(1, { '3': 100 });
+
+  assertEqual(result, null, 'should return null when both inventory and overflow are full');
+  assertEqual(EquipmentManager._inventory.length, 50, 'inventory unchanged');
+  assertEqual(EquipmentManager._overflow.length, 10, 'overflow unchanged');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'one toast emitted');
+  assertEqual(toasts[0].args[0].type, 'error', 'toast type is error');
+  assert(toasts[0].args[0].message.indexOf('溢出栏已满') >= 0, 'toast message mentions 溢出栏已满');
+});
+
+// ============================================================
+// 能力 2：背包与溢出栏管理（addToInventory / claimOverflow）
+// ============================================================
+
+section('能力 2：addToInventory / claimOverflow');
+
+test('AI-1：addToInventory(null) → false', function() {
+  // WHEN addToInventory(null)
+  // THEN 返回 false，_inventory 和 _overflow 不变
+  resetEM();
+  var result = EquipmentManager.addToInventory(null);
+
+  assertEqual(result, false, 'should return false for null equip');
+  assertEqual(EquipmentManager._inventory.length, 0, 'inventory unchanged');
+  assertEqual(EquipmentManager._overflow.length, 0, 'overflow unchanged');
+  assertEqual(getEmitted('toast:show').length, 0, 'no toast emitted');
+});
+
+test('AI-2：背包未满 → 加入inventory，返回 true，无 toast', function() {
+  // WHEN inventory.length === 49（未满）
+  // THEN 装备加入 _inventory，length 变为 50，返回 true，不发出任何 toast 事件
+  resetEM();
+  for (var i = 0; i < 49; i++) EquipmentManager._inventory.push(makeEquip());
+  var equip = makeEquip({ name: '测试剑' });
+
+  var result = EquipmentManager.addToInventory(equip);
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(EquipmentManager._inventory.length, 50, 'inventory.length should be 50');
+  assertEqual(EquipmentManager._inventory[49].name, '测试剑', 'correct item added to inventory');
+  assertEqual(getEmitted('toast:show').length, 0, 'no toast emitted when inventory not full');
+});
+
+test('CO-1：背包有空间（3格），overflow=3 → 全部领取，返回长度3数组', function() {
+  // WHEN inventory.length === 47（有3格空位），overflow.length === 3
+  // THEN 3件装备全部从_overflow移入_inventory，返回长度为3的数组，_overflow变为空
+  // 注：规范场景标注 inventory=48，但 maxSlots=50 时仅剩2格；此处用 47 确保3格空位与场景意图一致
+  resetEM();
+  for (var i = 0; i < 47; i++) EquipmentManager._inventory.push(makeEquip());
+  var items = [makeEquip({ name: 'A' }), makeEquip({ name: 'B' }), makeEquip({ name: 'C' })];
+  EquipmentManager._overflow = items.slice();
+
+  var claimed = EquipmentManager.claimOverflow();
+
+  assertEqual(claimed.length, 3, 'claimed length should be 3');
+  assertEqual(EquipmentManager._overflow.length, 0, 'overflow should be empty');
+  assertEqual(EquipmentManager._inventory.length, 50, 'inventory should be 50');
+  assertEqual(claimed[0].name, 'A', 'FIFO: first overflow item claimed first');
+});
+
+test('CO-2：背包已满，overflow=5 → 返回[]，不变', function() {
+  // WHEN inventory.length === 50（已满），overflow.length === 5
+  // THEN 返回空数组[]，_inventory 和 _overflow 均不变
+  resetEM();
+  for (var i = 0; i < 50; i++) EquipmentManager._inventory.push(makeEquip());
+  for (var i = 0; i < 5; i++) EquipmentManager._overflow.push(makeEquip());
+
+  var claimed = EquipmentManager.claimOverflow();
+
+  assertEqual(claimed.length, 0, 'should return empty array');
+  assertEqual(EquipmentManager._inventory.length, 50, 'inventory unchanged');
+  assertEqual(EquipmentManager._overflow.length, 5, 'overflow unchanged');
+});
+
+test('CO-3：背包剩1格，overflow=3 → 仅领取1件，overflow剩2件', function() {
+  // WHEN _inventory.length === 49，_overflow.length === 3
+  // THEN 仅领取1件进入背包，返回长度为1的数组，_overflow剩余2件，_inventory.length===50
+  resetEM();
+  for (var i = 0; i < 49; i++) EquipmentManager._inventory.push(makeEquip());
+  var items = [makeEquip({ name: 'X' }), makeEquip({ name: 'Y' }), makeEquip({ name: 'Z' })];
+  EquipmentManager._overflow = items.slice();
+
+  var claimed = EquipmentManager.claimOverflow();
+
+  assertEqual(claimed.length, 1, 'should claim exactly 1 item');
+  assertEqual(claimed[0].name, 'X', 'FIFO: first overflow item claimed');
+  assertEqual(EquipmentManager._overflow.length, 2, 'overflow should have 2 items left');
+  assertEqual(EquipmentManager._inventory.length, 50, 'inventory is now full');
+});
+
+// ============================================================
+// 能力 3：穿戴装备（equip）
+// ============================================================
+
+section('能力 3：equip');
+
+test('EQ-1：槽位空闲 → 穿戴成功，emit equip:changed，返回 true', function() {
+  // WHEN equipUid 存在于 _inventory
+  // AND heroUid 存在于 HeroManager
+  // AND hero.equipment[slot] === null（槽位空闲）
+  // THEN equip.equippedBy === heroUid，hero.equipment[slot] === equipUid，
+  //      emit equip:changed({hero, equipment})，返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'e1', type: 'weapon' });
+  EquipmentManager._inventory.push(equip);
+  HeroManager._heroes['h1'] = {
+    uid: 'h1',
+    equipment: { weapon: null, armor: null, accessory: null, mount: null }
+  };
+
+  var result = EquipmentManager.equip('e1', 'h1');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(equip.equippedBy, 'h1', 'equippedBy should be h1');
+  assertEqual(HeroManager._heroes['h1'].equipment.weapon, 'e1', 'hero.equipment.weapon=e1');
+  var events = getEmitted('equip:changed');
+  assertEqual(events.length, 1, 'equip:changed should be emitted once');
+  assertEqual(events[0].args[0].equipment.uid, 'e1', 'event payload contains equipment');
+  assertEqual(events[0].args[0].hero.uid, 'h1', 'event payload contains hero');
+});
+
+test('EQ-2：槽位已有装备 → 先卸下旧装备再穿新装备', function() {
+  // WHEN hero.equipment[slot] 已有 oldEquipUid
+  // THEN 先 unequip(oldEquipUid, heroUid)，oldEquip.equippedBy === null
+  //      再穿戴 newEquip，最终 hero.equipment[slot] === newEquipUid
+  resetEM();
+  var oldEquip = makeEquip({ uid: 'old1', type: 'weapon', equippedBy: 'h1' });
+  var newEquip = makeEquip({ uid: 'new1', type: 'weapon' });
+  EquipmentManager._inventory.push(oldEquip);
+  EquipmentManager._inventory.push(newEquip);
+  HeroManager._heroes['h1'] = {
+    uid: 'h1',
+    equipment: { weapon: 'old1', armor: null, accessory: null, mount: null }
+  };
+
+  var result = EquipmentManager.equip('new1', 'h1');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(oldEquip.equippedBy, null, 'oldEquip.equippedBy should be null after unequip');
+  assertEqual(newEquip.equippedBy, 'h1', 'newEquip.equippedBy should be h1');
+  assertEqual(HeroManager._heroes['h1'].equipment.weapon, 'new1', 'slot should have new equip uid');
+  // unequip emits equip:changed for old, equip emits equip:changed for new
+  var events = getEmitted('equip:changed');
+  assert(events.length >= 1, 'equip:changed should be emitted');
+  // Last event corresponds to new equip
+  var lastEvent = events[events.length - 1];
+  assertEqual(lastEvent.args[0].equipment.uid, 'new1', 'final event is for new equip');
+});
+
+test('EQ-3：装备被其他武将穿戴 → 静默置null（不触发事件），再穿到新武将，emit 1次', function() {
+  // WHEN equip.equippedBy === otherHeroUid（装备被他人穿戴）
+  // THEN otherHero.equipment[slot] 被直接置为 null（不触发 equip:changed）
+  //      equip.equippedBy 更新为 heroUid，hero.equipment[slot] === equipUid
+  //      emit equip:changed 仅触发一次（为新武将）
+  //      返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'e3', type: 'weapon', equippedBy: 'h2' });
+  EquipmentManager._inventory.push(equip);
+  // h1: 目标武将，weapon槽空
+  HeroManager._heroes['h1'] = {
+    uid: 'h1',
+    equipment: { weapon: null, armor: null, accessory: null, mount: null }
+  };
+  // h2: 当前持有者，weapon槽有 e3
+  HeroManager._heroes['h2'] = {
+    uid: 'h2',
+    equipment: { weapon: 'e3', armor: null, accessory: null, mount: null }
+  };
+
+  var result = EquipmentManager.equip('e3', 'h1');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(HeroManager._heroes['h2'].equipment.weapon, null, 'otherHero slot should be silently cleared');
+  assertEqual(equip.equippedBy, 'h1', 'equippedBy should be updated to h1');
+  assertEqual(HeroManager._heroes['h1'].equipment.weapon, 'e3', 'h1 slot should have e3');
+  var equipEvents = getEmitted('equip:changed');
+  assertEqual(equipEvents.length, 1, 'equip:changed should be emitted exactly once (for new hero only)');
+  assertEqual(equipEvents[0].args[0].hero.uid, 'h1', 'event hero is h1');
+});
+
+test('EQ-4：equipUid不存在 → 返回 false', function() {
+  // WHEN equipUid 不存在于 _inventory
+  // THEN 返回 false，不发出任何事件
+  resetEM();
+
+  var result = EquipmentManager.equip('nonexistent-uid', 'h1');
+
+  assertEqual(result, false, 'should return false when equipUid not found');
+  assertEqual(_emitted.length, 0, 'no events should be emitted');
+});
+
+// ============================================================
+// 能力 4：卸下装备（unequip）
+// ============================================================
+
+section('能力 4：unequip');
+
+test('UQ-1：正常卸下 → slot=null，equippedBy=null，emit equip:changed', function() {
+  // WHEN 装备存在，武将存在，hero.equipment[slot] === equipUid
+  // THEN hero.equipment[slot] === null，equip.equippedBy === null，
+  //      emit equip:changed({hero, equipment})，返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'uq1', type: 'weapon', equippedBy: 'h1' });
+  EquipmentManager._inventory.push(equip);
+  HeroManager._heroes['h1'] = {
+    uid: 'h1',
+    equipment: { weapon: 'uq1', armor: null, accessory: null, mount: null }
+  };
+
+  var result = EquipmentManager.unequip('uq1', 'h1');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(HeroManager._heroes['h1'].equipment.weapon, null, 'hero slot should be cleared');
+  assertEqual(equip.equippedBy, null, 'equippedBy should be null');
+  var events = getEmitted('equip:changed');
+  assertEqual(events.length, 1, 'equip:changed should be emitted once');
+  assertEqual(events[0].args[0].equipment.uid, 'uq1', 'event contains the equipment');
+  assert(events[0].args[0].hero !== undefined, 'event contains hero field');
+});
+
+test('UQ-2：武将不存在 → equippedBy=null，emit(hero=null)', function() {
+  // WHEN 装备存在，武将不存在（getHeroByUid 返回 null）
+  // THEN equip.equippedBy === null，emit equip:changed({hero: null, equipment})，返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'uq2', type: 'weapon', equippedBy: 'ghost-hero' });
+  EquipmentManager._inventory.push(equip);
+  // HeroManager._heroes 中不存在 'ghost-hero'
+
+  var result = EquipmentManager.unequip('uq2', 'ghost-hero');
+
+  assertEqual(result, true, 'should return true even when hero not found');
+  assertEqual(equip.equippedBy, null, 'equippedBy should be cleared');
+  var events = getEmitted('equip:changed');
+  assertEqual(events.length, 1, 'equip:changed should be emitted');
+  assertEqual(events[0].args[0].hero, null, 'hero should be null in event payload');
+  assertEqual(events[0].args[0].equipment.uid, 'uq2', 'event contains the equipment');
+});
+
+test('UQ-3：equipUid不存在 → 返回 false', function() {
+  // WHEN equipUid 不存在于 _inventory
+  // THEN 返回 false，不发出任何事件
+  resetEM();
+
+  var result = EquipmentManager.unequip('nonexistent-uid', 'h1');
+
+  assertEqual(result, false, 'should return false when equipUid not found');
+  assertEqual(_emitted.length, 0, 'no events should be emitted');
+});
+
+// ============================================================
+// 能力 5：强化装备（reinforce）
+// ============================================================
+
+section('能力 5：reinforce');
+
+test('RF-1：quality=2,level=0 → 扣200金币，level→1，返回 true', function() {
+  // WHEN equip.quality===2, equip.level===0, canAfford true
+  // cost = floor(2 × 100 × (1 + 0 × 0.5)) = 200
+  // THEN ResourceManager.spend('gold', 200) 被调用，equip.level===1，
+  //      emit toast:show success '碧刃 强化至 +1'，返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'rf1', quality: 2, level: 0, name: '碧刃' });
+  EquipmentManager._inventory.push(equip);
+  var goldBefore = ResourceManager._gold;
+
+  var result = EquipmentManager.reinforce('rf1');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(equip.level, 1, 'level should be 1 after reinforce');
+  assertEqual(ResourceManager._gold, goldBefore - 200, 'gold should be reduced by 200');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'one toast should be emitted');
+  assertEqual(toasts[0].args[0].type, 'success', 'toast type should be success');
+  assert(toasts[0].args[0].message.indexOf('碧刃') >= 0, 'toast message should mention name');
+  assert(toasts[0].args[0].message.indexOf('+1') >= 0, 'toast message should mention +1');
+});
+
+test('RF-2：quality=6(神话),level=0 → 扣600金币，level→1', function() {
+  // WHEN equip.quality===6, equip.level===0, canAfford true
+  // cost = floor(600 × (1 + 0 × 0.5) + 0 × 200) = 600
+  // THEN spend(gold, 600)，equip.level===1，返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'rf2', quality: 6, level: 0, name: '神器' });
+  EquipmentManager._inventory.push(equip);
+  var goldBefore = ResourceManager._gold;
+
+  var result = EquipmentManager.reinforce('rf2');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(equip.level, 1, 'level should be 1');
+  assertEqual(ResourceManager._gold, goldBefore - 600, 'gold should be reduced by 600');
+});
+
+test('RF-3：quality=1,level=5（达上限）→ warning toast，返回 false', function() {
+  // WHEN equip.quality===1, equip.level===5（EquipMaxLevel[1]=5，已达上限）
+  // THEN emit toast:show warning '已达最大强化等级！'，equip.level 保持 5，返回 false
+  resetEM();
+  var equip = makeEquip({ uid: 'rf3', quality: 1, level: 5, name: '铁剑' });
+  EquipmentManager._inventory.push(equip);
+
+  var result = EquipmentManager.reinforce('rf3');
+
+  assertEqual(result, false, 'should return false at max level');
+  assertEqual(equip.level, 5, 'level should remain at 5');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'one toast should be emitted');
+  assertEqual(toasts[0].args[0].type, 'warning', 'toast type should be warning');
+  assertEqual(toasts[0].args[0].message, '已达最大强化等级！', 'exact toast message');
+});
+
+test('RF-4：金币不足 → warning toast，level不变，返回 false', function() {
+  // WHEN ResourceManager.canAfford('gold', cost) 为 false
+  // THEN emit toast:show warning '金币不足！需要💰×{cost}'，equip.level 不变，返回 false
+  resetEM();
+  ResourceManager._gold = 0; // 确保 canAfford 返回 false
+  var equip = makeEquip({ uid: 'rf4', quality: 3, level: 0, name: '霜寒枪' });
+  EquipmentManager._inventory.push(equip);
+
+  var result = EquipmentManager.reinforce('rf4');
+
+  assertEqual(result, false, 'should return false when cannot afford');
+  assertEqual(equip.level, 0, 'level should remain unchanged');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'one toast should be emitted');
+  assertEqual(toasts[0].args[0].type, 'warning', 'toast type should be warning');
+  assert(toasts[0].args[0].message.indexOf('金币不足') >= 0, 'toast message should mention 金币不足');
+});
+
+// ============================================================
+// 能力 6：出售装备（sell）
+// ============================================================
+
+section('能力 6：sell');
+
+test('SL-1：quality=3 → 加150金币，移除装备，返回 true', function() {
+  // WHEN equip.quality===3（稀有），unsellable 为 undefined，equippedBy===null
+  // THEN ResourceManager.add('gold', 150) 被调用，装备从_inventory移除，
+  //      emit toast:show success '出售 {name} 获得💰×150'，返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'sl1', quality: 3, name: '霜寒枪', equippedBy: null });
+  EquipmentManager._inventory.push(equip);
+  var goldBefore = ResourceManager._gold;
+
+  var result = EquipmentManager.sell('sl1');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(ResourceManager._gold, goldBefore + 150, 'gold should increase by 150');
+  assertEqual(EquipmentManager._inventory.length, 0, 'equip should be removed from inventory');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'one toast should be emitted');
+  assertEqual(toasts[0].args[0].type, 'success', 'toast type should be success');
+  assert(toasts[0].args[0].message.indexOf('150') >= 0, 'toast message should mention price 150');
+  assert(toasts[0].args[0].message.indexOf('出售') >= 0, 'toast message should mention 出售');
+});
+
+test('SL-2：unsellable=true → warning toast，不移除，返回 false', function() {
+  // WHEN equip.unsellable === true（神话装备）
+  // THEN emit toast:show warning '神话装备不可出售！'，装备仍在_inventory，不调用add，返回 false
+  resetEM();
+  var equip = makeEquip({ uid: 'sl2', quality: 6, name: '天命神剑', unsellable: true });
+  EquipmentManager._inventory.push(equip);
+  var goldBefore = ResourceManager._gold;
+
+  var result = EquipmentManager.sell('sl2');
+
+  assertEqual(result, false, 'should return false for unsellable equipment');
+  assertEqual(EquipmentManager._inventory.length, 1, 'equip should still be in inventory');
+  assertEqual(ResourceManager._gold, goldBefore, 'gold should be unchanged');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'one toast should be emitted');
+  assertEqual(toasts[0].args[0].type, 'warning', 'toast type should be warning');
+  assertEqual(toasts[0].args[0].message, '神话装备不可出售！', 'exact toast message');
+});
+
+test('SL-3：已穿戴装备 → 先卸下再出售（验证 equippedBy 变化）', function() {
+  // WHEN equip.equippedBy === 'h1'（已穿戴）
+  // THEN 1. 先 unequip(equipUid, 'h1') → equippedBy=null，emit equip:changed
+  //      2. 从_inventory移除，ResourceManager.add(gold, price)
+  //      3. emit toast:show success
+  //      返回 true
+  resetEM();
+  var equip = makeEquip({ uid: 'sl3', quality: 2, name: '碧刃', equippedBy: 'h1' });
+  EquipmentManager._inventory.push(equip);
+  HeroManager._heroes['h1'] = {
+    uid: 'h1',
+    equipment: { weapon: 'sl3', armor: null, accessory: null, mount: null }
+  };
+  var goldBefore = ResourceManager._gold;
+
+  var result = EquipmentManager.sell('sl3');
+
+  assertEqual(result, true, 'should return true');
+  assertEqual(equip.equippedBy, null, 'equippedBy should be null after sell (unequip called first)');
+  assertEqual(EquipmentManager._inventory.length, 0, 'equip should be removed from inventory');
+  assertEqual(ResourceManager._gold, goldBefore + 100, 'gold should increase by 100 (quality=2 price)');
+  // unequip 触发 equip:changed
+  var equipEvents = getEmitted('equip:changed');
+  assertEqual(equipEvents.length, 1, 'equip:changed should be emitted by unequip');
+  // sell 触发 toast success
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'toast:show should be emitted by sell');
+  assertEqual(toasts[0].args[0].type, 'success', 'toast type should be success');
+});
+
+test('SL-4：equipUid不存在 → 返回 false', function() {
+  // WHEN equipUid 不存在于 _inventory
+  // THEN 返回 false，不发出任何事件
+  resetEM();
+
+  var result = EquipmentManager.sell('nonexistent-uid');
+
+  assertEqual(result, false, 'should return false when equipUid not found');
+  assertEqual(_emitted.length, 0, 'no events should be emitted');
+});
+
+// ============================================================
+// 能力 7：计算装备实际属性值（getEquipStatValue）
+// ============================================================
+
+section('能力 7：getEquipStatValue');
+
+test('GV-1：atk=20，level=5，quality=3 → 30.0', function() {
+  // 20 × (1 + 5 × 0.1) = 20 × 1.5 = 30
+  var equip = { stats: { atk: 20 }, level: 5, quality: 3 };
+  var val = EquipmentManager.getEquipStatValue(equip);
+
+  assertEqual(val, 30, 'should return 30.0');
+});
+
+test('GV-2：atk=80，level=10，quality=6(神话) → 144.0', function() {
+  // growthRate=0.08（神话专属）；80 × (1 + 10 × 0.08) = 80 × 1.8 = 144
+  var equip = { stats: { atk: 80 }, level: 10, quality: 6 };
+  var val = EquipmentManager.getEquipStatValue(equip);
+
+  assertEqual(val, 144, 'should return 144.0');
+});
+
+test('GV-3：null → 0', function() {
+  // WHEN equip 为 null → 返回 0
+  var val = EquipmentManager.getEquipStatValue(null);
+
+  assertEqual(val, 0, 'should return 0 for null input');
+});
+
+// ============================================================
+// 汇总
+// ============================================================
+
+restoreRandInt();
+
+(function showSummary() {
+  var total   = _results.length;
+  var passed  = _results.filter(function(r) { return r.status === 'pass'; }).length;
+  var failed  = _results.filter(function(r) { return r.status === 'fail'; }).length;
+  var skipped = _results.filter(function(r) { return r.status === 'skip'; }).length;
+  var el = document.getElementById('summary');
+  el.innerHTML =
+    '<strong>汇总</strong>：' + total + ' 个测试，' +
+    '<span class="pass">' + passed  + ' 通过</span>，' +
+    '<span class="fail">' + failed  + ' 失败</span>，' +
+    '<span class="skip">' + skipped + ' 跳过</span>';
+  document.title = (failed ? '❌' : '✅') + ' EquipmentManager 测试 (' + passed + '/' + total + ')';
+})();
+</script>
+</body>
+</html>
