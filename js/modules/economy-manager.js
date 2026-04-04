@@ -182,7 +182,7 @@ var EconomyManager = {
       var cap = ResourceManager.getCap(res);
       var net = this.getNetIncome(res, 5);
 
-      // 资源即将耗尽
+      // 资源即将耗尽（优先，抑制 negative_income）
       if (net.net < 0 && current > 0) {
         var minsLeft = current / Math.abs(net.net);
         if (minsLeft < 30) {
@@ -196,10 +196,11 @@ var EconomyManager = {
             timestamp: now,
             dismissed: false
           });
+          continue; // depleting 已处理，跳过 negative_income
         }
       }
 
-      // 入不敷出
+      // 入不敷出（仅在未触发 depleting 时）
       if (net.net < 0) {
         newAlerts.push({
           id: 'alert_' + Utils.uid(),
@@ -254,7 +255,8 @@ var EconomyManager = {
   },
 
   getActiveAlerts: function () {
-    return this._state.alerts.filter(function (a) { return !a.dismissed; });
+    return this._state.alerts.filter(function (a) { return !a.dismissed; })
+      .sort(function (a, b) { return a.timestamp - b.timestamp; });
   },
 
   dismissAlert: function (alertId) {

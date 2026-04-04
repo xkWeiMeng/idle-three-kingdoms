@@ -18,13 +18,13 @@ author: AI (spec-architect)
 |------|------|------|
 | ResourceManager | 资源增减、上限、每日登录 | [specs/services/resource-manager.md](../services/resource-manager.md) |
 | HeroManager | 武将获取、升级、编队、属性计算 | [specs/services/hero-manager.md](../services/hero-manager.md) |
-| BattleManager | 战斗流程、回合计算、结算 | _待创建_ |
-| RecruitManager | 招募/抽卡、概率、保底 | _待创建_ |
+| BattleManager | 战斗流程、回合计算、结算 | [specs/services/battle-manager.md](../services/battle-manager.md) |
+| RecruitManager | 招募/抽卡、概率、保底 | [specs/services/recruit-manager.md](../services/recruit-manager.md) |
 | EquipmentManager | 装备管理、强化、穿戴 | _待创建_ |
 | TownManager | 城镇建筑、资源上限覆盖 | _待创建_ |
-| AdventureManager | 冒险地图、离线收益 | _待创建_ |
-| EconomyManager | 经济追踪、预警、统计 | _待创建_ |
-| StoryManager | 剧情章节、对话、解锁 | _待创建_ |
+| AdventureManager | 冒险地图、离线收益 | [specs/services/adventure-manager.md](../services/adventure-manager.md) |
+| EconomyManager | 经济追踪、预警、统计 | [specs/services/economy-manager.md](../services/economy-manager.md) |
+| StoryManager | 剧情章节、对话、解锁 | [specs/services/story-manager.md](../services/story-manager.md) |
 
 ## 服务边界
 
@@ -44,8 +44,25 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 - `HeroManager` → `EquipmentManager.getEquipment(uid)` — 计算装备加成
 - `ResourceManager` → `TownManager.getBuildingEffect(type)` — 查询资源上限覆盖
 - `BattleManager` → `HeroManager.getHeroStats(uid)` — 获取战斗属性
+- `BattleManager` → `HeroManager.getTeam()` — 获取队伍成员列表
+- `BattleManager` → `HeroManager.getTemplate(id)` — 获取武将模板（技能数据）
+- `BattleManager` → `TownManager.getAtkBonus()` / `getDefBonus()` / `getHpBonus()` / `getExpBonus()` / `getDropRateBonus()` — 建筑加成（可选依赖）
+- `BattleManager` → `FarmManager.getActiveBuff()` — 料理 buff 加成（可选依赖）
 
 > 这些查询仅用于**读取**，不得修改被查询方的状态。
+
+**允许的跨模块写操作**（资源消耗与实体创建）：
+- `RecruitManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 检查并扣除招募费用
+- `RecruitManager` → `HeroManager.addHero(heroId)` — 将招募结果添加到玩家收藏
+- `EquipmentManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 强化消耗
+- `TownManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 建筑建造消耗
+- `BattleManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` — 食物消耗、奖励发放
+- `AdventureManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` / `ResourceManager.get()` — 挂机粮草消耗检查、挂机战斗资源结算、推荐区域资源需求分析
+- `BattleManager` → `ResourceManager.addBattleCount()` / `ResourceManager.setHighestStage()` — 统计更新
+- `BattleManager` → `HeroManager.addHero(heroId)` — 首通武将奖励
+- `BattleManager` → `EquipmentManager.addToInventory(equip)` — 装备掉落加入背包
+
+> 写操作遵循「检查 → 扣除 → 执行」原则，调用方负责前置检查（`canAfford`）。
 
 ## 跨服务契约
 
@@ -134,7 +151,7 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 | `game:saved` | SaveManager | UI | 无 | 存档成功 |
 | `resource:changed` | ResourceManager | UI, EconomyManager | `(type, amount)` | 资源变动后触发 |
 | `toast:show` | Any | ToastUI | `{type, message}` | type: success/warning/error/info |
-| `hero:added` | HeroManager | UI, StoryManager | `(heroInstance)` | 获得新武将 |
+| `hero:added` | HeroManager | UI | `(heroInstance)` | 获得新武将 |
 | `hero:team_changed` | HeroManager | UI, BattleManager | `(teamArray)` | 队伍变更 |
 | `hero:levelup` | HeroManager | UI | `{hero, newLevel}` | 武将升级 |
 | `battle:started` | BattleManager | UI | `{stageId}` | 战斗开始 |
@@ -152,7 +169,7 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 | `economy:alert` | EconomyManager | UI | `{alert}` | 经济预警 |
 | `economy:hourly_update` | EconomyManager | UI | `{data}` | 整点统计 |
 | `story:chapter_unlocked` | StoryManager | UI | `(chapter)` | 章节解锁 |
-| `story:monologue` | StoryManager | UI | `{speaker, text}` | 武将独白 |
+| `story:monologue` | StoryManager | UI | `{speaker, text, ts}` | 武将独白；`ts` 为 `Date.now()` 毫秒时间戳 |
 | `story:scene_seen` | StoryManager | UI | `(sceneId)` | 场景已阅 |
 | `tab:switched` | BottomNav | UI Panels | `(tabId)` | 切换页签 |
 | `overlay:opened` | OverlayPanel | UI | `(panelId)` | 浮层打开 |
@@ -237,3 +254,4 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 服务级详情，请参见：
 - [specs/services/resource-manager.md](../services/resource-manager.md)
 - [specs/services/hero-manager.md](../services/hero-manager.md)
+- [specs/services/recruit-manager.md](../services/recruit-manager.md)
