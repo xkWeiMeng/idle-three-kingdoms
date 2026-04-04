@@ -1,0 +1,239 @@
+---
+status: Draft
+created: 2026-04-04
+updated: 2026-04-04
+author: AI (spec-architect)
+---
+
+# 系统规范：核心契约
+
+## 概述
+
+定义幻想三国所有 Manager 共享的基础契约：资源类型、品质等级、事件协议、存档格式、通用数据结构。
+所有服务规范**必须引用**本文件中的定义，不得自行重新定义。
+
+## 服务
+
+| 服务 | 职责 | 规范 |
+|------|------|------|
+| ResourceManager | 资源增减、上限、每日登录 | [specs/services/resource-manager.md](../services/resource-manager.md) |
+| HeroManager | 武将获取、升级、编队、属性计算 | [specs/services/hero-manager.md](../services/hero-manager.md) |
+| BattleManager | 战斗流程、回合计算、结算 | _待创建_ |
+| RecruitManager | 招募/抽卡、概率、保底 | _待创建_ |
+| EquipmentManager | 装备管理、强化、穿戴 | _待创建_ |
+| TownManager | 城镇建筑、资源上限覆盖 | _待创建_ |
+| AdventureManager | 冒险地图、离线收益 | _待创建_ |
+| EconomyManager | 经济追踪、预警、统计 | _待创建_ |
+| StoryManager | 剧情章节、对话、解锁 | _待创建_ |
+
+## 服务边界
+
+### 通信方式
+
+所有 Manager 之间**禁止**直接引用。跨模块通信**唯一方式**为 `EventBus`。
+
+```
+Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
+```
+
+**例外**：Manager 可直接调用以下核心工具：
+- `Utils.*` — 纯函数，无副作用
+- `CONSTANTS.*` — 只读常量
+
+**允许的跨模块只读查询**（仅在需要计算时）：
+- `HeroManager` → `EquipmentManager.getEquipment(uid)` — 计算装备加成
+- `ResourceManager` → `TownManager.getBuildingEffect(type)` — 查询资源上限覆盖
+- `BattleManager` → `HeroManager.getHeroStats(uid)` — 获取战斗属性
+
+> 这些查询仅用于**读取**，不得修改被查询方的状态。
+
+## 跨服务契约
+
+### 资源类型枚举
+
+| 资源 Key | 常量路径 | Emoji | 用途 |
+|----------|----------|-------|------|
+| `gold` | `CONSTANTS.RESOURCE.GOLD` | 💰 | 通用货币，装备强化、交易 |
+| `jade` | `CONSTANTS.RESOURCE.JADE` | 💎 | 高级货币，招募抽卡 |
+| `exp` | `CONSTANTS.RESOURCE.EXP` | ✨ | 武将升级经验 |
+| `food` | `CONSTANTS.RESOURCE.FOOD` | 🍖 | 战斗消耗，定时回复 |
+| `wood` | `CONSTANTS.RESOURCE.WOOD` | 🪵 | 建筑材料 |
+| `stone` | `CONSTANTS.RESOURCE.STONE` | 🪨 | 建筑材料 |
+| `iron` | `CONSTANTS.RESOURCE.IRON` | ⚒️ | 装备材料 |
+
+**规则**：
+- 所有资源值为**非负整数**（`exp` 可为小数，其余取整）
+- `jade` 无上限
+- `gold`, `food`, `wood`, `stone`, `iron` 受 `ResourceManager.getCap(type)` 约束
+- 资源变动必须通过 `ResourceManager.add()` / `ResourceManager.spend()`，禁止直接修改 `_state`
+
+### 资源基础上限
+
+| 资源 | 基础上限 | 可被覆盖 |
+|------|----------|----------|
+| `gold` | 10000 | 是（TownManager 建筑效果） |
+| `wood` | 500 | 是 |
+| `stone` | 500 | 是 |
+| `iron` | 300 | 是 |
+| `food` | 200 | 是 |
+| `jade` | 无上限 | 否 |
+| `exp` | 无上限 | 否 |
+
+### 品质等级枚举
+
+| 等级 | 常量 | 值 | 颜色 | 基础倍率 | 招募概率 |
+|------|------|----|------|----------|----------|
+| 白 | `CONSTANTS.QUALITY.COMMON` | 1 | #cccccc | ×1.0 | 40% |
+| 绿 | `CONSTANTS.QUALITY.UNCOMMON` | 2 | #4caf50 | ×1.3 | 30% |
+| 蓝 | `CONSTANTS.QUALITY.RARE` | 3 | #2196f3 | ×1.7 | 18% |
+| 紫 | `CONSTANTS.QUALITY.EPIC` | 4 | #9c27b0 | ×2.2 | 9% |
+| 橙 | `CONSTANTS.QUALITY.LEGENDARY` | 5 | #ff9800 | ×3.0 | 3% |
+
+**规则**：
+- 品质数值 1-5，值越高越稀有
+- 品质决定成长系数、重复武将转换经验、装备基础属性
+
+### 成长系数表
+
+| 品质 | ATK/级 | DEF/级 | HP/级 | SPD/级 |
+|------|--------|--------|-------|--------|
+| 1 (白) | 2 | 1.5 | 10 | 0.5 |
+| 2 (绿) | 3 | 2 | 15 | 0.8 |
+| 3 (蓝) | 4 | 3 | 22 | 1.0 |
+| 4 (紫) | 5 | 4 | 30 | 1.2 |
+| 5 (橙) | 7 | 5 | 40 | 1.5 |
+
+### 武将实例数据格式
+
+```json
+{
+  "uid": "string — Utils.uid() 生成，实例唯一标识，不可变",
+  "id": "string — 模板 ID（如 'shu_zhugeliang'），引用 HeroData，不可变",
+  "level": "number — 1-50 整数",
+  "exp": "number — 当前累计经验",
+  "equipment": {
+    "weapon": "string|null — 装备实例 UID 或 null",
+    "armor": "string|null",
+    "accessory": "string|null",
+    "mount": "string|null"
+  }
+}
+```
+
+**规则**：
+- `uid` 创建后不可变，全局唯一
+- `id` 创建后不可变，必须在 `HeroData` 中存在
+- `level` 范围 [1, 50]，不可降级
+- `equipment` 各槽位互斥（同一装备不可穿戴到多个武将或多个槽位）
+
+### 事件契约
+
+| 事件 | 生产者 | 消费者 | 载荷 | 说明 |
+|------|--------|--------|------|------|
+| `game:tick` | GameLoop | All Managers | `(dt)` 秒数 | 每秒触发，驱动所有时间逻辑 |
+| `game:saved` | SaveManager | UI | 无 | 存档成功 |
+| `resource:changed` | ResourceManager | UI, EconomyManager | `(type, amount)` | 资源变动后触发 |
+| `toast:show` | Any | ToastUI | `{type, message}` | type: success/warning/error/info |
+| `hero:added` | HeroManager | UI, StoryManager | `(heroInstance)` | 获得新武将 |
+| `hero:team_changed` | HeroManager | UI, BattleManager | `(teamArray)` | 队伍变更 |
+| `hero:levelup` | HeroManager | UI | `{hero, newLevel}` | 武将升级 |
+| `battle:started` | BattleManager | UI | `{stageId}` | 战斗开始 |
+| `battle:tick` | BattleManager | UI | `{round}` | 战斗回合更新 |
+| `battle:ended` | BattleManager | ResourceManager, UI | `{...}` | 战斗结算 |
+| `recruit:result` | RecruitManager | UI | `{results, pity}` | 招募结果 |
+| `equip:changed` | EquipmentManager | UI, HeroManager | `{hero, equipment}` | 装备变更 |
+| `town:building_upgraded` | TownManager | UI, ResourceManager | `{buildingId, newLevel}` | 建筑升级完成 |
+| `town:building_started` | TownManager | UI | `{buildingId, endTime}` | 建筑升级开始 |
+| `town:trade` | TownManager | ResourceManager, UI | `{from, to, amount}` | 资源交易 |
+| `adventure:region_changed` | AdventureManager | UI | `{regionId}` | 区域切换 |
+| `adventure:mode_changed` | AdventureManager | UI | `{mode}` | 模式切换 |
+| `adventure:session_update` | AdventureManager | UI | `{session}` | 冒险进度更新 |
+| `economy:event_logged` | EconomyManager | UI | `{event}` | 经济事件记录 |
+| `economy:alert` | EconomyManager | UI | `{alert}` | 经济预警 |
+| `economy:hourly_update` | EconomyManager | UI | `{data}` | 整点统计 |
+| `story:chapter_unlocked` | StoryManager | UI | `(chapter)` | 章节解锁 |
+| `story:monologue` | StoryManager | UI | `{speaker, text}` | 武将独白 |
+| `story:scene_seen` | StoryManager | UI | `(sceneId)` | 场景已阅 |
+| `tab:switched` | BottomNav | UI Panels | `(tabId)` | 切换页签 |
+| `overlay:opened` | OverlayPanel | UI | `(panelId)` | 浮层打开 |
+| `overlay:closed` | OverlayPanel | UI | `(closedId)` | 浮层关闭 |
+
+**事件规则**：
+- EventBus 仅支持 `on` / `off` / `emit`，无 `once`
+- 事件同步触发，回调中不得执行耗时操作
+- 载荷必须可 JSON 序列化（无函数、无循环引用）
+
+### 存档格式
+
+```json
+{
+  "version": "string — CONSTANTS.VERSION",
+  "timestamp": "number — Date.now()",
+  "resources": "ResourceManager.getState()",
+  "heroes": "HeroManager.getState()",
+  "battle": "BattleManager.getState()",
+  "recruit": "RecruitManager.getState()",
+  "equipment": "EquipmentManager.getState()",
+  "story": "StoryManager.getState()",
+  "town": "TownManager.getState()",
+  "adventure": "AdventureManager.getState()",
+  "economy": "EconomyManager.getState()",
+  "settings": "SettingsPanel.getState()"
+}
+```
+
+**规则**：
+- 所有 Manager 实现 `getState()` 返回可序列化的深拷贝
+- 存档通过 `SaveManager.save(state)` 写入 `localStorage`
+- 自动存档周期：30 秒
+- 读取存档失败时返回 `null`，各 Manager 使用默认值初始化
+- 新版本必须向后兼容旧存档（在 `init(saved)` 中做迁移）
+
+### Manager 初始化顺序
+
+```
+1. ResourceManager    ← 基础，无依赖
+2. EconomyManager     ← 必须在 ResourceManager 之后（监听 resource:changed）
+3. HeroManager        ← 依赖 ResourceManager（检查升级费用）
+4. EquipmentManager   ← 依赖 HeroManager（装备关联武将）
+5. RecruitManager     ← 依赖 HeroManager（添加武将）
+6. BattleManager      ← 依赖 HeroManager（读取属性）
+7. TownManager        ← 依赖 ResourceManager（消耗资源建造）
+8. AdventureManager   ← 依赖 BattleManager, ResourceManager
+9. StoryManager       ← 依赖多个 Manager（解锁条件检查）
+```
+
+**规则**：
+- 初始化顺序不可随意变更
+- 每个 Manager 的 `init(saved)` 接收对应的存档片段（可为 `undefined`）
+- `init()` 必须处理 `undefined` 参数（首次游戏无存档）
+
+### Tick 注册顺序
+
+```
+1. ResourceManager.onTick(dt)     ← 食物回复
+2. BattleManager.onTick(dt)       ← 战斗推进
+3. StoryManager.onTick(dt)        ← 剧情检查
+4. TownManager.onTick(dt)         ← 建筑建造倒计时
+5. AdventureManager.onTick(dt)    ← 冒险推进
+6. EconomyManager.onTick(dt)      ← 经济统计
+```
+
+## 不变量
+
+1. **EventBus 是唯一跨模块通信方式** — Manager 之间不得直接调用修改方法，仅允许指定的只读查询
+2. **资源不可为负** — `spend()` 必须先检查 `canAfford()`
+3. **存档必须可序列化** — 状态中禁止存储函数、DOM 引用、循环引用
+4. **模块为全局单例** — 不使用 class，不使用 ES Module
+5. **加载顺序为 core → data → modules → ui → main.js** — 新增文件必须在 `index.html` 中按此层级插入
+6. **数字显示统一用 `Utils.formatNumber()`** — 万/亿/兆中文缩写
+7. **ID 生成统一用 `Utils.uid()`** — 各 Manager 不得自行实现 ID 生成
+8. **队伍上限为 5** — `CONSTANTS.MAX_TEAM_SIZE`，不可超出
+9. **武将最高等级为 50** — 升级操作必须检查上限
+10. **向后兼容** — 新版本存档结构变更时，`init()` 必须迁移旧数据
+
+## 导航
+
+服务级详情，请参见：
+- [specs/services/resource-manager.md](../services/resource-manager.md)
+- [specs/services/hero-manager.md](../services/hero-manager.md)

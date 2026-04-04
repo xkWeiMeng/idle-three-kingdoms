@@ -101,15 +101,52 @@ const BattleManager = {
     var hpBonus  = typeof TownManager !== 'undefined' ? TownManager.getHpBonus() : 0;
 
     var allies = [];
+    // Pre-calculate team-wide set bonuses (e.g. teamDefPercent)
+    var teamDefPctFromSets = 0;
+    for (var ti = 0; ti < team.length; ti++) {
+      var setBonuses = typeof getHeroSetBonuses === 'function' ? getHeroSetBonuses(team[ti].equipment) : [];
+      for (var sb = 0; sb < setBonuses.length; sb++) {
+        if (setBonuses[sb].bonus.effects.teamDefPercent) {
+          teamDefPctFromSets += setBonuses[sb].bonus.effects.teamDefPercent;
+        }
+      }
+    }
+
     for (var i = 0; i < team.length; i++) {
       var hero = team[i];
       var template = HeroManager.getTemplate(hero.id);
       var stats = HeroManager.getHeroStats(hero.uid);
       if (!template || !stats) continue;
 
-      var finalAtk = Math.floor(stats.atk * (1 + atkBonus));
-      var finalDef = Math.floor(stats.def * (1 + defBonus));
-      var finalHp  = Math.floor(stats.hp * (1 + hpBonus));
+      // Calculate set bonuses for this hero
+      var heroBonuses = typeof getHeroSetBonuses === 'function' ? getHeroSetBonuses(hero.equipment) : [];
+      var setAtkPct = 0, setDefPct = 0, setHpPct = 0, setAllPct = 0;
+      var setCritRate = 0, setDoubleDmg = 0, setSkillDmgPct = 0, setSkillCdRed = 0;
+      var setHealInterval = 0, setHealPct = 0, setDeathImmunity = 0;
+      for (var bi = 0; bi < heroBonuses.length; bi++) {
+        var eff = heroBonuses[bi].bonus.effects;
+        if (eff.atkPercent) setAtkPct += eff.atkPercent;
+        if (eff.defPercent) setDefPct += eff.defPercent;
+        if (eff.hpPercent) setHpPct += eff.hpPercent;
+        if (eff.allStatsPercent) setAllPct += eff.allStatsPercent;
+        if (eff.critRate) setCritRate += eff.critRate;
+        if (eff.doubleDamageChance) setDoubleDmg += eff.doubleDamageChance;
+        if (eff.skillDamagePercent) setSkillDmgPct += eff.skillDamagePercent;
+        if (eff.skillCdReduction) setSkillCdRed += eff.skillCdReduction;
+        if (eff.healAllInterval) setHealInterval = eff.healAllInterval;
+        if (eff.healAllPercent) setHealPct = eff.healAllPercent;
+        if (eff.deathImmunityChance) setDeathImmunity = eff.deathImmunityChance;
+      }
+
+      var finalAtk = Math.floor(stats.atk * (1 + atkBonus) * (1 + setAtkPct + setAllPct));
+      var finalDef = Math.floor(stats.def * (1 + defBonus) * (1 + setDefPct + setAllPct + teamDefPctFromSets));
+      var finalHp  = Math.floor(stats.hp * (1 + hpBonus) * (1 + setHpPct + setAllPct));
+
+      var skillData = template.skill ? Utils.deepClone(template.skill) : null;
+      if (skillData && setSkillCdRed > 0) {
+        var cd = skillData.cooldown !== undefined ? skillData.cooldown : (skillData.cd || 3);
+        skillData.cooldown = Math.max(1, cd - setSkillCdRed);
+      }
 
       allies.push({
         uid: hero.uid,
@@ -124,12 +161,19 @@ const BattleManager = {
         baseAtk: finalAtk,
         baseDef: finalDef,
         baseSpd: stats.spd,
-        skill: template.skill ? Utils.deepClone(template.skill) : null,
+        skill: skillData,
         skillCd: 0,
         buffs: [],
         isAlive: true,
         isAlly: true,
-        position: i
+        position: i,
+        setCritRate: setCritRate,
+        setDoubleDmg: setDoubleDmg,
+        setSkillDmgPct: setSkillDmgPct,
+        setHealInterval: setHealInterval,
+        setHealPct: setHealPct,
+        setDeathImmunity: setDeathImmunity,
+        deathImmunityUsed: false
       });
     }
 
@@ -196,6 +240,23 @@ const BattleManager = {
       if (state.enemies[ei].isAlive) allUnits.push(state.enemies[ei]);
     }
 
+    // 2.5 Set bonus: heal all interval (e.g. 卧龙星辰 4-piece)
+    for (a = 0; a < state.allies.length; a++) {
+      var ally = state.allies[a];
+      if (ally.isAlive && ally.setHealInterval > 0 && ally.setHealPct > 0) {
+        if (state.round % ally.setHealInterval === 0) {
+          for (var hi = 0; hi < state.allies.length; hi++) {
+            if (state.allies[hi].isAlive) {
+              var heal = Math.floor(state.allies[hi].maxHp * ally.setHealPct);
+              state.allies[hi].currentHp = Math.min(state.allies[hi].maxHp, state.allies[hi].currentHp + heal);
+            }
+          }
+          this._addLog(state, '  ✨ 套装效果：全体回复 ' + Math.round(ally.setHealPct * 100) + '% HP');
+          break; // Only trigger once per team
+        }
+      }
+    }
+
     allUnits.sort(function (x, y) {
       if (y.spd !== x.spd) return y.spd - x.spd;
       // 同速: 队友优先
@@ -259,20 +320,40 @@ const BattleManager = {
     if (!target) return;
 
     var result = this._calculateDamage(unit, target, 1.0);
+
+    // Set bonus: double damage chance
+    if (unit.setDoubleDmg && Math.random() < unit.setDoubleDmg) {
+      result.damage = result.damage * 2;
+      result.isDouble = true;
+    }
+
     target.currentHp -= result.damage;
+
+    // Set bonus: death immunity
+    if (target.currentHp <= 0 && target.isAlly && target.setDeathImmunity && !target.deathImmunityUsed) {
+      if (Math.random() < target.setDeathImmunity) {
+        target.currentHp = 1;
+        target.deathImmunityUsed = true;
+        this._addLog(state, '  ✨ ' + target.name + ' 天命不灭！免疫致命伤害！');
+        BattleAnimations.playAttack(unit.uid, target.uid, result.damage, result.isCrit);
+        return;
+      }
+    }
+
     if (target.currentHp <= 0) {
       target.currentHp = 0;
       target.isAlive = false;
     }
 
-    // 触发攻击动画
+    // Trigger attack animation
     BattleAnimations.playAttack(unit.uid, target.uid, result.damage, result.isCrit);
 
     var critText = result.isCrit ? '💥暴击！' : '';
+    var doubleText = result.isDouble ? '⚡双倍！' : '';
     this._addLog(state,
       '[第' + state.round + '回合] ' +
       unit.name + ' 攻击 → ' + target.name +
-      ' 受到 ' + result.damage + ' 点伤害' + critText
+      ' 受到 ' + result.damage + ' 点伤害' + critText + doubleText
     );
 
     if (!target.isAlive) {
@@ -308,6 +389,8 @@ const BattleManager = {
   },
 
   _skillDamage: function (unit, skillName, multiplier, targetType, hostiles, state) {
+    // Set bonus: skill damage percent
+    var effectiveMultiplier = multiplier * (1 + (unit.setSkillDmgPct || 0));
     var targets;
     if (targetType === 'all') {
       targets = this._getAliveUnits(hostiles);
@@ -318,7 +401,7 @@ const BattleManager = {
 
     for (var i = 0; i < targets.length; i++) {
       var target = targets[i];
-      var result = this._calculateDamage(unit, target, multiplier);
+      var result = this._calculateDamage(unit, target, effectiveMultiplier);
       target.currentHp -= result.damage;
       if (target.currentHp <= 0) {
         target.currentHp = 0;
@@ -442,7 +525,8 @@ const BattleManager = {
     var reduction = defender.def / (defender.def + 100);
     var damage = Math.max(1, Math.floor(baseDamage * (1 - reduction)));
 
-    var isCrit = Math.random() < 0.05;
+    var critChance = 0.05 + (attacker.setCritRate || 0);
+    var isCrit = Math.random() < critChance;
     if (isCrit) {
       damage = Math.floor(damage * 1.5);
     }

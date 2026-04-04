@@ -110,10 +110,22 @@ var TownPanel = {
     var isBuilding = TownManager.isBuilding(buildingId);
     var check = TownManager.canUpgrade(buildingId);
 
-    var html = '<div class="town-building-card" data-building="' + buildingId + '">';
+    // Status tag
+    var statusTag = '';
+    if (isBuilding) {
+      statusTag = '<span class="town-status-tag town-status-building">施工中 ⏱</span>';
+    } else if (level >= data.maxLevel) {
+      statusTag = '<span class="town-status-tag town-status-maxed">满级 ⭐</span>';
+    } else if (level === 0) {
+      statusTag = '<span class="town-status-tag town-status-unbuilt">未建造</span>';
+    } else if (check.ok) {
+      statusTag = '<span class="town-status-tag town-status-upgradeable">可升级 ⬆</span>';
+    }
+
+    var html = '<div class="town-building-card town-card-clickable" data-building="' + buildingId + '" data-detail="' + buildingId + '">';
     html += '<div class="town-building-header">';
     html += '<span class="town-building-name">' + data.emoji + ' ' + data.name + '</span>';
-    html += '<span class="town-building-level">Lv.' + level + '</span>';
+    html += '<span class="town-building-level-group">' + statusTag + ' <span class="town-building-level">Lv.' + level + '</span></span>';
     html += '</div>';
 
     // 当前效果
@@ -244,6 +256,18 @@ var TownPanel = {
       btn.addEventListener('click', function () {
         self._currentCategory = this.dataset.cat;
         self._render();
+      });
+    });
+
+    // 建筑卡片点击 → 打开详情面板
+    this._el.querySelectorAll('[data-detail]').forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        // 不拦截按钮点击
+        if (e.target.closest('button')) return;
+        var buildingId = this.dataset.detail;
+        if (typeof TownWorld !== 'undefined' && TownWorld._showBuildingDetail) {
+          TownWorld._showBuildingDetail(buildingId);
+        }
       });
     });
 

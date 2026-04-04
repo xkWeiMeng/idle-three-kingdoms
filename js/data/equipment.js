@@ -213,10 +213,10 @@ const EquipmentData = [
 ];
 
 // Equipment max reinforcement level by quality
-const EquipMaxLevel = { 1: 5, 2: 10, 3: 15, 4: 20, 5: 25 };
+const EquipMaxLevel = { 1: 5, 2: 10, 3: 15, 4: 20, 5: 25, 6: 30 };
 
-// Equipment sell price: quality × 50
-const EquipSellPrice = { 1: 50, 2: 100, 3: 150, 4: 200, 5: 250 };
+// Equipment sell price: quality × 50 (mythic unsellable)
+const EquipSellPrice = { 1: 50, 2: 100, 3: 150, 4: 200, 5: 250, 6: 0 };
 
 // Equipment type to stat mapping
 const EquipTypeToStat = {

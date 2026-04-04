@@ -53,13 +53,28 @@
 
 ---
 
+## 本地开发
+
+无构建步骤。用任意静态文件服务器打开 `index.html` 即可：
+
+```bash
+python -m http.server 8000
+# 访问 http://localhost:8000
+```
+
+`tools/` 目录包含可选的资源生成脚本（地图编辑器、SVG 生成器等），非必需。
+
+部署：push 到 `master` 分支会通过 GitHub Actions 自动部署到 GitHub Pages。
+
+---
+
 ## 架构
 
 ```
-UI 层 (js/ui/)           → 面板渲染、事件监听
+UI 层 (js/ui/)           → 面板渲染、事件监听、Canvas 渲染
 业务逻辑层 (js/modules/)  → 各游戏系统 Manager（全局单例）
-核心引擎层 (js/core/)     → EventBus、GameLoop、SaveManager、Utils、Constants
-数据层 (js/data/)         → 静态数据表 + 剧情数据
+核心引擎层 (js/core/)     → EventBus、GameLoop、SaveManager、Utils、Constants、SpriteEngine、MapLoader
+数据层 (js/data/)         → 静态数据表 + 剧情数据 + 地图数据
 ```
 
 **核心规则**：
@@ -73,13 +88,42 @@ UI 层 (js/ui/)           → 面板渲染、事件监听
 
 | 事件 | 载荷 | 说明 |
 |------|------|------|
-| `game:tick` | `(dt)` 秒 | 每秒触发 |
+| **核心** | | |
+| `game:tick` | `(dt)` 秒 | 每秒触发，驱动所有时间逻辑 |
 | `game:saved` | 无 | 存档成功 |
 | `resource:changed` | `(type, amount)` | 资源变动 |
+| `toast:show` | `{type, message}` | 显示提示通知 |
+| **武将** | | |
 | `hero:added` | `(heroInstance)` | 获得武将 |
-| `tab:switched` | `(tabId)` | 切换页签 |
+| `hero:team_changed` | `(teamArray)` | 队伍变更 |
+| `hero:levelup` | `{hero, newLevel}` | 武将升级 |
+| **战斗** | | |
+| `battle:started` | `{stageId}` | 战斗开始 |
+| `battle:tick` | `{round}` | 战斗回合更新 |
+| `battle:ended` | `{...}` | 战斗结束 |
+| **招募/装备** | | |
+| `recruit:result` | `{results, pity}` | 招募结果 |
+| `equip:changed` | `{hero, equipment}` | 装备变更 |
+| **城镇** | | |
+| `town:building_upgraded` | `{buildingId, newLevel}` | 建筑升级完成 |
+| `town:building_started` | `{buildingId, endTime}` | 建筑升级开始 |
+| `town:trade` | `{from, to, amount}` | 资源交易 |
+| **冒险** | | |
+| `adventure:region_changed` | `{regionId}` | 区域切换 |
+| `adventure:mode_changed` | `{mode}` | 模式切换 |
+| `adventure:session_update` | `{session}` | 冒险进度更新 |
+| **经济** | | |
+| `economy:event_logged` | `{event}` | 经济事件记录 |
+| `economy:alert` | `{alert}` | 经济预警 |
+| `economy:hourly_update` | `{data}` | 整点统计更新 |
+| **剧情** | | |
 | `story:chapter_unlocked` | `(chapter)` | 章节解锁 |
 | `story:monologue` | `{speaker, text}` | 武将独白 |
+| `story:scene_seen` | `(sceneId)` | 场景已阅 |
+| **UI** | | |
+| `tab:switched` | `(tabId)` | 切换页签 |
+| `overlay:opened` | `(panelId)` | 浮层面板打开 |
+| `overlay:closed` | `(closedId)` | 浮层面板关闭 |
 
 ### 核心 API 速查
 
@@ -94,7 +138,13 @@ Utils.weightedRandom(items, key) // 按权重随机
 Utils.deepClone(obj)             // JSON 深拷贝
 Utils.uid()                      // 伪唯一 ID
 
-// Resources: CONSTANTS.RESOURCE.{GOLD, JADE, EXP, FOOD}
+// SaveManager
+SaveManager.save(state)          // 保存到 localStorage
+SaveManager.load()               // 读取存档
+SaveManager.clear()              // 清除存档
+SaveManager.startAutoSave(fn)    // 启动自动存档（每 30s）
+
+// Resources: CONSTANTS.RESOURCE.{GOLD, JADE, EXP, FOOD, WOOD, STONE, IRON}
 // Qualities: CONSTANTS.QUALITY.{COMMON(1), UNCOMMON(2), RARE(3), EPIC(4), LEGENDARY(5)}
 // Config: MAX_TEAM_SIZE=5, TICK_INTERVAL_MS=1000, SAVE_INTERVAL_MS=30000
 ```
@@ -140,6 +190,53 @@ const XxxPanel = {
   _render() { /* 读取 Manager 状态，更新 innerHTML */ }
 };
 ```
+
+---
+
+## UI 系统
+
+### OverlayPanel — 浮层面板
+
+主要内容展示方式。BottomNav 和 BuildMenu 通过此系统打开面板。
+
+```javascript
+OverlayPanel.show({
+  title: '武将',
+  content: htmlString,
+  panelId: 'heroes',        // 可选
+  height: 'half' | 'full',  // 可选
+  onClose: () => {}          // 可选
+});
+OverlayPanel.close();
+```
+
+### BottomNav — 底部导航栏
+
+固定底部导航，5 个主按钮 + "更多" 菜单（冒险、装备、经济、剧情、设置）。  
+是用户进入各面板的主入口，替代早期的 TabController。
+
+### Toast — 通知提示
+
+```javascript
+EventBus.emit('toast:show', { type: 'success', message: '升级成功！' });
+// type: 'success' | 'warning' | 'error' | 'info'
+```
+
+### Modal — 模态对话框
+
+```javascript
+Modal.show({
+  title: '确认',
+  content: htmlString,
+  confirmText: '确定',
+  onConfirm: () => {}
+});
+```
+
+### TownWorld — 城镇画布
+
+Canvas 2D 网格渲染（48px 格子），支持摄像机平移和建筑放置交互。  
+`TownCharacters` 在画布上渲染 NPC 角色。
 
 ---
 

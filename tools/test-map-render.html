@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Map Render Test</title>
+<base href="../">
+<style>
+body { background: #333; color: #eee; font-family: monospace; padding: 20px; }
+canvas { border: 2px solid red; display: block; margin: 10px 0; image-rendering: pixelated; }
+#log { white-space: pre-wrap; background: #111; padding: 10px; max-height: 300px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<h2>Map Render Test — map_stage_01</h2>
+<div id="status">Loading...</div>
+<canvas id="mapCanvas"></canvas>
+<h3>Console Log</h3>
+<div id="log"></div>
+
+<script src="js/core/utils.js"></script>
+<script src="js/core/event-bus.js"></script>
+<script src="js/data/map-registry.js"></script>
+<script src="js/core/map-loader.js"></script>
+<script>
+var logEl = document.getElementById('log');
+function log(msg) {
+  logEl.textContent += msg + '\n';
+  console.log(msg);
+}
+
+(async function() {
+  var status = document.getElementById('status');
+  try {
+    log('MapRegistryData.maps: ' + JSON.stringify(Object.keys(MapRegistryData.maps)));
+    log('MapRegistryData.tilesets: ' + JSON.stringify(Object.keys(MapRegistryData.tilesets)));
+
+    log('Loading map_stage_01...');
+    var data = await MapLoader.loadMap('map_stage_01');
+    log('Map loaded: ' + data.width + 'x' + data.height);
+    log('Layers: ' + data.layers.map(function(l) { return l.name + '(' + l.type + ')'; }).join(', '));
+    log('TilesetRefs: ' + data.tilesetRefs.map(function(r) { return r.id; }).join(', '));
+    log('Loaded tileset images: ' + JSON.stringify(Object.keys(MapLoader._tilesetImages)));
+
+    var c = document.getElementById('mapCanvas');
+    var scale = 3;
+    c.width = data.width * data.tileWidth * scale;
+    c.height = data.height * data.tileHeight * scale;
+    var ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.scale(scale, scale);
+
+    MapLoader.renderMap(ctx, data, {x: 0, y: 0, zoom: 1}, {width: c.width / scale, height: c.height / scale});
+
+    log('Render complete!');
+    status.textContent = 'Rendered successfully at ' + scale + 'x zoom';
+
+  } catch(e) {
+    log('ERROR: ' + e.message);
+    status.textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>

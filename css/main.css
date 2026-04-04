@@ -1939,6 +1939,284 @@ html, body, #app {
   font-size: 0.68rem;
 }
 
+/* Town status tags */
+.town-building-level-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.town-status-tag {
+  font-size: 0.62rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+.town-status-building { background: rgba(245,197,24,0.2); color: var(--color-gold); }
+.town-status-upgradeable { background: rgba(76,175,80,0.2); color: var(--color-success); }
+.town-status-maxed { background: rgba(156,39,176,0.2); color: #CE93D8; }
+.town-status-unbuilt { background: rgba(255,255,255,0.08); color: var(--color-text-dim); }
+.town-card-clickable { cursor: pointer; transition: var(--ease); }
+.town-card-clickable:active { transform: scale(0.98); opacity: 0.9; }
+
+/* ===========================================
+   Building Detail Overlay (bdo-)
+   =========================================== */
+.bdo { padding: 4px 0; }
+.bdo-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.bdo-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-dark);
+  padding: 4px;
+  object-fit: contain;
+}
+.bdo-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.bdo-level-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: bold;
+  background: rgba(245,197,24,0.2);
+  color: var(--color-gold);
+  margin-top: 2px;
+}
+.bdo-level-badge.bdo-unbuilt {
+  background: rgba(255,255,255,0.08);
+  color: var(--color-text-dim);
+}
+.bdo-desc {
+  font-size: 0.78rem;
+  color: var(--color-text-dim);
+  margin: 0 0 10px;
+}
+/* Construction */
+.bdo-construction {
+  background: rgba(245,197,24,0.08);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.bdo-construct-label {
+  font-weight: bold;
+  color: var(--color-gold);
+  margin-bottom: 6px;
+}
+.bdo-progress-bar {
+  height: 8px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.bdo-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  border-radius: 4px;
+  transition: width 1s linear;
+}
+.bdo-construct-time {
+  font-size: 0.72rem;
+  color: var(--color-gold);
+  margin-bottom: 6px;
+}
+.bdo-speed-btn {
+  font-size: 0.72rem;
+}
+/* Sections */
+.bdo-section {
+  background: var(--color-surface-dark);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.bdo-section-title {
+  font-size: 0.82rem;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: var(--color-text);
+}
+.bdo-effect-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bdo-effect-list li {
+  font-size: 0.75rem;
+  color: var(--color-success);
+  padding: 2px 0;
+}
+.bdo-eff-new {
+  color: #8BC34A !important;
+}
+/* Upgrade comparison */
+.bdo-compare {
+  margin: 8px 0;
+}
+.bdo-compare-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--color-text-dim);
+  padding: 0 0 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 4px;
+}
+.bdo-compare-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 0.75rem;
+}
+.bdo-compare-label {
+  flex: 1;
+  color: var(--color-text-dim);
+  font-size: 0.7rem;
+}
+.bdo-compare-cur {
+  color: var(--color-text);
+  min-width: 48px;
+  text-align: right;
+}
+.bdo-compare-arrow {
+  color: var(--color-text-dim);
+  font-size: 0.65rem;
+}
+.bdo-compare-next {
+  color: var(--color-text);
+  min-width: 48px;
+  text-align: right;
+  font-weight: bold;
+}
+.bdo-compare-diff {
+  color: var(--color-success);
+  font-size: 0.68rem;
+  font-weight: bold;
+  min-width: 40px;
+  text-align: right;
+}
+/* Cost */
+.bdo-cost-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.bdo-cost-item {
+  font-size: 0.78rem;
+  color: var(--color-text);
+}
+.bdo-cost-item.bdo-cost-lack {
+  color: var(--color-danger);
+}
+.bdo-build-time {
+  font-size: 0.7rem;
+  color: var(--color-text-dim);
+  margin-bottom: 8px;
+}
+/* Upgrade button */
+.bdo-upgrade-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--ease);
+}
+.bdo-upgrade-btn:hover:not(.disabled) {
+  filter: brightness(1.15);
+}
+.bdo-upgrade-btn.disabled {
+  background: var(--color-surface);
+  color: var(--color-text-dim);
+  cursor: not-allowed;
+}
+.bdo-lock-reason {
+  font-size: 0.72rem;
+  color: var(--color-danger);
+  text-align: center;
+  margin-top: 6px;
+}
+/* Prerequisites */
+.bdo-prereqs {
+  margin-top: 8px;
+}
+.bdo-prereq-item {
+  font-size: 0.7rem;
+  padding: 2px 0;
+}
+.bdo-prereq-ok { color: var(--color-success); }
+.bdo-prereq-fail { color: var(--color-danger); }
+/* Bottom actions */
+.bdo-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.bdo-action-btn {
+  flex: 1;
+  font-size: 0.75rem;
+}
+/* Maxed */
+.bdo-maxed {
+  text-align: center;
+  color: var(--color-gold);
+  font-weight: bold;
+  padding: 16px;
+}
+/* All levels table */
+.bdo-all-levels {
+  overflow-x: auto;
+}
+.bdo-levels-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+}
+.bdo-levels-table th {
+  background: var(--color-surface-dark);
+  color: var(--color-text-dim);
+  padding: 6px 4px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+}
+.bdo-levels-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: var(--color-text);
+}
+.bdo-levels-table .bdo-lv-cost {
+  font-size: 0.65rem;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+.bdo-levels-table tr.bdo-lv-current {
+  background: rgba(245,197,24,0.12);
+}
+.bdo-levels-table tr.bdo-lv-current td {
+  color: var(--color-gold);
+  font-weight: bold;
+}
+.bdo-levels-table tr.bdo-lv-next {
+  background: rgba(76,175,80,0.08);
+}
+
 /* ===========================================
    Adventure Panel — 冒险系统
    =========================================== */
@@ -2685,6 +2963,23 @@ html, body, #app {
    NEW: Build Menu Styles
    ============================================= */
 .build-menu { padding: 4px 0; }
+.bm-manage-bar {
+  margin-bottom: 10px;
+  text-align: center;
+}
+.bm-manage-btn {
+  width: 100%;
+  padding: 8px 0 !important;
+  font-size: 0.85rem !important;
+  background: var(--color-secondary);
+  border: 1px solid var(--color-gold);
+  color: var(--color-gold);
+}
+.bm-manage-btn:active {
+  background: var(--color-gold);
+  color: var(--color-bg);
+}
+.bm-item.built { opacity: 1; }
 .bm-category { margin-bottom: 12px; }
 .bm-cat-title {
   font-size: 0.82rem;
@@ -2734,4 +3029,19 @@ html, body, #app {
   color: #fff;
   cursor: pointer;
   font-family: var(--font-main);
+}
+
+/* ═══ Mythic Quality (品质6 - 神话) ═══ */
+.quality-mythic {
+  color: #ff2222;
+  text-shadow: 0 0 6px rgba(255, 34, 34, 0.5);
+  animation: mythic-pulse 2s ease-in-out infinite;
+}
+@keyframes mythic-pulse {
+  0%, 100% { text-shadow: 0 0 6px rgba(255, 34, 34, 0.5); }
+  50% { text-shadow: 0 0 12px rgba(255, 34, 34, 0.8), 0 0 20px rgba(255, 34, 34, 0.3); }
+}
+.mythic-border {
+  border: 1px solid rgba(255, 34, 34, 0.3);
+  box-shadow: inset 0 0 8px rgba(255, 34, 34, 0.1);
 }

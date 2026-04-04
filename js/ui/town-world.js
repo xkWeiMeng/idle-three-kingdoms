@@ -21,6 +21,8 @@ var TownWorld = {
   _selectedBuilding: null,
   _editMode: false,
   _longPressTimer: null,
+  _moveOrigPos: null,  // {gx, gy} - original position before move
+  _escHandler: null,   // keydown handler for ESC cancel
 
   // Images cache
   _images: {},
@@ -41,7 +43,14 @@ var TownWorld = {
     adventure_guild: { w: 2, h: 2 },
     tavern: { w: 2, h: 2 },
     warehouse: { w: 2, h: 2 },
-    market: { w: 3, h: 2 }
+    market: { w: 3, h: 2 },
+    tax_office: { w: 2, h: 2 },
+    weapon_workshop: { w: 2, h: 2 },
+    stable: { w: 2, h: 2 },
+    academy: { w: 2, h: 2 },
+    watermill: { w: 2, h: 2 },
+    stone_mason: { w: 2, h: 2 },
+    smelter: { w: 2, h: 2 }
   },
 
   // Default positions (when no saved data)
@@ -58,7 +67,14 @@ var TownWorld = {
     adventure_guild:  { gx: 3, gy: 10 },
     tavern:           { gx: 18, gy: 10 },
     warehouse:        { gx: 10, gy: 17 },
-    market:           { gx: 14, gy: 14 }
+    market:           { gx: 14, gy: 14 },
+    tax_office:       { gx: 18, gy: 14 },
+    weapon_workshop:  { gx: 4, gy: 12 },
+    stable:           { gx: 18, gy: 7 },
+    academy:          { gx: 7, gy: 17 },
+    watermill:        { gx: 2, gy: 7 },
+    stone_mason:      { gx: 19, gy: 4 },
+    smelter:          { gx: 2, gy: 17 }
   },
 
   init: function () {
@@ -233,6 +249,7 @@ var TownWorld = {
   _hitTestBuilding: function (wx, wy) {
     var buildingIds = Object.keys(this._buildingSizes);
     // Check in reverse so top-rendered buildings are checked first
+    // First pass: built buildings
     for (var i = buildingIds.length - 1; i >= 0; i--) {
       var id = buildingIds[i];
       var bState = this._getBuildingState(id);
@@ -247,6 +264,30 @@ var TownWorld = {
 
       if (wx >= bx && wx <= bx + bw && wy >= by && wy <= by + bh) {
         return id;
+      }
+    }
+    // Second pass: unbuilt buildings (clickable ghost outlines)
+    for (var j = buildingIds.length - 1; j >= 0; j--) {
+      var id2 = buildingIds[j];
+      var bState2 = this._getBuildingState(id2);
+      if (bState2 && bState2.level > 0) continue;
+      // Only show unbuilt if within unlock count
+      if (typeof TownManager !== 'undefined') {
+        var thLv = TownManager.getBuildingLevel('town_hall');
+        var thData = BuildingData._townHallUnlocks[thLv];
+        var data = BuildingData[id2];
+        if (data && thData && data.unlockOrder >= thData.slots) continue;
+      }
+
+      var p2 = this._getPlacement(id2);
+      var s2 = this._buildingSizes[id2];
+      var bx2 = p2.gx * this.CELL;
+      var by2 = p2.gy * this.CELL;
+      var bw2 = s2.w * this.CELL;
+      var bh2 = s2.h * this.CELL;
+
+      if (wx >= bx2 && wx <= bx2 + bw2 && wy >= by2 && wy <= by2 + bh2) {
+        return id2;
       }
     }
     return null;
@@ -342,13 +383,21 @@ var TownWorld = {
     }
 
     if (this._buildingDrag) {
-      if (!this._buildingDrag.moved) {
+      if (this._buildingDrag.moved) {
+        // Validate placement
+        var p = this._getPlacement(this._buildingDrag.id);
+        if (this._checkPlacementValid(this._buildingDrag.id, p.gx, p.gy)) {
+          this._confirmMove();
+        } else {
+          EventBus.emit('toast:show', { type: 'warning', message: '此位置无法放置' });
+          this._setPlacement(this._buildingDrag.id, this._buildingDrag.startGX, this._buildingDrag.startGY);
+        }
+      } else {
         // Tap on building in edit mode → show details
         this._showBuildingDetail(this._buildingDrag.id);
+        this._finishMove();
       }
       this._buildingDrag = null;
-      this._editMode = false;
-      this._filterDecorations();
       return;
     }
 
@@ -402,110 +451,422 @@ var TownWorld = {
 
   // --- Building Detail ---
   _showBuildingDetail: function (buildingId) {
-    var bState = this._getBuildingState(buildingId);
-    if (!bState) return;
-
-    var def = null;
-    if (typeof BuildingData !== 'undefined') {
-      for (var i = 0; i < BuildingData.length; i++) {
-        if (BuildingData[i].id === buildingId) { def = BuildingData[i]; break; }
-      }
-    }
+    var def = typeof BuildingData !== 'undefined' ? BuildingData[buildingId] : null;
     if (!def) return;
 
-    var level = bState.level;
-    var isBuilding = bState.buildEndTime && bState.buildEndTime > Date.now();
+    var bState = this._getBuildingState(buildingId);
+    var level = bState ? bState.level : 0;
+    var isBuilding = bState && bState.buildEndTime && bState.buildEndTime > Date.now();
+    var check = typeof TownManager !== 'undefined' ? TownManager.canUpgrade(buildingId) : { ok: false, reason: '' };
 
-    var content = '<div class="building-detail-overlay">';
+    var content = '<div class="bdo">';
+
+    // --- Header ---
     content += '<div class="bdo-header">';
-    content += '<img src="assets/img/buildings/' + buildingId + '.svg" class="bdo-icon" alt="' + def.name + '"/>';
+    content += '<img src="assets/img/buildings/' + buildingId + '.svg" class="bdo-icon" onerror="this.style.display=\'none\'" alt=""/>';
     content += '<div class="bdo-info">';
-    content += '<h3>' + def.name + '</h3>';
-    content += '<span class="bdo-level">Lv.' + level + '</span>';
-    content += '</div></div>';
-
-    if (isBuilding) {
-      var remaining = Math.ceil((bState.buildEndTime - Date.now()) / 1000);
-      content += '<div class="bdo-building"><div class="bdo-progress-bar"><div class="bdo-progress-fill" style="width:50%"></div></div>';
-      content += '<p>⏳ 建设中... ' + this._formatTime(remaining) + '</p></div>';
+    content += '<h3>' + def.emoji + ' ' + def.name + '</h3>';
+    if (level > 0) {
+      content += '<span class="bdo-level-badge">Lv.' + level + '</span>';
+    } else {
+      content += '<span class="bdo-level-badge bdo-unbuilt">未建造</span>';
     }
-
+    content += '</div></div>';
     content += '<p class="bdo-desc">' + def.description + '</p>';
 
-    // Effects at current level
-    if (def.effect && level > 0) {
-      var effects = def.effect(level);
-      content += '<div class="bdo-effects"><h4>📊 当前效果</h4><ul>';
-      for (var key in effects) {
-        if (effects.hasOwnProperty(key)) {
-          var val = effects[key];
-          var label = this._effectLabel(key);
-          if (typeof val === 'number' && val < 1) {
-            content += '<li>' + label + ': ' + Math.round(val * 100) + '%</li>';
-          } else {
-            content += '<li>' + label + ': ' + val + '</li>';
+    // --- Construction in progress ---
+    if (isBuilding) {
+      var progress = typeof TownManager !== 'undefined' ? TownManager.getBuildingProgress(buildingId) : 0.5;
+      var remaining = typeof TownManager !== 'undefined' ? TownManager.getRemainingBuildTime(buildingId) : 0;
+      var jadeCost = Math.ceil(remaining / 60);
+      content += '<div class="bdo-construction">';
+      content += '<div class="bdo-construct-label">🔨 施工中...</div>';
+      content += '<div class="bdo-progress-bar"><div class="bdo-progress-fill" style="width:' + Math.round((progress || 0) * 100) + '%"></div></div>';
+      content += '<div class="bdo-construct-time">⏱ ' + this._formatTime(remaining) + '</div>';
+      content += '<button class="btn btn-small bdo-speed-btn" onclick="TownWorld._doSpeedUp(\'' + buildingId + '\')">💎 加速完成 (需' + jadeCost + '玉璧)</button>';
+      content += '</div>';
+    }
+
+    // --- Current effects ---
+    if (level > 0) {
+      var curEffects = this._getEffectsForLevel(def, buildingId, level);
+      if (curEffects.length > 0) {
+        content += '<div class="bdo-section">';
+        content += '<div class="bdo-section-title">📊 当前效果</div>';
+        content += '<ul class="bdo-effect-list">';
+        for (var i = 0; i < curEffects.length; i++) {
+          content += '<li>' + curEffects[i] + '</li>';
+        }
+        content += '</ul></div>';
+      }
+    }
+
+    // --- Upgrade preview / Build preview ---
+    if (!isBuilding && level < def.maxLevel) {
+      var nextLevel = level + 1;
+      var cost = typeof TownManager !== 'undefined' ? TownManager.getUpgradeCost(buildingId) : (def.costFormula ? def.costFormula(nextLevel) : {});
+      var buildTimeSec = typeof TownManager !== 'undefined' ? TownManager.getBuildTime(buildingId) : BuildingData._getBuildTime(nextLevel);
+
+      content += '<div class="bdo-section bdo-upgrade-section">';
+      if (level === 0) {
+        content += '<div class="bdo-section-title">📋 建成后效果 (Lv.1)</div>';
+        var newEffects = this._getEffectsForLevel(def, buildingId, 1);
+        if (newEffects.length > 0) {
+          content += '<ul class="bdo-effect-list">';
+          for (var n = 0; n < newEffects.length; n++) {
+            content += '<li class="bdo-eff-new">' + newEffects[n] + '</li>';
+          }
+          content += '</ul>';
+        }
+      } else {
+        content += '<div class="bdo-section-title">⬆️ 升级预览  Lv.' + level + ' → Lv.' + nextLevel + '</div>';
+        content += this._renderUpgradeComparison(def, buildingId, level, nextLevel);
+      }
+
+      // Cost display
+      content += '<div class="bdo-cost-row">';
+      var res = typeof ResourceManager !== 'undefined' ? ResourceManager : null;
+      var E = (typeof CONSTANTS !== 'undefined' && CONSTANTS.RESOURCE_EMOJI) || { gold: '💰', wood: '🪵', stone: '🪨', iron: '⛏️' };
+      if (cost) {
+        var resTypes = ['gold', 'wood', 'stone', 'iron'];
+        for (var ci = 0; ci < resTypes.length; ci++) {
+          var rType = resTypes[ci];
+          if (cost[rType]) {
+            var have = res ? res.get(rType) : 0;
+            var enough = have >= cost[rType];
+            content += '<span class="bdo-cost-item' + (enough ? '' : ' bdo-cost-lack') + '">';
+            content += (E[rType] || '') + Utils.formatNumber(cost[rType]);
+            content += '</span>';
           }
         }
       }
-      content += '</ul></div>';
+      content += '</div>';
+
+      // Build time
+      content += '<div class="bdo-build-time">⏱ 施工时间: ' + this._formatTime(buildTimeSec) + '</div>';
+
+      // Upgrade button
+      var btnText = level === 0 ? '🏗️ 建造' : '🔨 升级到 Lv.' + nextLevel;
+      var btnDisabled = !check.ok;
+      var btnClass = btnDisabled ? 'btn bdo-upgrade-btn disabled' : 'btn bdo-upgrade-btn';
+      content += '<button class="' + btnClass + '" onclick="TownWorld._doUpgrade(\'' + buildingId + '\')"' + (btnDisabled ? ' disabled' : '') + '>' + btnText + '</button>';
+
+      // Disabled reason
+      if (btnDisabled && check.reason) {
+        content += '<div class="bdo-lock-reason">❌ ' + check.reason + '</div>';
+      }
+
+      // Prerequisites display
+      content += this._renderPrerequisites(def, buildingId);
+      content += '</div>';
+
+    } else if (level >= def.maxLevel) {
+      content += '<div class="bdo-section bdo-maxed"><span>⭐ 已达最高等级 (Lv.' + def.maxLevel + ')</span></div>';
     }
 
-    // Upgrade button
-    if (!isBuilding && level < 10) {
-      var canUp = typeof TownManager !== 'undefined' && TownManager.canUpgrade(buildingId);
-      var cost = def.cost(level + 1);
-      content += '<div class="bdo-upgrade">';
-      content += '<h4>⬆️ 升级到 Lv.' + (level + 1) + '</h4>';
-      content += '<div class="bdo-cost">';
-      if (cost.gold) content += '<span>💰' + Utils.formatNumber(cost.gold) + '</span>';
-      if (cost.wood) content += '<span>🪵' + Utils.formatNumber(cost.wood) + '</span>';
-      if (cost.stone) content += '<span>🪨' + Utils.formatNumber(cost.stone) + '</span>';
-      if (cost.iron) content += '<span>⛏️' + Utils.formatNumber(cost.iron) + '</span>';
-      content += '</div>';
-      content += '<button class="btn btn-upgrade' + (canUp ? '' : ' disabled') + '" '
-        + 'onclick="TownWorld._doUpgrade(\'' + buildingId + '\')"'
-        + (canUp ? '' : ' disabled') + '>'
-        + (canUp ? '🔨 升级' : '❌ 资源不足') + '</button>';
-      content += '</div>';
+    // --- Bottom actions ---
+    content += '<div class="bdo-actions">';
+    if (level > 0) {
+      content += '<button class="btn btn-small btn-outline bdo-action-btn" onclick="TownWorld._startMoveBuilding(\'' + buildingId + '\')">📐 移动</button>';
     }
+    content += '<button class="btn btn-small btn-outline bdo-action-btn" onclick="TownWorld._showAllLevels(\'' + buildingId + '\')">🔍 全等级一览</button>';
+    content += '</div>';
 
-    // Move button
-    content += '<button class="btn btn-move" onclick="TownWorld._startMoveBuilding(\'' + buildingId + '\')">📐 移动建筑</button>';
     content += '</div>';
 
     if (typeof OverlayPanel !== 'undefined') {
       OverlayPanel.show({
-        title: def.name,
+        title: def.emoji + ' ' + def.name,
         content: content,
+        panelId: 'building-detail',
         height: 'auto'
+      });
+    }
+    EventBus.emit('town:building_selected', { buildingId: buildingId });
+  },
+
+  _renderUpgradeComparison: function (def, buildingId, curLv, nextLv) {
+    var curEffects = this._getEffectValues(def, buildingId, curLv);
+    var nextEffects = this._getEffectValues(def, buildingId, nextLv);
+    if (curEffects.length === 0) return '';
+
+    var html = '<div class="bdo-compare">';
+    html += '<div class="bdo-compare-header"><span>当前 Lv.' + curLv + '</span><span>升级后 Lv.' + nextLv + '</span></div>';
+    for (var i = 0; i < curEffects.length; i++) {
+      var cur = curEffects[i];
+      var nxt = nextEffects[i] || cur;
+      html += '<div class="bdo-compare-row">';
+      html += '<span class="bdo-compare-label">' + cur.label + '</span>';
+      html += '<span class="bdo-compare-cur">' + cur.display + '</span>';
+      html += '<span class="bdo-compare-arrow">→</span>';
+      html += '<span class="bdo-compare-next">' + nxt.display + '</span>';
+      if (nxt.raw !== cur.raw) {
+        var diff = nxt.raw - cur.raw;
+        var diffStr = cur.isPercent ? '+' + Math.round(diff * 100) + '%' : '+' + (Math.round(diff * 10) / 10);
+        html += '<span class="bdo-compare-diff">' + diffStr + '</span>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  },
+
+  _getEffectValues: function (def, buildingId, level) {
+    var results = [];
+    if (def.production) {
+      var prod = def.production(level);
+      var rate = prod.perMinute;
+      var boosterLv = typeof TownManager !== 'undefined' ? TownManager.getBoosterLevel(buildingId) : 0;
+      var boostMult = 1 + boosterLv * 0.05;
+      var emoji = (typeof CONSTANTS !== 'undefined' && CONSTANTS.RESOURCE_EMOJI) ? (CONSTANTS.RESOURCE_EMOJI[prod.resource] || '') : '';
+      results.push({
+        label: emoji + ' 产出/分钟',
+        raw: rate * boostMult,
+        display: (rate * boostMult).toFixed(1),
+        isPercent: false
+      });
+    }
+    if (def.effects) {
+      var fx = def.effects(level);
+      var labelMap = this._effectLabelMap();
+      for (var key in fx) {
+        if (!fx.hasOwnProperty(key)) continue;
+        var val = fx[key];
+        if (typeof val === 'boolean' || typeof val === 'object') continue;
+        var lbl = labelMap[key] || key;
+        var isPct = typeof val === 'number' && Math.abs(val) <= 10 && key.indexOf('Bonus') !== -1 || key.indexOf('Discount') !== -1 || key.indexOf('Efficiency') !== -1 || key.indexOf('Chance') !== -1 || key.indexOf('Reduction') !== -1 || key.indexOf('boost') !== -1;
+        results.push({
+          label: lbl,
+          raw: val,
+          display: isPct ? Math.round(val * 100) + '%' : (typeof val === 'number' ? (Math.round(val * 10) / 10) : val),
+          isPercent: isPct
+        });
+      }
+    }
+    return results;
+  },
+
+  _getEffectsForLevel: function (def, buildingId, level) {
+    var lines = [];
+    if (def.production) {
+      var prod = def.production(level);
+      var rate = prod.perMinute;
+      var boosterLv = typeof TownManager !== 'undefined' ? TownManager.getBoosterLevel(buildingId) : 0;
+      var boostMult = 1 + boosterLv * 0.05;
+      var emoji = (typeof CONSTANTS !== 'undefined' && CONSTANTS.RESOURCE_EMOJI) ? (CONSTANTS.RESOURCE_EMOJI[prod.resource] || '') : '';
+      var line = emoji + ' +' + (rate * boostMult).toFixed(1) + '/分钟';
+      if (boosterLv > 0) line += ' (含加成 ×' + boostMult.toFixed(2) + ')';
+      lines.push(line);
+    }
+    if (def.boosts) {
+      var fx = def.effects(level);
+      lines.push('⬆ ' + (fx.boostTarget || '') + ' 产出 +' + Math.round((fx.productionBoost || 0) * 100) + '%');
+    }
+    if (def.effects && !def.boosts) {
+      var fx2 = def.effects(level);
+      var labelMap = this._effectLabelMap();
+      for (var key in fx2) {
+        if (!fx2.hasOwnProperty(key)) continue;
+        var val = fx2[key];
+        if (typeof val === 'boolean' || typeof val === 'object') continue;
+        var lbl = labelMap[key] || key;
+        var isPct = typeof val === 'number' && Math.abs(val) <= 10 && (key.indexOf('Bonus') !== -1 || key.indexOf('Discount') !== -1 || key.indexOf('Efficiency') !== -1 || key.indexOf('Chance') !== -1 || key.indexOf('Reduction') !== -1);
+        if (isPct) {
+          lines.push(lbl + ' ' + Math.round(val * 100) + '%');
+        } else {
+          lines.push(lbl + ' ' + (typeof val === 'number' ? (Math.round(val * 10) / 10) : val));
+        }
+      }
+    }
+    return lines;
+  },
+
+  _renderPrerequisites: function (def, buildingId) {
+    var html = '';
+    var prereqs = [];
+    // Town hall level cap
+    if (buildingId !== 'town_hall' && typeof TownManager !== 'undefined') {
+      var thLv = TownManager.getBuildingLevel('town_hall');
+      var thData = BuildingData._townHallUnlocks[thLv];
+      var curLv = TownManager.getBuildingLevel(buildingId);
+      if (thData) {
+        var met = curLv < thData.levelCap;
+        prereqs.push({ text: '城主府等级上限 Lv.' + thData.levelCap, ok: met });
+      }
+    }
+    // Building prerequisites
+    if (def.requires) {
+      for (var reqId in def.requires) {
+        if (!def.requires.hasOwnProperty(reqId)) continue;
+        var reqLv = def.requires[reqId];
+        var reqDef = BuildingData[reqId];
+        var haveLv = typeof TownManager !== 'undefined' ? TownManager.getBuildingLevel(reqId) : 0;
+        prereqs.push({
+          text: (reqDef ? reqDef.name : reqId) + ' ≥ Lv.' + reqLv,
+          ok: haveLv >= reqLv
+        });
+      }
+    }
+    if (prereqs.length > 0) {
+      html += '<div class="bdo-prereqs">';
+      for (var p = 0; p < prereqs.length; p++) {
+        html += '<div class="bdo-prereq-item ' + (prereqs[p].ok ? 'bdo-prereq-ok' : 'bdo-prereq-fail') + '">';
+        html += (prereqs[p].ok ? '✅' : '❌') + ' ' + prereqs[p].text;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    return html;
+  },
+
+  _showAllLevels: function (buildingId) {
+    var def = typeof BuildingData !== 'undefined' ? BuildingData[buildingId] : null;
+    if (!def) return;
+    var curLv = typeof TownManager !== 'undefined' ? TownManager.getBuildingLevel(buildingId) : 0;
+
+    var html = '<div class="bdo-all-levels">';
+    html += '<table class="bdo-levels-table"><thead><tr>';
+    html += '<th>Lv.</th><th>效果</th><th>升级费用</th><th>施工</th>';
+    html += '</tr></thead><tbody>';
+
+    for (var lv = 1; lv <= Math.min(def.maxLevel, 25); lv++) {
+      var rowClass = lv === curLv ? ' class="bdo-lv-current"' : (lv === curLv + 1 ? ' class="bdo-lv-next"' : '');
+      html += '<tr' + rowClass + '>';
+      html += '<td>' + lv + (lv === curLv ? ' ★' : '') + '</td>';
+
+      // Effect
+      var effs = this._getEffectsForLevel(def, buildingId, lv);
+      html += '<td>' + (effs.length > 0 ? effs.join('<br>') : '-') + '</td>';
+
+      // Cost
+      var cost = def.costFormula ? def.costFormula(lv) : {};
+      var costParts = [];
+      if (cost.gold) costParts.push('💰' + Utils.formatNumber(cost.gold));
+      if (cost.wood) costParts.push('🪵' + Utils.formatNumber(cost.wood));
+      if (cost.stone) costParts.push('🪨' + Utils.formatNumber(cost.stone));
+      if (cost.iron) costParts.push('⛏️' + Utils.formatNumber(cost.iron));
+      html += '<td class="bdo-lv-cost">' + costParts.join(' ') + '</td>';
+
+      // Build time
+      html += '<td>' + this._formatTime(BuildingData._getBuildTime(lv)) + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+
+    if (typeof OverlayPanel !== 'undefined') {
+      OverlayPanel.show({
+        title: def.emoji + ' ' + def.name + ' — 全等级效果',
+        content: html,
+        panelId: 'building-all-levels',
+        height: 'full'
       });
     }
   },
 
   _doUpgrade: function (buildingId) {
     if (typeof TownManager !== 'undefined') {
-      TownManager.startUpgrade(buildingId);
-      if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
-      EventBus.emit('toast:show', { type: 'success', message: '🔨 开始建造！' });
+      var result = TownManager.startUpgrade(buildingId);
+      if (result.ok) {
+        if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
+        var def = BuildingData[buildingId];
+        EventBus.emit('toast:show', { type: 'success', message: '🔨 ' + (def ? def.name : '') + ' 开始建造！' });
+      } else {
+        EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+      }
+    }
+  },
+
+  _doSpeedUp: function (buildingId) {
+    if (typeof TownManager !== 'undefined') {
+      if (TownManager.speedUpBuild(buildingId)) {
+        if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
+        EventBus.emit('toast:show', { type: 'success', message: '⚡ 建造完成！' });
+      } else {
+        var remain = TownManager.getRemainingBuildTime(buildingId);
+        EventBus.emit('toast:show', { type: 'warning', message: '💎 不足（需要 ' + Math.ceil(remain / 60) + '）' });
+      }
     }
   },
 
   _startMoveBuilding: function (buildingId) {
+    var bState = this._getBuildingState(buildingId);
+    if (!bState || bState.level <= 0) return;
     this._editMode = true;
     this._selectedBuilding = buildingId;
+    this._moveOrigPos = { gx: this._getPlacement(buildingId).gx, gy: this._getPlacement(buildingId).gy };
     if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
-    EventBus.emit('toast:show', { type: 'info', message: '📐 拖拽建筑到新位置' });
+    EventBus.emit('toast:show', { type: 'info', message: '📐 拖拽建筑到新位置，点击空地确认' });
+    EventBus.emit('town:edit_mode', { active: true });
+
+    // ESC to cancel
+    var self = this;
+    this._escHandler = function (e) {
+      if (e.key === 'Escape') { self._cancelMove(); }
+    };
+    document.addEventListener('keydown', this._escHandler);
   },
 
-  _effectLabel: function (key) {
-    var labels = {
+  _cancelMove: function () {
+    if (this._moveOrigPos && this._selectedBuilding) {
+      this._setPlacement(this._selectedBuilding, this._moveOrigPos.gx, this._moveOrigPos.gy);
+    }
+    this._finishMove();
+    EventBus.emit('toast:show', { type: 'info', message: '已取消移动' });
+  },
+
+  _confirmMove: function () {
+    if (this._selectedBuilding) {
+      var p = this._getPlacement(this._selectedBuilding);
+      EventBus.emit('town:building_moved', { buildingId: this._selectedBuilding, x: p.gx, y: p.gy });
+    }
+    this._finishMove();
+  },
+
+  _finishMove: function () {
+    this._editMode = false;
+    this._moveOrigPos = null;
+    this._buildingDrag = null;
+    this._filterDecorations();
+    if (this._escHandler) {
+      document.removeEventListener('keydown', this._escHandler);
+      this._escHandler = null;
+    }
+    EventBus.emit('town:edit_mode', { active: false });
+  },
+
+  _checkPlacementValid: function (buildingId, gx, gy) {
+    var s = this._buildingSizes[buildingId];
+    if (!s) return false;
+    if (gx < 0 || gy < 0 || gx + s.w > this.MAP_W || gy + s.h > this.MAP_H) return false;
+    // Check overlap with other buildings
+    var buildingIds = Object.keys(this._buildingSizes);
+    for (var i = 0; i < buildingIds.length; i++) {
+      var otherId = buildingIds[i];
+      if (otherId === buildingId) continue;
+      var otherState = this._getBuildingState(otherId);
+      if (!otherState || otherState.level <= 0) continue;
+      var op = this._getPlacement(otherId);
+      var os = this._buildingSizes[otherId];
+      if (gx < op.gx + os.w && gx + s.w > op.gx && gy < op.gy + os.h && gy + s.h > op.gy) {
+        return false;
+      }
+    }
+    return true;
+  },
+
+  _effectLabelMap: function () {
+    return {
       atkBonus: '⚔️ 攻击加成', defBonus: '🛡️ 防御加成', hpBonus: '❤️ 生命加成',
-      expBonus: '⭐ 经验加成', woodPerMin: '🪵 木材/分', stonePerMin: '🪨 石材/分',
-      ironPerMin: '⛏️ 铁矿/分', foodCap: '🍖 粮草上限', foodRegen: '🍖 恢复/分',
-      offlineEff: '🌙 离线效率', dropRate: '🎁 掉落加成', recruitDiscount: '🏷️ 招募折扣',
-      storageMult: '📦 仓库倍率', tradeFee: '💱 交易费率'
+      expBonus: '⭐ 经验加成', spdBonus: '💨 速度加成', firstStrikeChance: '🎯 先攻概率',
+      enhanceSuccessBonus: '🔧 强化成功率', equipStatBonus: '📈 装备属性',
+      equipQualityBonus: '💎 装备品质', skillCooldownReduction: '⏱ 技能冷却',
+      offlineEfficiency: '🌙 离线效率', dropRateBonus: '🎁 掉落率',
+      recruitDiscount: '🏷️ 招募折扣', resourceCapBonus: '📦 资源上限',
+      inventoryCap: '🎒 背包容量', foodCapBonus: '🍖 粮草上限',
+      foodRegenInterval: '🍖 恢复间隔(秒)', freeRecruitInterval: '🎫 免费招募间隔(秒)',
+      unlockSlots: '🏠 建筑槽', levelCap: '📊 等级上限',
+      productionBoost: '⬆ 产出加成'
     };
-    return labels[key] || key;
   },
 
   _formatTime: function (sec) {
@@ -631,7 +992,60 @@ var TownWorld = {
     var buildingIds = Object.keys(this._buildingSizes);
     var now = Date.now();
 
-    // Sort buildings by Y position for proper overlap
+    // --- Draw unbuilt building ghosts ---
+    var thLv = typeof TownManager !== 'undefined' ? TownManager.getBuildingLevel('town_hall') : 1;
+    var thData = BuildingData._townHallUnlocks[thLv];
+    for (var u = 0; u < buildingIds.length; u++) {
+      var uid = buildingIds[u];
+      var uState = this._getBuildingState(uid);
+      if (uState && uState.level > 0) continue;
+      var uDef = BuildingData[uid];
+      if (!uDef || !thData || uDef.unlockOrder >= thData.slots) continue;
+
+      var up = this._getPlacement(uid);
+      var us = this._buildingSizes[uid];
+      var upx = up.gx * this.CELL;
+      var upy = up.gy * this.CELL;
+      var upw = us.w * this.CELL;
+      var uph = us.h * this.CELL;
+
+      // Ghost outline
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      var uImg = this._images['building_' + uid];
+      if (uImg) {
+        var uImgH = uph * 1.3;
+        ctx.drawImage(uImg, upx, upy + uph - uImgH, upw, uImgH);
+      } else {
+        ctx.fillStyle = '#78909C';
+        ctx.fillRect(upx + 4, upy + 4, upw - 8, uph - 8);
+      }
+      ctx.globalAlpha = 1.0;
+
+      // Dashed border
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(upx + 2, upy + 2, upw - 4, uph - 4);
+      ctx.setLineDash([]);
+
+      // Name + "点击建造"
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      var nameText = uDef.emoji + ' ' + uDef.name;
+      var nw = ctx.measureText(nameText).width + 8;
+      ctx.fillRect(upx + upw / 2 - nw / 2, upy + uph - 4, nw, 22);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(nameText, upx + upw / 2, upy + uph - 2);
+      ctx.font = '8px sans-serif';
+      ctx.fillStyle = 'rgba(200,230,255,0.7)';
+      ctx.fillText('点击建造', upx + upw / 2, upy + uph + 8);
+      ctx.restore();
+    }
+
+    // --- Draw built buildings (Y-sorted) ---
     var sorted = [];
     for (var i = 0; i < buildingIds.length; i++) {
       var id = buildingIds[i];
@@ -651,6 +1065,8 @@ var TownWorld = {
       var py = p2.gy * this.CELL;
       var pw = s.w * this.CELL;
       var ph = s.h * this.CELL;
+      var isSelected = this._selectedBuilding === bId;
+      var isBuildingNow = item.state.buildEndTime && item.state.buildEndTime > now;
 
       // Building shadow
       ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -658,38 +1074,42 @@ var TownWorld = {
       ctx.ellipse(px + pw / 2, py + ph + 4, pw / 2 - 4, 6, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      // Dim non-selected buildings when one is selected
+      if (this._selectedBuilding && !isSelected) {
+        ctx.globalAlpha = 0.7;
+      }
+
       var img = this._images['building_' + bId];
       if (img) {
-        // Draw building image (extending above its grid area)
         var imgH = ph * 1.3;
         var imgY = py + ph - imgH;
 
         // Construction pulse effect
-        var isBuilding = item.state.buildEndTime && item.state.buildEndTime > now;
-        if (isBuilding) {
-          ctx.globalAlpha = 0.5 + 0.3 * Math.sin(now / 300);
+        if (isBuildingNow) {
+          ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.5 + 0.3 * Math.sin(now / 300));
+        }
+
+        // Edit mode drag preview: semi-transparent
+        if (this._editMode && this._buildingDrag && this._buildingDrag.id === bId) {
+          ctx.globalAlpha = 0.6;
         }
 
         ctx.drawImage(img, px, imgY, pw, imgH);
         ctx.globalAlpha = 1.0;
 
         // Construction progress bar
-        if (isBuilding) {
-          var buildDef = null;
-          if (typeof BuildingData !== 'undefined') {
-            for (var k = 0; k < BuildingData.length; k++) {
-              if (BuildingData[k].id === bId) { buildDef = BuildingData[k]; break; }
-            }
-          }
-          if (buildDef) {
-            var totalTime = buildDef._getBuildTime(item.state.level + 1) * 1000;
-            var elapsed = totalTime - (item.state.buildEndTime - now);
-            var prog = Math.min(1, Math.max(0, elapsed / totalTime));
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(px + 4, py + ph - 10, pw - 8, 8);
-            ctx.fillStyle = '#4CAF50';
-            ctx.fillRect(px + 5, py + ph - 9, (pw - 10) * prog, 6);
-          }
+        if (isBuildingNow) {
+          var progress = typeof TownManager !== 'undefined' ? TownManager.getBuildingProgress(bId) : 0;
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(px + 4, py + ph - 10, pw - 8, 8);
+          ctx.fillStyle = '#4CAF50';
+          ctx.fillRect(px + 5, py + ph - 9, (pw - 10) * (progress || 0), 6);
+
+          // Hammer icon bouncing
+          var bounce = Math.sin(now / 200) * 4;
+          ctx.font = '14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('⚒️', px + pw / 2, py - 8 + bounce);
         }
       } else {
         // Fallback rectangle
@@ -698,6 +1118,7 @@ var TownWorld = {
         ctx.strokeStyle = '#5D4037';
         ctx.lineWidth = 2;
         ctx.strokeRect(px + 4, py + 4, pw - 8, ph - 8);
+        ctx.globalAlpha = 1.0;
       }
 
       // Level badge
@@ -713,43 +1134,103 @@ var TownWorld = {
       ctx.fillText(item.state.level, px + pw - badgeR - 2, py + 4 + badgeR);
 
       // Selection highlight
-      if (this._selectedBuilding === bId) {
+      if (isSelected) {
         ctx.strokeStyle = '#F5C518';
         ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
         ctx.strokeRect(px - 2, py - 2, pw + 4, ph + 4);
-        ctx.setLineDash([]);
-      }
 
-      // Building name label
-      if (typeof BuildingData !== 'undefined') {
-        var bDef = null;
-        for (var m = 0; m < BuildingData.length; m++) {
-          if (BuildingData[m].id === bId) { bDef = BuildingData[m]; break; }
-        }
+        // Floating name+level label above building
+        var bDef = BuildingData[bId];
         if (bDef) {
+          var labelText = bDef.emoji + ' ' + bDef.name + ' Lv.' + item.state.level;
+          ctx.font = 'bold 10px sans-serif';
+          var lw = ctx.measureText(labelText).width + 12;
+          var lx = px + pw / 2 - lw / 2;
+          var ly = py - 24;
+          ctx.fillStyle = 'rgba(0,0,0,0.75)';
+          ctx.beginPath();
+          ctx.roundRect(lx, ly, lw, 18, 4);
+          ctx.fill();
+          ctx.fillStyle = '#F5C518';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(labelText, px + pw / 2, ly + 9);
+        }
+      } else {
+        // Building name label (smaller, for unselected)
+        var bDef2 = BuildingData[bId];
+        if (bDef2) {
+          ctx.font = '9px sans-serif';
           ctx.fillStyle = 'rgba(0,0,0,0.6)';
-          var nameW = ctx.measureText(bDef.name).width + 8;
+          var nameW = ctx.measureText(bDef2.name).width + 8;
           ctx.fillRect(px + pw / 2 - nameW / 2, py + ph - 2, nameW, 14);
           ctx.fillStyle = '#FFF';
-          ctx.font = '9px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
-          ctx.fillText(bDef.name, px + pw / 2, py + ph);
+          ctx.fillText(bDef2.name, px + pw / 2, py + ph);
         }
+      }
+
+      // Upgradeable indicator: green arrow (breathing animation)
+      if (!isBuildingNow && !isSelected && typeof TownManager !== 'undefined') {
+        var canUp = TownManager.canUpgrade(bId);
+        if (canUp && canUp.ok) {
+          var arrowAlpha = 0.5 + 0.5 * Math.sin(now / 600);
+          ctx.globalAlpha = arrowAlpha;
+          ctx.font = '16px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('⬆', px + 10, py + 6);
+          ctx.globalAlpha = 1.0;
+        }
+      }
+
+      // Edit mode: valid/invalid placement overlay
+      if (this._editMode && this._buildingDrag && this._buildingDrag.id === bId && this._buildingDrag.moved) {
+        var valid = this._checkPlacementValid(bId, p2.gx, p2.gy);
+        ctx.fillStyle = valid ? 'rgba(76,175,80,0.25)' : 'rgba(244,67,54,0.25)';
+        ctx.fillRect(px, py, pw, ph);
+        ctx.strokeStyle = valid ? '#4CAF50' : '#F44336';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px, py, pw, ph);
       }
     }
   },
 
   _drawHUD: function (ctx, w, h) {
-    // Edit mode indicator
+    // Edit mode indicator + confirm/cancel buttons
     if (this._editMode) {
-      ctx.fillStyle = 'rgba(245,197,24,0.15)';
+      ctx.fillStyle = 'rgba(245,197,24,0.1)';
       ctx.fillRect(0, 0, w, h);
+
+      // HUD bar at top
+      var barH = 44;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, w, barH);
       ctx.fillStyle = '#F5C518';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('📐 拖拽模式 — 长按建筑可拖动', w / 2, 30);
+      ctx.textBaseline = 'middle';
+      ctx.fillText('📐 移动模式 — 拖拽建筑到新位置', w / 2, barH / 2);
+    }
+
+    // Upgradeable building notification bar
+    if (!this._editMode && typeof TownManager !== 'undefined') {
+      var upgradeCount = 0;
+      var buildingIds = Object.keys(this._buildingSizes);
+      for (var i = 0; i < buildingIds.length; i++) {
+        var c = TownManager.canUpgrade(buildingIds[i]);
+        if (c && c.ok) upgradeCount++;
+      }
+      if (upgradeCount > 0) {
+        ctx.fillStyle = 'rgba(76,175,80,0.85)';
+        var notifH = 24;
+        ctx.fillRect(0, h - notifH, w, notifH);
+        ctx.fillStyle = '#FFF';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⬆ ' + upgradeCount + '个建筑可升级', w / 2, h - notifH / 2);
+      }
     }
   },
 

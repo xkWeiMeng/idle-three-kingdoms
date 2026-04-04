@@ -14,6 +14,9 @@ var BottomNav = {
   _moreItems: [
     { id: 'adventure', icon: '🗺️', label: '冒险' },
     { id: 'equipment', icon: '🛡️', label: '装备' },
+    { id: 'merchant',  icon: '🏪', label: '商人' },
+    { id: 'forge',     icon: '🔨', label: '锻造' },
+    { id: 'abyss',     icon: '🔥', label: '深渊' },
     { id: 'economy',   icon: '📊', label: '经济' },
     { id: 'story',     icon: '📜', label: '剧情' },
     { id: 'settings',  icon: '⚙️', label: '设置' }
@@ -93,10 +96,21 @@ var BottomNav = {
   },
 
   _openPanel: function (panelId) {
+    // Custom panels that use OverlayPanel.show() directly
+    if (panelId === 'merchant' && typeof MerchantPanel !== 'undefined') {
+      MerchantPanel.show(); return;
+    }
+    if (panelId === 'forge' && typeof ForgePanel !== 'undefined') {
+      ForgePanel.show(); return;
+    }
+    if (panelId === 'abyss' && typeof AbyssPanel !== 'undefined') {
+      AbyssPanel.show(); return;
+    }
+
     var titles = {
       heroes: '⚔️ 武将',
       battle: '🗡️ 战斗',
-      recruit: '🎯 招募',
+      recruit: '🎯  招募',
       adventure: '🗺️ 冒险',
       equipment: '🛡️ 装备',
       economy: '📊 经济',

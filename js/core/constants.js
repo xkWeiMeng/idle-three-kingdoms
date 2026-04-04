@@ -45,6 +45,7 @@ const CONSTANTS = {
     RARE: 3,      // 蓝
     EPIC: 4,      // 紫
     LEGENDARY: 5, // 橙
+    MYTHIC: 6,    // 红·神话
   },
 
   // 最大队伍人数

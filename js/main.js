@@ -5,8 +5,8 @@
   'use strict';
 
   // 品质颜色映射（全局使用）
-  window.QualityColors = { 1:'#aaaaaa', 2:'#4caf50', 3:'#2196f3', 4:'#9c27b0', 5:'#ff9800' };
-  window.QualityNames  = { 1:'白·普通', 2:'绿·精良', 3:'蓝·稀有', 4:'紫·史诗', 5:'橙·传说' };
+  window.QualityColors = { 1:'#aaaaaa', 2:'#4caf50', 3:'#2196f3', 4:'#9c27b0', 5:'#ff9800', 6:'#ff2222' };
+  window.QualityNames  = { 1:'白·普通', 2:'绿·精良', 3:'蓝·稀有', 4:'紫·史诗', 5:'橙·传说', 6:'红·神话' };
 
   function getFullState() {
     return {
@@ -21,6 +21,9 @@
       town: TownManager.getState(),
       adventure: AdventureManager.getState(),
       economy: EconomyManager.getState(),
+      merchant: MerchantManager.getState(),
+      forge: ForgeManager.getState(),
+      abyss: AbyssManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
@@ -39,6 +42,9 @@
     TownManager.init(saved);
     AdventureManager.init(saved);
     EconomyManager.init(saved);
+    MerchantManager.init(saved);
+    ForgeManager.init(saved);
+    AbyssManager.init(saved);
 
     // 初始化 UI
     Toast.init();
@@ -58,6 +64,9 @@
     EconomyPanel.init();
     TownWorld.init();
     TownCharacters.init();
+    MerchantPanel.init();
+    ForgePanel.init();
+    AbyssPanel.init();
 
     // 注册 tick 回调
     EventBus.on('game:tick', (dt) => {
@@ -67,6 +76,9 @@
       TownManager.onTick(dt);
       AdventureManager.onTick(dt);
       EconomyManager.onTick(dt);
+      MerchantManager.onTick(dt);
+      ForgeManager.onTick(dt);
+      AbyssManager.onTick(dt);
     });
 
     // 离线收益计算

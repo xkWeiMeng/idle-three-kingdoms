@@ -136,14 +136,13 @@ const EquipmentManager = {
     const equip = this._inventory.find(e => e.uid === equipUid);
     if (!equip) return false;
 
-    const maxLevel = EquipMaxLevel[equip.quality];
+    const maxLevel = EquipMaxLevel[equip.quality] || 25;
     if (equip.level >= maxLevel) {
       EventBus.emit('toast:show', { type: 'warning', message: '已达最大强化等级！' });
       return false;
     }
 
-    // Cost = QualityLevel × 100 × (1 + CurrentLevel × 0.5)
-    const cost = Math.floor(equip.quality * 100 * (1 + equip.level * 0.5));
+    const cost = this._calcReinforceCost(equip);
     if (!ResourceManager.canAfford('gold', cost)) {
       EventBus.emit('toast:show', { type: 'warning', message: `金币不足！需要💰×${cost}` });
       return false;
@@ -156,11 +155,19 @@ const EquipmentManager = {
     return true;
   },
 
+  _calcReinforceCost: function (equip) {
+    if (equip.quality === 6) {
+      // Mythic: 600 × (1 + lv × 0.5) + lv × 200
+      return Math.floor(600 * (1 + equip.level * 0.5) + equip.level * 200);
+    }
+    return Math.floor(equip.quality * 100 * (1 + equip.level * 0.5));
+  },
+
   // Get reinforce cost for next level
   getReinforceCost(equipUid) {
     const equip = this._inventory.find(e => e.uid === equipUid);
     if (!equip) return 0;
-    return Math.floor(equip.quality * 100 * (1 + equip.level * 0.5));
+    return this._calcReinforceCost(equip);
   },
 
   // Sell equipment
@@ -169,11 +176,15 @@ const EquipmentManager = {
     if (idx === -1) return false;
 
     const equip = this._inventory[idx];
+    if (equip.unsellable) {
+      EventBus.emit('toast:show', { type: 'warning', message: '神话装备不可出售！' });
+      return false;
+    }
     if (equip.equippedBy) {
       this.unequip(equipUid, equip.equippedBy);
     }
 
-    const price = EquipSellPrice[equip.quality];
+    const price = EquipSellPrice[equip.quality] || 0;
     ResourceManager.add('gold', price);
     this._inventory.splice(idx, 1);
 
@@ -185,7 +196,8 @@ const EquipmentManager = {
   getEquipStatValue(equip) {
     if (!equip) return 0;
     const statKey = Object.keys(equip.stats)[0];
-    return equip.stats[statKey] * (1 + equip.level * 0.1);
+    const growthRate = equip.quality === 6 ? 0.08 : 0.1;
+    return equip.stats[statKey] * (1 + equip.level * growthRate);
   },
 
   getState() {
