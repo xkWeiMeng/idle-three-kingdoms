@@ -49,15 +49,30 @@ Agent 应像使用地图一样导航规范：
 
 <!-- 创建规范时更新本部分 -->
 
+### 产品规范
+
+| 规范 | 状态 | 说明 |
+|------|------|------|
+| [种菜系统](product-specs/farming-system.md) | Draft | 城镇农耕玩法，作物品级与料理 Buff |
+
 ### 系统规范
 - [核心契约](system/core-contracts.md) — `Draft` — 资源枚举、品质等级、事件协议、存档格式、初始化顺序
 
 ### 服务规范
 - [ResourceManager](services/resource-manager.md) — `Draft` — 资源增减、上限、食物回复、每日登录
 - [HeroManager](services/hero-manager.md) — `Draft` — 武将获取、升级、编队、属性计算
+- [BattleManager](services/battle-manager.md) — `Active` — 战斗流程、回合执行、伤害计算、结算奖励、自动推图
+- [AdventureManager](services/adventure-manager.md) — `Active` — 区域选择与解锁、挂机模式、会话统计、离线结算
+- [RecruitManager](services/recruit-manager.md) — `Draft` — 招募/抽卡、品质概率、保底机制、免费招募
+- [StoryManager](services/story-manager.md) — `Draft` — 主线章节推进、场景已读、自言自语调度、角色对话与人设查询
 
 ### 产品规范
 _暂无。_
 
 ### 设计文档
-_暂无。_
+- [三国古风 UI 主题重塑](design-docs/ui-sanguo-theme.md) — `Draft` — 从赛博朋克暗蓝转向墨色+朱红+鎏金三国古风主题
+- [城镇角色碰撞检测](design-docs/town-character-collision.md) — `Draft` — 角色漫步时的建筑碰撞网格与角色间距检测
+
+### 执行计划
+- [三国古风 UI 主题重塑](exec-plans/ui-sanguo-theme.md) — `Active` — 4 阶段 19 任务，覆盖 CSS 令牌→组件→面板→Canvas 全链路
+- [BattleManager](exec-plans/battle-manager.md) — `Active` — 3 阶段 5 任务，代码-规范对齐审计 + 技术债务 S3 修复 + 索引同步

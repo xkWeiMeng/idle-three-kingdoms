@@ -21,6 +21,10 @@ var AdventureManager = {
     };
     // 检查新解锁的区域
     this._checkUnlocks();
+    // 不变量防御：mode=idle 但 session=null 时（游戏崩溃残留状态），重置为 push
+    if (this._state.adventureMode === 'idle' && this._state.idleSession === null) {
+      this._state.adventureMode = 'push';
+    }
   },
 
   onTick: function (dt) {
@@ -76,6 +80,10 @@ var AdventureManager = {
   // ---------- 挂机会话 ----------
 
   startIdleSession: function () {
+    // 若会话已存在，先归档旧会话再创建新会话
+    if (this._state.idleSession) {
+      this.endIdleSession();
+    }
     this._state.idleSession = {
       sessionId: Utils.uid(),
       region: this._state.currentRegion,
@@ -119,11 +127,10 @@ var AdventureManager = {
     while (session._tickAccum >= 5) {
       session._tickAccum -= 5;
       this._processIdleBattle(session);
-    }
-
-    // 定期发送更新事件（每 10 场）
-    if (session.battles > 0 && session.battles % 10 === 0) {
-      EventBus.emit('adventure:session_update', { session: this._getSessionSummary() });
+      // 定期发送更新事件（每 10 场），在战斗结算后立即检查
+      if (session.battles > 0 && session.battles % 10 === 0) {
+        EventBus.emit('adventure:session_update', { session: this._getSessionSummary() });
+      }
     }
   },
 

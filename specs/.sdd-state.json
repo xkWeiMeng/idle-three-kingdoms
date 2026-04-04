@@ -1,85 +1,156 @@
-{
+﻿{
   "features": {
     "battle-manager": {
-      "name": "BattleManager 战斗流程、回合计算、结算",
-      "stage": "COMPLETE",
-      "spec": "specs/services/battle-manager.md",
-      "execPlan": "specs/exec-plans/battle-manager.md",
-      "testFiles": ["tests/battle-manager.test.html"],
+      "currentTask": null,
       "changelog": "specs/changelog.md",
-      "adr": null,
       "history": [
-        { "stage": "DESIGN", "result": "started", "timestamp": "2026-04-05" }
+        {
+          "stage": "DESIGN",
+          "result": "started",
+          "timestamp": "2026-04-05"
+        }
       ],
-      "currentTask": null
+      "name": "BattleManager 战斗流程、回合计算、结算",
+      "execPlan": "specs/exec-plans/battle-manager.md",
+      "spec": "specs/services/battle-manager.md",
+      "stage": "COMPLETE",
+      "testFiles": [
+        "tests/battle-manager.test.html"
+      ],
+      "adr": null
+    },
+    "adventure-manager": {
+      "currentTask": null,
+      "changelog": "specs/changelog.md",
+      "history": [
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "逆向从现有实现生成规范"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 3,
+          "timestamp": "2026-04-04"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-04"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "2处补丁：init不变量防御 + startIdleSession重复调用防御"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "27个场景，覆盖11个能力"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "low_drift",
+          "timestamp": "2026-04-04",
+          "note": "2处漂移修复：事件检查移入while循环，规范场景修正"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-04"
+        }
+      ],
+      "name": "AdventureManager 冒险地图、离线收益",
+      "execPlan": "specs/exec-plans/adventure-manager.md",
+      "spec": "specs/services/adventure-manager.md",
+      "stage": "COMPLETE",
+      "testFiles": [
+        "tests/adventure-manager.test.html"
+      ],
+      "adr": null
     },
     "recruit-manager": {
-      "name": "RecruitManager 招募/抽卡、概率、保底",
-      "stage": "COMPLETE",
-      "spec": "specs/services/recruit-manager.md",
-      "execPlan": "specs/exec-plans/recruit-manager.md",
-      "testFiles": ["tests/recruit-manager.test.html"],
+      "currentTask": null,
       "changelog": "specs/changelog.md",
-      "adr": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-05" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-05" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-05" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        }
       ],
-      "currentTask": null
+      "name": "RecruitManager 招募/抽卡、概率、保底",
+      "execPlan": "specs/exec-plans/recruit-manager.md",
+      "spec": "specs/services/recruit-manager.md",
+      "stage": "COMPLETE",
+      "testFiles": [
+        "tests/recruit-manager.test.html"
+      ],
+      "adr": null
     },
     "economy-manager": {
+      "currentTask": null,
+      "changelog": "specs/changelog.md",
+      "history": [
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-05",
+          "note": "逆向从现有实现生成规范"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "drift_resolved",
+          "timestamp": "2026-04-05",
+          "note": "13 处漂移：2 处代码修复，其余规范更新以反映代码设计"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        }
+      ],
       "name": "EconomyManager 经济追踪、预警、统计",
-      "stage": "COMPLETE",
-      "spec": "specs/services/economy-manager.md",
       "execPlan": null,
+      "spec": "specs/services/economy-manager.md",
+      "stage": "COMPLETE",
       "testFiles": [],
-      "changelog": "specs/changelog.md",
-      "adr": null,
-      "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-05", "note": "逆向从现有实现生成规范" },
-        { "stage": "VERIFY", "result": "drift_resolved", "timestamp": "2026-04-05", "note": "13 处漂移：2 处代码修复（depleting/negative_income 互斥、getActiveAlerts 排序），其余规范更新以反映代码设计" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-05" }
-      ],
-      "currentTask": null
-    }
-  }
-}
-
-      "name": "BattleManager 战斗流程、回合计算、结算",
-      "stage": "COMPLETE",
-      "spec": "specs/services/battle-manager.md",
-      "execPlan": "specs/exec-plans/battle-manager.md",
-      "testFiles": ["tests/battle-manager.test.html"],
-      "changelog": "specs/changelog.md",
-      "adr": null,
-      "history": [
-        { "stage": "DESIGN", "result": "started", "timestamp": "2026-04-05" }
-      ],
-      "currentTask": null
-    },
-    "recruit-manager": {
-      "name": "RecruitManager 招募/抽卡、概率、保底",
-      "stage": "COMPLETE",
-      "spec": "specs/services/recruit-manager.md",
-      "execPlan": "specs/exec-plans/recruit-manager.md",
-      "testFiles": ["tests/recruit-manager.test.html"],
-      "changelog": "specs/changelog.md",
-      "adr": null,
-      "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-05" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-05" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-05" }
-      ],
-      "currentTask": null
+      "adr": null
     }
   }
 }
