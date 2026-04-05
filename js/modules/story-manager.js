@@ -148,6 +148,7 @@ const StoryManager = {
     const dialogues = CharacterDialogues[characterId];
     if (!dialogues || !dialogues[category]) return null;
     const lines = dialogues[category];
+    if (lines.length === 0) return null;
     return lines[Utils.randInt(0, lines.length - 1)];
   },
 

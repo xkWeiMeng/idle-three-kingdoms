@@ -65,6 +65,22 @@ const EquipmentManager = {
     return equip;
   },
 
+  // Add equipment to inventory (with overflow handling)
+  addToInventory(equip) {
+    if (!equip) return false;
+    if (this._inventory.length < this._maxSlots) {
+      this._inventory.push(equip);
+      return true;
+    } else if (this._overflow.length < 10) {
+      this._overflow.push(equip);
+      EventBus.emit('toast:show', { type: 'warning', message: `背包已满！${equip.name}放入溢出栏` });
+      return true;
+    } else {
+      EventBus.emit('toast:show', { type: 'error', message: `溢出栏已满！${equip.name}丢失了` });
+      return false;
+    }
+  },
+
   // Get equipment by uid
   getEquipment(uid) {
     return this._inventory.find(e => e.uid === uid);

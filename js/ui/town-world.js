@@ -8,8 +8,8 @@ var TownWorld = {
 
   // Grid config
   CELL: 48,
-  MAP_W: 24,
-  MAP_H: 24,
+  MAP_W: 40,
+  MAP_H: 40,
 
   // Camera
   _cam: { x: 0, y: 0, zoom: 1 },
@@ -23,6 +23,9 @@ var TownWorld = {
   _longPressTimer: null,
   _moveOrigPos: null,  // {gx, gy} - original position before move
   _escHandler: null,   // keydown handler for ESC cancel
+
+  // Collision grid (true = blocked)
+  _collisionGrid: null,
 
   // Images cache
   _images: {},
@@ -50,31 +53,39 @@ var TownWorld = {
     academy: { w: 2, h: 2 },
     watermill: { w: 2, h: 2 },
     stone_mason: { w: 2, h: 2 },
-    smelter: { w: 2, h: 2 }
+    smelter: { w: 2, h: 2 },
+    vegetable_garden: { w: 3, h: 2 },
+    compost_pit: { w: 2, h: 2 },
+    seed_shop: { w: 2, h: 2 },
+    parking_lot: { w: 5, h: 2 }
   },
 
   // Default positions (when no saved data)
   _defaultPositions: {
-    town_hall:        { gx: 10, gy: 10 },
-    lumber_camp:      { gx: 4, gy: 5 },
-    quarry:           { gx: 17, gy: 4 },
-    iron_mine:        { gx: 4, gy: 15 },
-    farmland:         { gx: 17, gy: 15 },
-    barracks:         { gx: 7, gy: 6 },
-    training_ground:  { gx: 14, gy: 6 },
-    blacksmith:       { gx: 7, gy: 14 },
-    city_wall:        { gx: 10, gy: 3 },
-    adventure_guild:  { gx: 3, gy: 10 },
-    tavern:           { gx: 18, gy: 10 },
-    warehouse:        { gx: 10, gy: 17 },
-    market:           { gx: 14, gy: 14 },
-    tax_office:       { gx: 18, gy: 14 },
-    weapon_workshop:  { gx: 4, gy: 12 },
-    stable:           { gx: 18, gy: 7 },
-    academy:          { gx: 7, gy: 17 },
-    watermill:        { gx: 2, gy: 7 },
-    stone_mason:      { gx: 19, gy: 4 },
-    smelter:          { gx: 2, gy: 17 }
+    town_hall:        { gx: 14, gy: 14 },
+    lumber_camp:      { gx: 8, gy: 9 },
+    quarry:           { gx: 21, gy: 8 },
+    iron_mine:        { gx: 8, gy: 19 },
+    farmland:         { gx: 21, gy: 19 },
+    barracks:         { gx: 11, gy: 10 },
+    training_ground:  { gx: 18, gy: 10 },
+    blacksmith:       { gx: 11, gy: 18 },
+    city_wall:        { gx: 14, gy: 7 },
+    adventure_guild:  { gx: 7, gy: 14 },
+    tavern:           { gx: 22, gy: 14 },
+    warehouse:        { gx: 14, gy: 21 },
+    market:           { gx: 18, gy: 18 },
+    tax_office:       { gx: 22, gy: 18 },
+    weapon_workshop:  { gx: 8, gy: 16 },
+    stable:           { gx: 22, gy: 11 },
+    academy:          { gx: 11, gy: 21 },
+    watermill:        { gx: 6, gy: 11 },
+    stone_mason:      { gx: 23, gy: 8 },
+    smelter:          { gx: 6, gy: 21 },
+    vegetable_garden: { gx: 3, gy: 4 },
+    compost_pit:      { gx: 6, gy: 4 },
+    seed_shop:        { gx: 3, gy: 7 },
+    parking_lot:      { gx: 4, gy: 28 }
   },
 
   init: function () {
@@ -95,6 +106,9 @@ var TownWorld = {
     var cy = (th.gy + 1.5) * this.CELL - this._canvas.height / 2;
     this._cam.x = cx;
     this._cam.y = cy;
+
+    // Build collision grid
+    this.rebuildCollisionGrid();
 
     // Start render loop
     this._raf = requestAnimationFrame(this._loop.bind(this));
@@ -202,6 +216,44 @@ var TownWorld = {
       if (!TownManager._state.placements) TownManager._state.placements = {};
       TownManager._state.placements[buildingId] = { gx: gx, gy: gy };
     }
+    this.rebuildCollisionGrid();
+  },
+
+  // --- Collision Grid ---
+  rebuildCollisionGrid: function () {
+    var grid = [];
+    for (var y = 0; y < this.MAP_H; y++) {
+      grid[y] = [];
+      for (var x = 0; x < this.MAP_W; x++) {
+        grid[y][x] = false;
+      }
+    }
+    var buildingIds = Object.keys(this._buildingSizes);
+    for (var i = 0; i < buildingIds.length; i++) {
+      var id = buildingIds[i];
+      var bState = this._getBuildingState(id);
+      if (!bState || bState.level <= 0) continue;
+      var p = this._getPlacement(id);
+      var s = this._buildingSizes[id];
+      for (var gy = p.gy; gy < p.gy + s.h && gy < this.MAP_H; gy++) {
+        for (var gx = p.gx; gx < p.gx + s.w && gx < this.MAP_W; gx++) {
+          if (gy >= 0 && gx >= 0) grid[gy][gx] = true;
+        }
+      }
+    }
+    this._collisionGrid = grid;
+  },
+
+  isWalkable: function (gx, gy) {
+    if (gx < 0 || gy < 0 || gx >= this.MAP_W || gy >= this.MAP_H) return false;
+    if (!this._collisionGrid) return true;
+    return !this._collisionGrid[gy][gx];
+  },
+
+  isPixelWalkable: function (px, py) {
+    var gx = Math.floor(px / this.CELL);
+    var gy = Math.floor(py / this.CELL);
+    return this.isWalkable(gx, gy);
   },
 
   // --- Input Handling ---
@@ -306,6 +358,11 @@ var TownWorld = {
     var world = this._screenToWorld(pos.x, pos.y);
     var hit = this._hitTestBuilding(world.x, world.y);
 
+    // 检测角色点击
+    var charHit = (typeof TownCharacters !== 'undefined')
+      ? TownCharacters.hitTest(world.x, world.y)
+      : null;
+
     if (this._editMode && hit) {
       // Start building drag
       var p = this._getPlacement(hit);
@@ -324,10 +381,20 @@ var TownWorld = {
     // Map drag
     this._drag = { startX: pos.x, startY: pos.y, camX: this._cam.x, camY: this._cam.y, moved: false };
 
-    // Long-press for building selection
+    // Long-press detection: character takes priority over building
     var self = this;
     this._longPressTimer = setTimeout(function () {
-      if (hit && !self._drag.moved) {
+      if (self._drag && self._drag.moved) return;
+
+      // 优先长按角色 → 拖拽角色
+      if (charHit && typeof TownCharacters !== 'undefined') {
+        TownCharacters.startDrag(charHit, world.x, world.y);
+        self._drag = null;
+        return;
+      }
+
+      // 其次长按建筑 → 编辑模式
+      if (hit) {
         self._editMode = true;
         self._selectedBuilding = hit;
         var p = self._getPlacement(hit);
@@ -347,6 +414,13 @@ var TownWorld = {
   _onPointerMove: function (e) {
     e.preventDefault();
     var pos = this._getPointerPos(e);
+
+    // 角色拖拽
+    if (typeof TownCharacters !== 'undefined' && TownCharacters.isDragging()) {
+      var world = this._screenToWorld(pos.x, pos.y);
+      TownCharacters.moveDrag(world.x, world.y);
+      return;
+    }
 
     if (this._buildingDrag) {
       var world = this._screenToWorld(pos.x, pos.y);
@@ -380,6 +454,13 @@ var TownWorld = {
     if (this._longPressTimer) {
       clearTimeout(this._longPressTimer);
       this._longPressTimer = null;
+    }
+
+    // 角色拖拽释放
+    if (typeof TownCharacters !== 'undefined' && TownCharacters.isDragging()) {
+      TownCharacters.endDrag();
+      this._drag = null;
+      return;
     }
 
     if (this._buildingDrag) {
@@ -451,6 +532,17 @@ var TownWorld = {
 
   // --- Building Detail ---
   _showBuildingDetail: function (buildingId) {
+    // 菜园相关建筑直接打开菜园面板
+    if (buildingId === 'vegetable_garden' || buildingId === 'seed_shop' || buildingId === 'compost_pit') {
+      if (typeof FarmPanel !== 'undefined') {
+        if (buildingId === 'vegetable_garden') FarmPanel._activeTab = 'plant';
+        else if (buildingId === 'seed_shop') FarmPanel._activeTab = 'bag';
+        else if (buildingId === 'compost_pit') FarmPanel._activeTab = 'bag';
+        FarmPanel.show();
+        return;
+      }
+    }
+
     var def = typeof BuildingData !== 'undefined' ? BuildingData[buildingId] : null;
     if (!def) return;
 
@@ -865,7 +957,11 @@ var TownWorld = {
       inventoryCap: '🎒 背包容量', foodCapBonus: '🍖 粮草上限',
       foodRegenInterval: '🍖 恢复间隔(秒)', freeRecruitInterval: '🎫 免费招募间隔(秒)',
       unlockSlots: '🏠 建筑槽', levelCap: '📊 等级上限',
-      productionBoost: '⬆ 产出加成'
+      productionBoost: '⬆ 产出加成',
+      plots: '🌱 田地数量', qualityUnlock: '🏅 可种品级', speedBonus: '⚡ 生长加速',
+      doubleHarvestChance: '🎉 双倍收获概率', fertilizerYieldBonus: '🧪 施肥产量加成',
+      maxFertilizer: '♻️ 肥料上限', maxSeedQuality: '🌱 种子品级上限',
+      seedDiscount: '🏷️ 种子折扣'
     };
   },
 
@@ -881,7 +977,7 @@ var TownWorld = {
   },
 
   _onBuildingChanged: function () {
-    // Just triggers re-render naturally via animation loop
+    this.rebuildCollisionGrid();
   },
 
   // --- Render Loop ---
@@ -1102,7 +1198,7 @@ var TownWorld = {
           var progress = typeof TownManager !== 'undefined' ? TownManager.getBuildingProgress(bId) : 0;
           ctx.fillStyle = 'rgba(0,0,0,0.5)';
           ctx.fillRect(px + 4, py + ph - 10, pw - 8, 8);
-          ctx.fillStyle = '#4CAF50';
+          ctx.fillStyle = '#5d8a48';
           ctx.fillRect(px + 5, py + ph - 9, (pw - 10) * (progress || 0), 6);
 
           // Hammer icon bouncing
@@ -1127,7 +1223,7 @@ var TownWorld = {
       ctx.beginPath();
       ctx.arc(px + pw - badgeR - 2, py + 4 + badgeR, badgeR, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#F5C518';
+      ctx.fillStyle = '#d4a849';
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -1135,7 +1231,7 @@ var TownWorld = {
 
       // Selection highlight
       if (isSelected) {
-        ctx.strokeStyle = '#F5C518';
+        ctx.strokeStyle = '#d4a849';
         ctx.lineWidth = 2;
         ctx.strokeRect(px - 2, py - 2, pw + 4, ph + 4);
 
@@ -1151,7 +1247,7 @@ var TownWorld = {
           ctx.beginPath();
           ctx.roundRect(lx, ly, lw, 18, 4);
           ctx.fill();
-          ctx.fillStyle = '#F5C518';
+          ctx.fillStyle = '#d4a849';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(labelText, px + pw / 2, ly + 9);
@@ -1187,9 +1283,9 @@ var TownWorld = {
       // Edit mode: valid/invalid placement overlay
       if (this._editMode && this._buildingDrag && this._buildingDrag.id === bId && this._buildingDrag.moved) {
         var valid = this._checkPlacementValid(bId, p2.gx, p2.gy);
-        ctx.fillStyle = valid ? 'rgba(76,175,80,0.25)' : 'rgba(244,67,54,0.25)';
+        ctx.fillStyle = valid ? 'rgba(93,138,72,0.25)' : 'rgba(179,58,58,0.25)';
         ctx.fillRect(px, py, pw, ph);
-        ctx.strokeStyle = valid ? '#4CAF50' : '#F44336';
+        ctx.strokeStyle = valid ? '#5d8a48' : '#b33a3a';
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, pw, ph);
       }
@@ -1199,14 +1295,14 @@ var TownWorld = {
   _drawHUD: function (ctx, w, h) {
     // Edit mode indicator + confirm/cancel buttons
     if (this._editMode) {
-      ctx.fillStyle = 'rgba(245,197,24,0.1)';
+      ctx.fillStyle = 'rgba(212,168,73,0.1)';
       ctx.fillRect(0, 0, w, h);
 
       // HUD bar at top
       var barH = 44;
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(0, 0, w, barH);
-      ctx.fillStyle = '#F5C518';
+      ctx.fillStyle = '#d4a849';
       ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

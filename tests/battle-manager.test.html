@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>BattleManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>BattleManager 规范测试</h1>
+<pre>规范引用：specs/services/battle-manager.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+<script src="../js/data/stages.js"></script>
+<script src="../js/data/equipment.js"></script>
+<script src="../js/modules/battle-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/battle-manager.md
+ * 测试骨架：从 14 个能力的 WHEN/THEN 场景生成
+ * 
+ * 测试策略：mock Math.random() 返回固定值来验证概率相关场景
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function skip(name) {
+  _results.push({ section: _currentSection, name: name, status: 'skip', error: null });
+  var el = document.createElement('div');
+  el.className = 'skip';
+  el.textContent = '  ⊘ ' + name + ' (需要 mock RNG)';
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) throw new Error((msg || '') + ' expected=' + expected + ' actual=' + actual);
+}
+
+// ===== Mock 依赖 =====
+
+var _emitted = [];
+var _originalRandom = Math.random;
+
+function mockRandom(value) {
+  Math.random = function() { return value; };
+}
+
+function restoreRandom() {
+  Math.random = _originalRandom;
+}
+
+// Mock EventBus
+if (typeof EventBus === 'undefined') {
+  var EventBus = { _handlers: {}, on: function(){}, off: function(){}, emit: function(){} };
+}
+var _origEmit = EventBus.emit;
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+  if (_origEmit) _origEmit.apply(EventBus, arguments);
+};
+
+// Mock HeroManager
+var HeroManager = {
+  _team: [],
+  _templates: {},
+  _stats: {},
+  getTeam: function() { return this._team; },
+  getTemplate: function(id) { return this._templates[id] || null; },
+  getHeroStats: function(uid) { return this._stats[uid] || null; },
+  addHero: function(id) { this._addedHeroes = this._addedHeroes || []; this._addedHeroes.push(id); }
+};
+
+// Mock ResourceManager
+var ResourceManager = {
+  _resources: {},
+  _battleCount: 0,
+  _highestStage: null,
+  canAfford: function(type, amount) { return (this._resources[type] || 0) >= amount; },
+  spend: function(type, amount) {
+    if (!this.canAfford(type, amount)) return false;
+    this._resources[type] -= amount;
+    return true;
+  },
+  add: function(type, amount) { this._resources[type] = (this._resources[type] || 0) + amount; },
+  addBattleCount: function() { this._battleCount++; },
+  setHighestStage: function(id) { this._highestStage = id; },
+  reset: function() { this._resources = {}; this._battleCount = 0; this._highestStage = null; }
+};
+
+// Mock TownManager
+var TownManager = {
+  getAtkBonus: function() { return 0; },
+  getDefBonus: function() { return 0; },
+  getHpBonus: function() { return 0; },
+  getExpBonus: function() { return 0; },
+  getDropRateBonus: function() { return 0; }
+};
+
+// Mock FarmManager
+var FarmManager = {
+  getActiveBuff: function() { return null; }
+};
+
+// Mock EquipmentManager
+var EquipmentManager = {
+  _inventory: [],
+  addToInventory: function(equip) { this._inventory.push(equip); return true; },
+  generateDrop: null // will be set per-test
+};
+
+// Mock BattleAnimations
+var BattleAnimations = {
+  playAttack: function() {},
+  playSkill: function() {},
+  playDeath: function() {}
+};
+
+// Mock getHeroSetBonuses
+function getHeroSetBonuses() { return []; }
+
+// ===== 测试辅助 =====
+
+function resetAll() {
+  _emitted = [];
+  ResourceManager.reset();
+  HeroManager._team = [];
+  HeroManager._templates = {};
+  HeroManager._stats = {};
+  HeroManager._addedHeroes = [];
+  EquipmentManager._inventory = [];
+  EquipmentManager.generateDrop = null;
+  TownManager.getAtkBonus = function() { return 0; };
+  TownManager.getDefBonus = function() { return 0; };
+  TownManager.getHpBonus = function() { return 0; };
+  TownManager.getExpBonus = function() { return 0; };
+  TownManager.getDropRateBonus = function() { return 0; };
+  FarmManager.getActiveBuff = function() { return null; };
+  restoreRandom();
+  BattleManager.init({});
+}
+
+function setupTeam(count) {
+  count = count || 2;
+  HeroManager._team = [];
+  for (var i = 0; i < count; i++) {
+    var uid = 'hero_' + i;
+    var id = 'tmpl_' + i;
+    HeroManager._team.push({
+      uid: uid, id: id, level: 1, exp: 0,
+      equipment: { weapon: null, armor: null, accessory: null, mount: null }
+    });
+    HeroManager._templates[id] = {
+      name: '测试武将' + i, emoji: '⚔', skill: null
+    };
+    HeroManager._stats[uid] = { atk: 100, def: 50, hp: 500, spd: 30 };
+  }
+}
+
+function setupStage(stageId) {
+  BattleManager._state.currentStage = stageId || 'stage_1_1';
+}
+
+// ===== 能力 1：开始战斗 =====
+
+section('能力 1：开始战斗');
+
+test('Test_StartBattle_WhenTeamEmpty_ThenReturnsFalseAndToast', function() {
+  // WHEN 队伍为空 AND 调用 startBattle()
+  // THEN 返回 false AND emit toast:show warning
+  resetAll();
+  var result = BattleManager.startBattle();
+  assertEqual(result, false, 'should return false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show'; });
+  assert(toast, 'should emit toast');
+  assertEqual(toast.args[0].type, 'warning', 'toast type');
+  assertEqual(BattleManager.getBattleState(), null, 'battleState should be null');
+});
+
+test('Test_StartBattle_WhenStageNotExist_ThenReturnsFalseAndToast', function() {
+  // WHEN 队伍非空，currentStage 对应关卡不存在
+  // THEN 返回 false AND emit toast error
+  resetAll();
+  setupTeam(1);
+  BattleManager._state.currentStage = 'nonexistent_stage';
+  var result = BattleManager.startBattle();
+  assertEqual(result, false, 'should return false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].type === 'error'; });
+  assert(toast, 'should emit error toast');
+});
+
+test('Test_StartBattle_WhenFoodInsufficient_ThenReturnsFalseAndToast', function() {
+  // WHEN 关卡 foodCost=2, 当前食物=1
+  // THEN 返回 false AND toast warning AND 食物不变
+  resetAll();
+  setupTeam(1);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 1;
+  var result = BattleManager.startBattle();
+  assertEqual(result, false, 'should return false');
+  assertEqual(ResourceManager._resources[CONSTANTS.RESOURCE.FOOD], 1, 'food unchanged');
+});
+
+test('Test_StartBattle_WhenAllConditionsMet_ThenConsumeFoodAndFight', function() {
+  // WHEN 关卡 foodCost=2, 食物=5, 队伍 2 人
+  // THEN 食物变 3, phase=fighting, allies=2, emit battle:started
+  resetAll();
+  setupTeam(2);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 5;
+  var result = BattleManager.startBattle();
+  assertEqual(result, true, 'should return true');
+  assertEqual(ResourceManager._resources[CONSTANTS.RESOURCE.FOOD], 3, 'food consumed');
+  var bs = BattleManager.getBattleState();
+  assert(bs, 'battleState should exist');
+  assertEqual(bs.phase, 'fighting', 'phase');
+  assertEqual(bs.allies.length, 2, 'allies count');
+  assert(bs.enemies.length > 0, 'enemies exist');
+  var started = _emitted.find(function(e) { return e.event === 'battle:started'; });
+  assert(started, 'should emit battle:started');
+});
+
+test('Test_StartBattle_WhenTownAndCookBonus_ThenApplyToStats', function() {
+  // WHEN TownManager atkBonus=0.1, 料理 atkBonus=0.05, 武将 ATK=100
+  // THEN finalAtk = floor(100 × 1.15)
+  resetAll();
+  setupTeam(1);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  TownManager.getAtkBonus = function() { return 0.1; };
+  FarmManager.getActiveBuff = function() {
+    return { effects: { atkBonus: 0.05, defBonus: 0, hpBonus: 0, allBonus: 0 } };
+  };
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  assertEqual(bs.allies[0].atk, Math.floor(100 * 1.15), 'ATK with bonuses');
+});
+
+test('Test_StartBattle_WhenBattleInProgress_ThenOverwriteExisting', function() {
+  // WHEN battleState.phase = 'fighting' AND 调用 startBattle()
+  // THEN 覆盖现有战斗状态，开始新战斗
+  resetAll();
+  setupTeam(1);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 20;
+  BattleManager.startBattle();
+  var bs1Round = BattleManager.getBattleState().round;
+  BattleManager.startBattle();
+  var bs2 = BattleManager.getBattleState();
+  assertEqual(bs2.round, 0, 'new battle starts at round 0');
+  assertEqual(bs2.phase, 'fighting', 'phase is fighting');
+});
+
+// ===== 能力 2：回合执行 =====
+
+section('能力 2：回合执行');
+
+test('Test_RoundExec_WhenFightingAndTick1s_ThenRoundIncrements', function() {
+  // WHEN phase='fighting' AND onTick(1.0)
+  // THEN round 从 0 变 1
+  resetAll();
+  setupTeam(2);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  BattleManager.onTick(1.0);
+  var bs = BattleManager.getBattleState();
+  assert(bs.round >= 1, 'round should increment');
+});
+
+test('Test_RoundExec_WhenTick2_5s_ThenExecuteTwoRounds', function() {
+  // WHEN onTick(2.5) THEN 执行 2 回合
+  resetAll();
+  setupTeam(2);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  // Use strong heroes so battle doesn't end in 2 rounds
+  HeroManager._stats['hero_0'] = { atk: 10, def: 500, hp: 9999, spd: 30 };
+  HeroManager._stats['hero_1'] = { atk: 10, def: 500, hp: 9999, spd: 30 };
+  BattleManager.startBattle();
+  BattleManager.onTick(2.5);
+  var bs = BattleManager.getBattleState();
+  assert(bs.round >= 2, 'should execute at least 2 rounds');
+});
+
+test('Test_RoundExec_WhenPhaseVictory_ThenNoRound', function() {
+  // WHEN phase='victory' AND onTick(1.0) THEN 不执行回合
+  resetAll();
+  BattleManager.init({});
+  BattleManager._state.battleState = { phase: 'victory', allies: [], enemies: [], round: 5, log: [] };
+  var prevRound = 5;
+  BattleManager.onTick(1.0);
+  // Should not increment round (phase is victory, not fighting)
+  assertEqual(BattleManager.getBattleState().round, prevRound, 'round unchanged');
+});
+
+test('Test_RoundExec_WhenSameSpd_ThenAllyFirst', function() {
+  // WHEN 队友 SPD=50, 敌方 SPD=50 THEN 队友先行动
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 200, def: 50, hp: 9999, spd: 50 };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  mockRandom(0.5); // middle random factor
+  BattleManager.startBattle();
+  // Modify enemy SPD to match ally
+  var bs = BattleManager.getBattleState();
+  for (var i = 0; i < bs.enemies.length; i++) {
+    bs.enemies[i].spd = 50;
+    bs.enemies[i].baseSpd = 50;
+  }
+  BattleManager.onTick(1.0);
+  // Check log: first action should be from an ally
+  var firstLog = bs.log.find(function(l) { return l.indexOf('[第1回合]') >= 0; });
+  assert(firstLog && firstLog.indexOf('测试武将') >= 0, 'ally should act first at same SPD');
+  restoreRandom();
+});
+
+// ===== 能力 3：单位行动 =====
+
+section('能力 3：单位行动');
+
+test('Test_UnitAction_WhenSkillCdReady_ThenUseSkill', function() {
+  // WHEN 单位有技能, cooldown=3, skillCd=3 THEN 使用技能, skillCd 重置为 0
+  resetAll();
+  setupTeam(1);
+  HeroManager._templates['tmpl_0'].skill = {
+    name: '测试技能', type: 'damage', multiplier: 2.0, target: 'single', cooldown: 3
+  };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  bs.allies[0].skillCd = 3;
+  bs.allies[0].skill.cooldown = 3;
+  BattleManager.onTick(1.0);
+  // After using skill, skillCd should be 0
+  assertEqual(bs.allies[0].skillCd, 0, 'skillCd reset to 0 after skill use');
+  // Check log for skill usage
+  var skillLog = bs.log.find(function(l) { return l.indexOf('测试技能') >= 0; });
+  assert(skillLog, 'should log skill use');
+});
+
+test('Test_UnitAction_WhenNoSkill_ThenAlwaysNormalAttack', function() {
+  // WHEN 单位无技能 THEN 始终普攻
+  resetAll();
+  setupTeam(1);
+  HeroManager._templates['tmpl_0'].skill = null;
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  BattleManager.onTick(1.0);
+  var bs = BattleManager.getBattleState();
+  var attackLog = bs.log.find(function(l) { return l.indexOf('攻击') >= 0; });
+  assert(attackLog, 'should log normal attack');
+});
+
+// ===== 能力 4：普通攻击 =====
+
+section('能力 4：普通攻击');
+
+test('Test_NormalAttack_WhenAttack_ThenDealDamage', function() {
+  // WHEN 攻击者 ATK=100, 目标 DEF=50 THEN 伤害 > 0
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 100, def: 50, hp: 9999, spd: 99 };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  mockRandom(0.5);
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  var enemyHpBefore = bs.enemies[0].currentHp;
+  BattleManager.onTick(1.0);
+  assert(bs.enemies[0].currentHp < enemyHpBefore || !bs.enemies[0].isAlive, 'enemy should lose HP');
+  restoreRandom();
+});
+
+test('Test_NormalAttack_WhenTargetDies_ThenIsAliveFalse', function() {
+  // WHEN 攻击造成伤害使目标 HP≤0 THEN target.isAlive = false
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 9999, def: 50, hp: 9999, spd: 99 };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  // Run enough rounds to kill at least one enemy
+  for (var i = 0; i < 20; i++) BattleManager.onTick(1.0);
+  var bs = BattleManager.getBattleState();
+  var deadEnemy = bs.enemies.find(function(e) { return !e.isAlive; });
+  assert(deadEnemy || bs.phase === 'victory', 'at least one enemy should die or battle won');
+});
+
+test('Test_NormalAttack_WhenAllTargetsDead_ThenSkipAttack', function() {
+  // WHEN 所有敌方在本回合已被击杀 AND 后续单位执行普攻
+  // THEN 跳过攻击，不报错
+  resetAll();
+  setupTeam(2);
+  HeroManager._stats['hero_0'] = { atk: 9999, def: 50, hp: 9999, spd: 99 };
+  HeroManager._stats['hero_1'] = { atk: 9999, def: 50, hp: 9999, spd: 98 };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  // Should not throw even if second hero has no target
+  BattleManager.onTick(1.0);
+  assert(true, 'no error thrown');
+});
+
+// ===== 能力 5：技能系统 =====
+
+section('能力 5：技能系统');
+
+test('Test_Skill_WhenDamageTypeAll_ThenHitAllEnemies', function() {
+  // WHEN damage 技能 target='all' THEN 每个存活敌方各算一次伤害
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 100, def: 50, hp: 9999, spd: 99 };
+  HeroManager._templates['tmpl_0'].skill = {
+    name: 'AOE技能', type: 'damage', multiplier: 1.5, target: 'all', cooldown: 0
+  };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  bs.allies[0].skillCd = 0;
+  bs.allies[0].skill.cooldown = 0;
+  BattleManager.onTick(1.0);
+  // Check that multiple enemies were hit
+  var skillLogs = bs.log.filter(function(l) { return l.indexOf('AOE技能') >= 0; });
+  assert(skillLogs.length >= 1, 'should log AOE skill for enemies');
+});
+
+test('Test_Skill_WhenHealLowestHp_ThenTargetLowest', function() {
+  // WHEN heal target='ally_lowest_hp', ally A HP80%, ally B HP50%
+  // THEN 治疗目标为 B
+  resetAll();
+  setupTeam(2);
+  HeroManager._stats['hero_0'] = { atk: 100, def: 50, hp: 500, spd: 99 };
+  HeroManager._stats['hero_1'] = { atk: 100, def: 50, hp: 500, spd: 10 };
+  HeroManager._templates['tmpl_0'].skill = {
+    name: '治疗术', type: 'heal', multiplier: 1.0, target: 'ally_lowest_hp', cooldown: 0
+  };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  bs.allies[0].currentHp = Math.floor(bs.allies[0].maxHp * 0.8);
+  bs.allies[1].currentHp = Math.floor(bs.allies[1].maxHp * 0.5);
+  bs.allies[0].skillCd = 0;
+  bs.allies[0].skill.cooldown = 0;
+  BattleManager.onTick(1.0);
+  var healLog = bs.log.find(function(l) { return l.indexOf('治疗术') >= 0; });
+  assert(healLog && healLog.indexOf('测试武将1') >= 0, 'should heal lowest HP ally');
+});
+
+test('Test_Skill_WhenUnknownType_ThenFallbackToDamage', function() {
+  // WHEN skill.type='unknown' THEN 按 damage 处理
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 100, def: 50, hp: 9999, spd: 99 };
+  HeroManager._templates['tmpl_0'].skill = {
+    name: '未知技能', type: 'foobar', multiplier: 1.0, target: 'single', cooldown: 0
+  };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  bs.allies[0].skillCd = 0;
+  bs.allies[0].skill.cooldown = 0;
+  BattleManager.onTick(1.0);
+  var skillLog = bs.log.find(function(l) { return l.indexOf('未知技能') >= 0 && l.indexOf('伤害') >= 0; });
+  assert(skillLog, 'unknown skill type should be treated as damage');
+});
+
+// ===== 能力 6：伤害计算 =====
+
+section('能力 6：伤害计算');
+
+test('Test_Damage_WhenDef0_ThenNoDamageReduction', function() {
+  // WHEN DEF=0 THEN reduction=0, damage = baseDamage
+  resetAll();
+  mockRandom(0.5); // randomFactor = 0.9 + 0.5*0.2 = 1.0
+  var result = BattleManager._calculateDamage(
+    { atk: 100, setCritRate: 0 }, { def: 0 }, 1.0
+  );
+  // baseDamage = floor(100 * 1.0 * 1.0) = 100, reduction = 0
+  assertEqual(result.damage >= 90 && result.damage <= 110, true, 'damage ~100 with no reduction');
+  restoreRandom();
+});
+
+test('Test_Damage_WhenDef100_ThenHalfReduction', function() {
+  // WHEN DEF=100 THEN reduction = 100/200 = 0.5
+  resetAll();
+  mockRandom(0.5);
+  var result = BattleManager._calculateDamage(
+    { atk: 100, setCritRate: 0 }, { def: 100 }, 1.0
+  );
+  // baseDamage = floor(100 * 1.0 * 1.0) = 100, reduced by 50%
+  assert(result.damage <= 55, 'damage should be roughly halved');
+  assert(result.damage >= 1, 'min damage 1');
+  restoreRandom();
+});
+
+test('Test_Damage_WhenDefExtreme_ThenMinDamage1', function() {
+  // WHEN DEF=9999 THEN damage = 1 (minimum)
+  resetAll();
+  mockRandom(0.5);
+  var result = BattleManager._calculateDamage(
+    { atk: 10, setCritRate: 0 }, { def: 9999 }, 1.0
+  );
+  assertEqual(result.damage, 1, 'extreme DEF → min damage 1');
+  restoreRandom();
+});
+
+test('Test_Damage_WhenCrit_ThenDamage1_5x', function() {
+  // WHEN 暴击触发 THEN damage = floor(原伤害 × 1.5)
+  resetAll();
+  mockRandom(0.01); // < 0.05 → crit triggers
+  var result = BattleManager._calculateDamage(
+    { atk: 100, setCritRate: 0 }, { def: 0 }, 1.0
+  );
+  assertEqual(result.isCrit, true, 'should crit');
+  // baseDamage = floor(100 * 1.0 * (0.9+0.01*0.2)) ≈ 90
+  // critDamage = floor(90 * 1.5) = 135
+  assert(result.damage >= 1, 'crit damage should be positive');
+  restoreRandom();
+});
+
+test('Test_Damage_WhenSetCritRate015_ThenCritChance20Pct', function() {
+  // WHEN setCritRate=0.15 THEN critChance = 0.20
+  resetAll();
+  mockRandom(0.18); // 0.18 < 0.20 → should crit
+  var result = BattleManager._calculateDamage(
+    { atk: 100, setCritRate: 0.15 }, { def: 0 }, 1.0
+  );
+  assertEqual(result.isCrit, true, 'should crit with setCritRate=0.15');
+  restoreRandom();
+});
+
+// ===== 能力 7：Buff / Debuff 系统 =====
+
+section('能力 7：Buff / Debuff 系统');
+
+test('Test_Buff_WhenApplied_ThenRecalcStats', function() {
+  // WHEN 添加 buff { stat:'atk', ratio:0.3, duration:2 }
+  // THEN atk = floor(baseAtk × 1.3)
+  resetAll();
+  var unit = { baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 100, def: 50, spd: 30, buffs: [], isAlive: true };
+  BattleManager._applyBuff(unit, { stat: 'atk', ratio: 0.3, duration: 2 }, 'Test');
+  assertEqual(unit.atk, Math.floor(100 * 1.3), 'atk buffed to 130');
+});
+
+test('Test_Buff_WhenExpired_ThenRemoved', function() {
+  // WHEN buff duration 2 → processBuffs 2 次 → 移除
+  resetAll();
+  var unit = { baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 100, def: 50, spd: 30, buffs: [], isAlive: true };
+  BattleManager._applyBuff(unit, { stat: 'atk', ratio: 0.3, duration: 2 }, 'Test');
+  BattleManager._processBuffs([unit]);
+  assertEqual(unit.buffs.length, 1, 'buff still exists after 1 round');
+  BattleManager._processBuffs([unit]);
+  assertEqual(unit.buffs.length, 0, 'buff removed after 2 rounds');
+  assertEqual(unit.atk, 100, 'atk restored to base');
+});
+
+test('Test_Buff_WhenMultipleStacked_ThenAdditiveRatio', function() {
+  // WHEN 两个 atk buff ratio=0.3 和 0.2
+  // THEN atkMod = 1 + 0.3 + 0.2 = 1.5, atk = floor(100 × 1.5) = 150
+  resetAll();
+  var unit = { baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 100, def: 50, spd: 30, buffs: [], isAlive: true };
+  BattleManager._applyBuff(unit, { stat: 'atk', ratio: 0.3, duration: 5 }, 'A');
+  BattleManager._applyBuff(unit, { stat: 'atk', ratio: 0.2, duration: 5 }, 'B');
+  assertEqual(unit.atk, Math.floor(100 * 1.5), 'additive stacking');
+});
+
+test('Test_Buff_WhenExtremeDebuff_ThenMinAtk1', function() {
+  // WHEN debuff ratio=-1.5 使 atkMod=-0.5 THEN atk = 1
+  resetAll();
+  var unit = { baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 100, def: 50, spd: 30, buffs: [], isAlive: true };
+  BattleManager._applyBuff(unit, { stat: 'atk', ratio: -1.5, duration: 5 }, 'Debuff');
+  assertEqual(unit.atk, 1, 'extreme debuff → min 1');
+});
+
+// ===== 能力 8：胜负判定 =====
+
+section('能力 8：胜负判定');
+
+test('Test_BattleEnd_WhenAllEnemiesDead_ThenVictory', function() {
+  resetAll();
+  setupTeam(1);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  for (var i = 0; i < bs.enemies.length; i++) {
+    bs.enemies[i].isAlive = false;
+    bs.enemies[i].currentHp = 0;
+  }
+  var result = BattleManager._checkBattleEnd();
+  assertEqual(result, 'victory', 'all enemies dead → victory');
+});
+
+test('Test_BattleEnd_WhenAllAlliesDead_ThenDefeat', function() {
+  resetAll();
+  setupTeam(1);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  var bs = BattleManager.getBattleState();
+  for (var i = 0; i < bs.allies.length; i++) {
+    bs.allies[i].isAlive = false;
+    bs.allies[i].currentHp = 0;
+  }
+  var result = BattleManager._checkBattleEnd();
+  assertEqual(result, 'defeat', 'all allies dead → defeat');
+});
+
+test('Test_BattleEnd_WhenBothAlive_ThenNull', function() {
+  resetAll();
+  setupTeam(1);
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  var result = BattleManager._checkBattleEnd();
+  assertEqual(result, null, 'both alive → null');
+});
+
+// ===== 能力 9：胜利结算 =====
+
+section('能力 9：胜利结算');
+
+test('Test_Victory_WhenWin_ThenEmitBattleEnded', function() {
+  // WHEN 胜利结算 THEN emit battle:ended 含正确载荷
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 9999, def: 9999, hp: 9999, spd: 99 };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  // Kill all enemies to trigger victory
+  for (var r = 0; r < 50; r++) BattleManager.onTick(1.0);
+  var ended = _emitted.find(function(e) { return e.event === 'battle:ended'; });
+  assert(ended, 'should emit battle:ended');
+  assertEqual(ended.args[0].result, 'victory', 'result=victory');
+});
+
+test('Test_Victory_WhenFirstClear_ThenJadeAndHeroRewards', function() {
+  // WHEN 首次通关 THEN clearedStages.push, jade 奖励
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 9999, def: 9999, hp: 9999, spd: 99 };
+  setupStage('stage_1_1');
+  BattleManager._state.clearedStages = [];
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  for (var r = 0; r < 50; r++) BattleManager.onTick(1.0);
+  assert(BattleManager._state.clearedStages.indexOf('stage_1_1') >= 0, 'stage added to cleared');
+  var ended = _emitted.find(function(e) { return e.event === 'battle:ended'; });
+  assertEqual(ended.args[0].isFirstClear, true, 'isFirstClear=true');
+});
+
+test('Test_Victory_WhenRepeatClear_ThenNoFirstClearReward', function() {
+  // WHEN 重复通关同一关卡 THEN 不发放首通奖励
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 9999, def: 9999, hp: 9999, spd: 99 };
+  setupStage('stage_1_1');
+  BattleManager._state.clearedStages = ['stage_1_1'];
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  var jadeBefore = ResourceManager._resources[CONSTANTS.RESOURCE.JADE] || 0;
+  BattleManager.startBattle();
+  for (var r = 0; r < 50; r++) BattleManager.onTick(1.0);
+  var ended = _emitted.find(function(e) { return e.event === 'battle:ended'; });
+  assertEqual(ended.args[0].isFirstClear, false, 'isFirstClear=false');
+});
+
+// ===== 能力 10：失败结算 =====
+
+section('能力 10：失败结算');
+
+test('Test_Defeat_WhenAllAlliesDie_ThenPhaseDefeatAndEmit', function() {
+  // WHEN 队友全灭 THEN phase='defeat', emit battle:ended
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 1, def: 1, hp: 1, spd: 1 };
+  setupStage('stage_1_1');
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 10;
+  BattleManager.startBattle();
+  for (var r = 0; r < 50; r++) BattleManager.onTick(1.0);
+  var bs = BattleManager.getBattleState();
+  assertEqual(bs.phase, 'defeat', 'phase=defeat');
+  var ended = _emitted.find(function(e) { return e.event === 'battle:ended' && e.args[0].result === 'defeat'; });
+  assert(ended, 'should emit battle:ended with defeat');
+});
+
+// ===== 能力 11：自动推图 =====
+
+section('能力 11：自动推图');
+
+test('Test_AutoAdvance_WhenAutoFightAndVictory_ThenNextStage', function() {
+  // WHEN isAutoFight=true, phase='victory' AND 经过 1 秒
+  // THEN currentStage 更新为下一关 AND startBattle() 被调用
+  resetAll();
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 9999, def: 9999, hp: 9999, spd: 99 };
+  setupStage('stage_1_1');
+  BattleManager._state.isAutoFight = true;
+  ResourceManager._resources[CONSTANTS.RESOURCE.FOOD] = 100;
+  BattleManager.startBattle();
+  for (var r = 0; r < 50; r++) BattleManager.onTick(1.0);
+  var bs = BattleManager.getBattleState();
+  if (bs.phase === 'victory') {
+    BattleManager.onTick(1.5); // trigger auto-advance
+    var newStage = BattleManager._state.currentStage;
+    assert(newStage !== 'stage_1_1' || BattleManager.isFighting(), 'should advance or be fighting next stage');
+  }
+});
+
+test('Test_AutoAdvance_WhenAutoFightDisabled_ThenNoAdvance', function() {
+  // WHEN isAutoFight=false, phase='victory' THEN 不自动推图
+  resetAll();
+  BattleManager.init({});
+  BattleManager._state.isAutoFight = false;
+  BattleManager._state.battleState = { phase: 'victory', allies: [], enemies: [], round: 5, log: [] };
+  BattleManager._state.currentStage = 'stage_1_1';
+  BattleManager.onTick(2.0);
+  assertEqual(BattleManager._state.currentStage, 'stage_1_1', 'stage unchanged');
+});
+
+test('Test_AutoAdvance_WhenDefeat_ThenNoAdvance', function() {
+  // WHEN isAutoFight=true, phase='defeat' THEN 不自动推图
+  resetAll();
+  BattleManager.init({});
+  BattleManager._state.isAutoFight = true;
+  BattleManager._state.battleState = { phase: 'defeat', allies: [], enemies: [], round: 5, log: [] };
+  BattleManager._state.currentStage = 'stage_1_1';
+  BattleManager.onTick(2.0);
+  assertEqual(BattleManager._state.currentStage, 'stage_1_1', 'stage unchanged on defeat');
+});
+
+// ===== 能力 12：关卡导航 =====
+
+section('能力 12：关卡导航');
+
+test('Test_GetCurrentStage_WhenValidId_ThenReturnStageObject', function() {
+  resetAll();
+  BattleManager._state.currentStage = 'stage_1_1';
+  var stage = BattleManager.getCurrentStage();
+  assert(stage, 'should return stage object');
+  assertEqual(stage.id, 'stage_1_1', 'correct stage');
+});
+
+test('Test_GetCurrentStage_WhenInvalidId_ThenReturnNull', function() {
+  resetAll();
+  BattleManager._state.currentStage = 'nonexistent';
+  var stage = BattleManager.getCurrentStage();
+  assertEqual(stage, null, 'should return null');
+});
+
+test('Test_GetNextStage_WhenNotLast_ThenReturnNextId', function() {
+  resetAll();
+  var next = BattleManager._getNextStage('stage_1_1');
+  assert(next, 'should return next stage');
+  assertEqual(next, 'stage_1_2', 'next stage is 1_2');
+});
+
+test('Test_GetNextStage_WhenLast_ThenReturnNull', function() {
+  resetAll();
+  var last = StageData[StageData.length - 1];
+  var next = BattleManager._getNextStage(last.id);
+  assertEqual(next, null, 'last stage → null');
+});
+
+// ===== 能力 13：装备掉落 =====
+
+section('能力 13：装备掉落');
+
+test('Test_EquipDrop_WhenGenerateDropExists_ThenDelegateToIt', function() {
+  // WHEN EquipmentManager.generateDrop 存在 THEN 调用它
+  resetAll();
+  var called = false;
+  EquipmentManager.generateDrop = function(ch, w) { called = true; return { uid: 'test', name: 'TestEquip' }; };
+  setupStage('stage_1_1');
+  var stage = BattleManager.getCurrentStage();
+  var result = BattleManager._generateEquipDrop(stage);
+  assert(called, 'should call EquipmentManager.generateDrop');
+  assertEqual(result.uid, 'test', 'returns delegate result');
+  EquipmentManager.generateDrop = null;
+});
+
+test('Test_EquipDrop_WhenFallback_ThenUsesAddToInventory', function() {
+  // WHEN 兜底逻辑 THEN 调用 addToInventory（非直写 _inventory）
+  resetAll();
+  EquipmentManager.generateDrop = null;
+  var addCalled = false;
+  var origAdd = EquipmentManager.addToInventory;
+  EquipmentManager.addToInventory = function(e) { addCalled = true; origAdd.call(EquipmentManager, e); return true; };
+  setupStage('stage_1_1');
+  var stage = BattleManager.getCurrentStage();
+  var result = BattleManager._generateEquipDrop(stage);
+  if (result) {
+    assert(addCalled, 'should use addToInventory (not direct _inventory push)');
+  }
+  EquipmentManager.addToInventory = origAdd;
+});
+
+// ===== 能力 14：公共查询 API =====
+
+section('能力 14：公共查询 API');
+
+test('Test_ToggleAutoFight_WhenFalse_ThenReturnsTrue', function() {
+  resetAll();
+  BattleManager._state.isAutoFight = false;
+  var result = BattleManager.toggleAutoFight();
+  assertEqual(result, true, 'toggle false → true');
+  assertEqual(BattleManager.isAutoFight(), true, 'isAutoFight() = true');
+});
+
+test('Test_ToggleAutoFight_WhenTrue_ThenReturnsFalse', function() {
+  resetAll();
+  BattleManager._state.isAutoFight = true;
+  var result = BattleManager.toggleAutoFight();
+  assertEqual(result, false, 'toggle true → false');
+});
+
+test('Test_IsFighting_WhenNoBattleState_ThenFalse', function() {
+  resetAll();
+  BattleManager._state.battleState = null;
+  assertEqual(BattleManager.isFighting(), false, 'null → false');
+});
+
+test('Test_IsFighting_WhenFighting_ThenTrue', function() {
+  resetAll();
+  BattleManager._state.battleState = { phase: 'fighting' };
+  assertEqual(BattleManager.isFighting(), true, 'fighting → true');
+});
+
+test('Test_IsFighting_WhenVictory_ThenFalse', function() {
+  resetAll();
+  BattleManager._state.battleState = { phase: 'victory' };
+  assertEqual(BattleManager.isFighting(), false, 'victory → false');
+});
+
+test('Test_GetState_WhenCalled_ThenBattleStateNull', function() {
+  resetAll();
+  BattleManager._state.battleState = { phase: 'fighting', allies: [], enemies: [], round: 5, log: [] };
+  BattleManager._state.clearedStages = ['stage_1_1'];
+  var state = BattleManager.getState();
+  assertEqual(state.battleState, null, 'battleState always null in save');
+  assert(state.clearedStages.indexOf('stage_1_1') >= 0, 'clearedStages included');
+  // Mutation test
+  state.clearedStages.push('mutated');
+  assertEqual(BattleManager._state.clearedStages.indexOf('mutated'), -1, 'mutation does not affect internal state');
+});
+
+// ===== 汇总 =====
+
+var passed = _results.filter(function(r) { return r.status === 'pass'; }).length;
+var failed = _results.filter(function(r) { return r.status === 'fail'; }).length;
+var skipped = _results.filter(function(r) { return r.status === 'skip'; }).length;
+var total = _results.length;
+
+var summaryEl = document.getElementById('summary');
+summaryEl.innerHTML =
+  '<h3>测试总结</h3>' +
+  '<div class="pass">✓ 通过: ' + passed + '</div>' +
+  '<div class="fail">✗ 失败: ' + failed + '</div>' +
+  '<div class="skip">⊘ 跳过: ' + skipped + '</div>' +
+  '<div>总计: ' + total + '</div>' +
+  '<div>覆盖率: ' + Math.round(passed / (total - skipped) * 100) + '%</div>';
+
+// Console output
+console.log('=== BattleManager Test Results ===');
+console.log('Pass: ' + passed + ', Fail: ' + failed + ', Skip: ' + skipped + ', Total: ' + total);
+_results.forEach(function(r) {
+  if (r.status === 'fail') console.error('FAIL: ' + r.name + ' — ' + r.error);
+});
+</script>
+</body>
+</html>

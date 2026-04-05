@@ -54,6 +54,7 @@ Agent 应像使用地图一样导航规范：
 | 规范 | 状态 | 说明 |
 |------|------|------|
 | [种菜系统](product-specs/farming-system.md) | Draft | 城镇农耕玩法，作物品级与料理 Buff |
+| [停车场系统](product-specs/parking-system.md) | Draft | QQ 抢车位玩法，载具停放被动产出金币 |
 
 ### 系统规范
 - [核心契约](system/core-contracts.md) — `Draft` — 资源枚举、品质等级、事件协议、存档格式、初始化顺序

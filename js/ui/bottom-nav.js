@@ -17,6 +17,8 @@ var BottomNav = {
     { id: 'merchant',  icon: '🏪', label: '商人' },
     { id: 'forge',     icon: '🔨', label: '锻造' },
     { id: 'abyss',     icon: '🔥', label: '深渊' },
+    { id: 'farm',      icon: '🥬', label: '菜园' },
+    { id: 'parking',   icon: '🅿️', label: '停车' },
     { id: 'economy',   icon: '📊', label: '经济' },
     { id: 'story',     icon: '📜', label: '剧情' },
     { id: 'settings',  icon: '⚙️', label: '设置' }
@@ -105,6 +107,12 @@ var BottomNav = {
     }
     if (panelId === 'abyss' && typeof AbyssPanel !== 'undefined') {
       AbyssPanel.show(); return;
+    }
+    if (panelId === 'farm' && typeof FarmPanel !== 'undefined') {
+      FarmPanel.show(); return;
+    }
+    if (panelId === 'parking' && typeof ParkingPanel !== 'undefined') {
+      ParkingPanel.show(); return;
     }
 
     var titles = {

@@ -1390,7 +1390,14 @@ var PaintTools = {
       return;
     }
 
-    if (!TilesetManager.selectedTile) return;
+    if (!TilesetManager.selectedTile) {
+      if (!PaintTools._noTileWarned) {
+        showToast('请先在调色板中选择一个瓦片', 'error');
+        PaintTools._noTileWarned = true;
+        setTimeout(function() { PaintTools._noTileWarned = false; }, 3000);
+      }
+      return;
+    }
     var st = TilesetManager.selectedTile;
     MapData.setTile(layerIdx, x, y, [st.tilesetIdx, st.tileId]);
   },
@@ -1957,7 +1964,8 @@ var MapIO = {
       map: MapData.serialize(),
       tilesets: TilesetManager.serialize(),
       folders: FolderBrowser.serialize(),
-      activeLayer: LayerPanel.activeLayer
+      activeLayer: LayerPanel.activeLayer,
+      selectedTile: TilesetManager.selectedTile
     };
     try {
       localStorage.setItem(this._autoSaveKey, JSON.stringify(data));
@@ -1978,6 +1986,14 @@ var MapIO = {
       ]).then(function() {
         MapData.deserialize(data.map);
         LayerPanel.activeLayer = data.activeLayer || 0;
+        // Restore selected tile, or auto-select first tile
+        if (data.selectedTile && TilesetManager.tilesets[data.selectedTile.tilesetIdx]) {
+          TilesetManager.selectedTile = data.selectedTile;
+        } else if (TilesetManager.tilesets.length > 0) {
+          TilesetManager.selectedTile = { tilesetIdx: 0, tileId: 0 };
+        }
+        TilesetManager._renderPalette();
+        TilesetManager._renderTileProps();
         App._syncUI();
         showToast('已从浏览器恢复', 'info');
         return true;
@@ -2092,6 +2108,12 @@ var MapIO = {
               MapData.deserialize(data.map);
             }
             LayerPanel.activeLayer = 0;
+            // Auto-select first tile so user can paint immediately
+            if (TilesetManager.tilesets.length > 0 && !TilesetManager.selectedTile) {
+              TilesetManager.selectedTile = { tilesetIdx: 0, tileId: 0 };
+              TilesetManager._renderPalette();
+              TilesetManager._renderTileProps();
+            }
             App._syncUI();
             UndoManager.clear();
             showToast('地图已导入', 'success');

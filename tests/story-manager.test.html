@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>StoryManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>StoryManager 规范测试</h1>
+<pre>规范引用：specs/services/story-manager.md
+执行计划：specs/exec-plans/story-manager.md (T3.1)</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/story-manager.md
+ * 执行计划：specs/exec-plans/story-manager.md (T3.1)
+ *
+ * 测试策略：mock EventBus.emit + HeroManager + ResourceManager + 全局数据对象
+ * 覆盖：全部 10 个能力的 39 个 WHEN/THEN 场景，共 42 个 it()
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== Mock 依赖 =====
+
+var _originalRandom = Math.random;
+var _originalDateNow = Date.now;
+
+function mockRandom(value) {
+  Math.random = function() { return value; };
+}
+
+function restoreRandom() {
+  Math.random = _originalRandom;
+}
+
+function mockDateNow(value) {
+  Date.now = function() { return value; };
+}
+
+function restoreDateNow() {
+  Date.now = _originalDateNow;
+}
+
+// Mock EventBus — 拦截 emit，记录调用
+var _emitted = [];
+var _origEmit = EventBus.emit.bind(EventBus);
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+// Mock HeroManager
+var HeroManager = {
+  _heroes: [],
+  getAll: function() { return this._heroes; },
+  reset: function() { this._heroes = []; }
+};
+
+// Mock ResourceManager
+var ResourceManager = {
+  _gold: 500,
+  get: function(key) {
+    if (key === (typeof CONSTANTS !== 'undefined' ? CONSTANTS.RESOURCE.GOLD : 'gold')) {
+      return this._gold;
+    }
+    return 0;
+  },
+  reset: function() { this._gold = 500; }
+};
+
+// ===== Mock 数据 =====
+
+var MainStory = {
+  prologue: {
+    id: 'prologue',
+    title: '序章',
+    description: '天地初开',
+    scenes: [
+      { id: 'prologue_1', speaker: '旁白', type: 'narration', text: '乱世将至。' },
+      { id: 'prologue_2', speaker: '天道系统', type: 'system', text: '欢迎来到三国。' }
+    ],
+    unlockCondition: null
+  },
+  chapters: [
+    {
+      id: 'chapter_1',
+      title: '第一章：起兵',
+      description: '...',
+      scenes: [{ id: 'ch1_1', speaker: '刘备', type: 'dialogue', text: '兄弟们！' }],
+      unlockCondition: { type: 'stage_clear', stageId: 10 }
+    },
+    {
+      id: 'chapter_2',
+      title: '第二章：连盟',
+      description: '...',
+      scenes: [{ id: 'ch2_1', speaker: '诸葛亮', type: 'dialogue', text: '隆中对。' }],
+      unlockCondition: { type: 'stage_clear', stageId: 20 }
+    },
+    {
+      id: 'chapter_3',
+      title: '第三章：赤壁',
+      description: '...',
+      scenes: [{ id: 'ch3_1', speaker: '旁白', type: 'narration', text: '天下三分。' }],
+      unlockCondition: { type: 'stage_clear', stageId: 30 }
+    }
+  ]
+};
+
+var IdleMonologues = {
+  system: {
+    idle: ['系统：当前天下太平。', '系统：资源充足。'],
+    night: ['系统：夜深了，快去休息。'],
+    lowMoney: ['系统：金钱不足，需尽快发展。'],
+    bored: ['系统：最近好无聊啊。']
+  },
+  zhuge_liang: {
+    idle: ['卧龙：静候天时。', '卧龙：时机未至。'],
+    night: ['卧龙：夜观星象，大业可期。'],
+    lowMoney: [],      // 空数组，用于测试空数组 fallback
+    bored: ['卧龙：无所事事，且读兵书。']
+  }
+};
+
+var CharacterDialogues = {
+  zhuge_liang: {
+    greet: ['你好，在忙着推演天下。', '有何指教？'],
+    upgrade: ['又进一步，大业可期！'],
+    battle: ['出师有名，必胜！'],
+    gift: [],           // 空数组，用于测试边界
+    // special 不存在，用于测试 category 不存在
+  }
+};
+
+var CharacterProfiles = {
+  zhuge_liang: {
+    name: '诸葛亮',
+    title: '卧龙先生',
+    quality: 5,
+    originalRole: '蜀汉丞相',
+    currentRole: '摸鱼大师',
+    personality: '算无遗策',
+    quirks: ['必须用羽扇', '说话爱卖关子']
+  }
+};
+</script>
+
+<!-- 加载被测模块 -->
+<script src="../js/modules/story-manager.js"></script>
+
+<script>
+// ===== 测试辅助 =====
+
+function resetAll() {
+  _emitted = [];
+  restoreRandom();
+  restoreDateNow();
+  HeroManager.reset();
+  ResourceManager.reset();
+  // 重置 StoryManager 内部状态到默认值
+  StoryManager._state = {
+    currentChapter: 'prologue',
+    completedChapters: [],
+    seenScenes: [],
+    monologueCooldown: 0,
+    latestMonologue: null
+  };
+}
+
+// ===== 能力 1：初始化与存档恢复 =====
+
+section('C1 init() — 初始化与存档恢复');
+
+test('saved=undefined → 默认状态（currentChapter=prologue，其余为空）', function() {
+  // WHEN saved = undefined（首次游戏）
+  // THEN 使用默认值
+  resetAll();
+  StoryManager.init(undefined);
+  assertEqual(StoryManager._state.currentChapter, 'prologue', 'currentChapter');
+  assertDeepEqual(StoryManager._state.completedChapters, [], 'completedChapters');
+  assertDeepEqual(StoryManager._state.seenScenes, [], 'seenScenes');
+  assertEqual(StoryManager._state.monologueCooldown, 0, 'monologueCooldown');
+  assertEqual(StoryManager._state.latestMonologue, null, 'latestMonologue');
+});
+
+test('saved 为标准片段格式（直接含 currentChapter）→ 恢复状态', function() {
+  // WHEN saved = { currentChapter: 'chapter_1', completedChapters: ['prologue'], seenScenes: ['prologue_1'], monologueCooldown: 15, latestMonologue: {...} }
+  // THEN 恢复存档状态
+  resetAll();
+  var monologue = { speaker: '天道系统', text: '测试', ts: 1000 };
+  StoryManager.init({
+    currentChapter: 'chapter_1',
+    completedChapters: ['prologue'],
+    seenScenes: ['prologue_1'],
+    monologueCooldown: 15,
+    latestMonologue: monologue
+  });
+  assertEqual(StoryManager._state.currentChapter, 'chapter_1', 'currentChapter');
+  assertDeepEqual(StoryManager._state.completedChapters, ['prologue'], 'completedChapters');
+  assertDeepEqual(StoryManager._state.seenScenes, ['prologue_1'], 'seenScenes');
+  assertEqual(StoryManager._state.monologueCooldown, 15, 'monologueCooldown');
+  assertEqual(StoryManager._state.latestMonologue.text, '测试', 'latestMonologue.text');
+});
+
+test('saved 为旧存档格式（saved.story 含 currentChapter）→ 向后兼容恢复', function() {
+  // WHEN saved = { story: { currentChapter: 'chapter_2', completedChapters: ['prologue', 'chapter_1'], seenScenes: [] } }
+  // THEN 恢复 saved.story 中的状态
+  resetAll();
+  StoryManager.init({
+    story: {
+      currentChapter: 'chapter_2',
+      completedChapters: ['prologue', 'chapter_1'],
+      seenScenes: []
+    },
+    otherStuff: 'ignored'
+  });
+  assertEqual(StoryManager._state.currentChapter, 'chapter_2', 'currentChapter');
+  assertDeepEqual(StoryManager._state.completedChapters, ['prologue', 'chapter_1'], 'completedChapters');
+  assertDeepEqual(StoryManager._state.seenScenes, [], 'seenScenes');
+});
+
+test('init() 不发送任何 EventBus 事件', function() {
+  // WHEN init() 被调用
+  // THEN 无 EventBus.emit 调用
+  resetAll();
+  StoryManager.init({ currentChapter: 'chapter_1', completedChapters: [], seenScenes: [] });
+  assertEqual(_emitted.length, 0, 'no events emitted');
+});
+
+// ===== 能力 2：Tick 驱动 =====
+
+section('C2 onTick(dt) — Tick 驱动（自言自语冷却）');
+
+test('cooldown=0，onTick(1) → 触发自言自语，cooldown 重置为 30', function() {
+  // WHEN monologueCooldown=0 AND onTick(1)
+  // THEN _triggerMonologue() 被调用，cooldown 重置为 30
+  resetAll();
+  mockRandom(0); // 确保 randInt 取第一个（sources[0]='system'）
+  StoryManager._state.monologueCooldown = 0;
+  StoryManager.onTick(1);
+  assertEqual(StoryManager._state.monologueCooldown, 30, 'cooldown reset to 30');
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'story:monologue emitted once');
+});
+
+test('cooldown=15，调用14次 → cooldown=1，_triggerMonologue() 未被调用', function() {
+  // WHEN monologueCooldown=15 AND onTick(1) called 14 times
+  // THEN cooldown=1, no monologue trigger
+  resetAll();
+  StoryManager._state.monologueCooldown = 15;
+  for (var i = 0; i < 14; i++) StoryManager.onTick(1);
+  assertEqual(StoryManager._state.monologueCooldown, 1, 'cooldown=1');
+  assertEqual(getEmitted('story:monologue').length, 0, 'not triggered');
+});
+
+test('cooldown=1，onTick(1) → 触发（cooldown降为0）', function() {
+  // WHEN monologueCooldown=1 AND onTick(1)
+  // THEN cooldown=0 ≤ 0，触发并重置为30
+  resetAll();
+  mockRandom(0);
+  StoryManager._state.monologueCooldown = 1;
+  StoryManager.onTick(1);
+  assertEqual(StoryManager._state.monologueCooldown, 30, 'cooldown reset to 30');
+  assertEqual(getEmitted('story:monologue').length, 1, 'triggered');
+});
+
+test('cooldown=5，onTick(10) 追帧 → cooldown降为-5，触发并重置', function() {
+  // WHEN monologueCooldown=5 AND onTick(10)（dt=10，追帧场景）
+  // THEN cooldown=-5 ≤ 0，触发并重置为30
+  resetAll();
+  mockRandom(0);
+  StoryManager._state.monologueCooldown = 5;
+  StoryManager.onTick(10);
+  assertEqual(StoryManager._state.monologueCooldown, 30, 'cooldown reset to 30');
+  assertEqual(getEmitted('story:monologue').length, 1, 'triggered');
+});
+
+// ===== 能力 3：当前章节查询 =====
+
+section('C3 getCurrentChapter() / getCurrentScenes() — 当前章节查询');
+
+test('currentChapter=prologue → 返回 MainStory.prologue 对象', function() {
+  // WHEN currentChapter='prologue'
+  // THEN getCurrentChapter() 返回 MainStory.prologue
+  resetAll();
+  StoryManager._state.currentChapter = 'prologue';
+  var chapter = StoryManager.getCurrentChapter();
+  assertEqual(chapter, MainStory.prologue, 'returns prologue object');
+  assertEqual(chapter.id, 'prologue', 'id=prologue');
+});
+
+test('currentChapter=prologue → getCurrentScenes() 返回 prologue.scenes', function() {
+  // WHEN currentChapter='prologue'
+  // THEN getCurrentScenes() 返回 MainStory.prologue.scenes（非空数组）
+  resetAll();
+  StoryManager._state.currentChapter = 'prologue';
+  var scenes = StoryManager.getCurrentScenes();
+  assertDeepEqual(scenes, MainStory.prologue.scenes, 'scenes matches prologue.scenes');
+  assert(scenes.length > 0, 'non-empty');
+});
+
+test('currentChapter=chapter_1（存在）→ 返回该章节对象', function() {
+  // WHEN currentChapter='chapter_1' AND MainStory.chapters 中存在该章节
+  // THEN getCurrentChapter() 返回该章节对象
+  resetAll();
+  StoryManager._state.currentChapter = 'chapter_1';
+  var chapter = StoryManager.getCurrentChapter();
+  assertEqual(chapter.id, 'chapter_1', 'id=chapter_1');
+});
+
+test('currentChapter=chapter_99（不存在）→ getCurrentChapter()=null, getCurrentScenes()=[]', function() {
+  // WHEN currentChapter='chapter_99'（不存在的 ID）
+  // THEN getCurrentChapter()=null, getCurrentScenes()=[]
+  resetAll();
+  StoryManager._state.currentChapter = 'chapter_99';
+  assertEqual(StoryManager.getCurrentChapter(), null, 'getCurrentChapter returns null');
+  assertDeepEqual(StoryManager.getCurrentScenes(), [], 'getCurrentScenes returns []');
+});
+
+// ===== 能力 4：标记场景已读 =====
+
+section('C4 markSceneSeen(sceneId) — 标记场景已读');
+
+test('新 sceneId → 追加到 seenScenes 并 emit story:scene_seen', function() {
+  // WHEN seenScenes=[] AND markSceneSeen('prologue_1')
+  // THEN seenScenes=['prologue_1'], emit story:scene_seen('prologue_1') 一次
+  resetAll();
+  StoryManager.markSceneSeen('prologue_1');
+  assertDeepEqual(StoryManager._state.seenScenes, ['prologue_1'], 'seenScenes');
+  var events = getEmitted('story:scene_seen');
+  assertEqual(events.length, 1, 'emit once');
+  assertEqual(events[0].args[0], 'prologue_1', 'emit payload=sceneId');
+});
+
+test('重复标记 → seenScenes 不变，不重复 emit', function() {
+  // WHEN seenScenes=['prologue_1'] AND markSceneSeen('prologue_1')
+  // THEN seenScenes 仍为 ['prologue_1']，story:scene_seen 不再 emit
+  resetAll();
+  StoryManager._state.seenScenes = ['prologue_1'];
+  StoryManager.markSceneSeen('prologue_1');
+  assertDeepEqual(StoryManager._state.seenScenes, ['prologue_1'], 'no duplicate');
+  assertEqual(getEmitted('story:scene_seen').length, 0, 'not emitted again');
+});
+
+test('连续标记 3 个不同 scene → 各 emit 一次，共 3 次', function() {
+  // WHEN markSceneSeen 连续调用 ['ch1_1', 'ch1_2', 'ch1_3']
+  // THEN seenScenes = ['ch1_1', 'ch1_2', 'ch1_3'], story:scene_seen 各 emit 一次
+  resetAll();
+  StoryManager.markSceneSeen('ch1_1');
+  StoryManager.markSceneSeen('ch1_2');
+  StoryManager.markSceneSeen('ch1_3');
+  assertDeepEqual(StoryManager._state.seenScenes, ['ch1_1', 'ch1_2', 'ch1_3'], 'seenScenes');
+  assertEqual(getEmitted('story:scene_seen').length, 3, '3 events emitted');
+});
+
+// ===== 能力 5：章节推进 =====
+
+section('C5 advanceChapter() — 章节推进');
+
+test('从 prologue 推进（chapters 非空）→ completedChapters 含 prologue，currentChapter=chapter_1，emit', function() {
+  // WHEN currentChapter='prologue' AND chapters 非空 AND advanceChapter()
+  // THEN completedChapters 含 'prologue', currentChapter='chapter_1', emit story:chapter_unlocked(chapters[0])
+  resetAll();
+  StoryManager._state.currentChapter = 'prologue';
+  StoryManager.advanceChapter();
+  assert(StoryManager._state.completedChapters.includes('prologue'), 'prologue in completed');
+  assertEqual(StoryManager._state.currentChapter, 'chapter_1', 'currentChapter=chapter_1');
+  var events = getEmitted('story:chapter_unlocked');
+  assertEqual(events.length, 1, 'emit once');
+  assertEqual(events[0].args[0].id, 'chapter_1', 'emit payload=chapters[0]');
+});
+
+test('从 prologue 推进（chapters=[]）→ 静默忽略，currentChapter 不变，不 emit', function() {
+  // WHEN currentChapter='prologue' AND chapters=[] AND advanceChapter()
+  // THEN 静默忽略，currentChapter='prologue'，不 emit
+  resetAll();
+  var origChapters = MainStory.chapters;
+  MainStory.chapters = [];
+  StoryManager._state.currentChapter = 'prologue';
+  StoryManager.advanceChapter();
+  assertEqual(StoryManager._state.currentChapter, 'prologue', 'currentChapter unchanged');
+  assertEqual(getEmitted('story:chapter_unlocked').length, 0, 'not emitted');
+  MainStory.chapters = origChapters;
+});
+
+test('从 chapter_1 推进（有下一章）→ 推进到 chapter_2，emit chapter_unlocked', function() {
+  // WHEN currentChapter='chapter_1'（位于 chapters[0]）AND advanceChapter()
+  // THEN completedChapters 含 'chapter_1', currentChapter='chapter_2', emit
+  resetAll();
+  StoryManager._state.currentChapter = 'chapter_1';
+  StoryManager.advanceChapter();
+  assert(StoryManager._state.completedChapters.includes('chapter_1'), 'chapter_1 completed');
+  assertEqual(StoryManager._state.currentChapter, 'chapter_2', 'currentChapter=chapter_2');
+  var events = getEmitted('story:chapter_unlocked');
+  assertEqual(events.length, 1, 'emit once');
+  assertEqual(events[0].args[0].id, 'chapter_2', 'emit payload=chapter_2 object');
+});
+
+test('从最后一章推进 → 静默忽略，currentChapter 不变，不 emit', function() {
+  // WHEN currentChapter='chapter_3'（最后一章）AND advanceChapter()
+  // THEN currentChapter 不变，completedChapters 不变，不 emit
+  resetAll();
+  StoryManager._state.currentChapter = 'chapter_3';
+  StoryManager.advanceChapter();
+  assertEqual(StoryManager._state.currentChapter, 'chapter_3', 'currentChapter unchanged');
+  assertDeepEqual(StoryManager._state.completedChapters, [], 'completedChapters unchanged');
+  assertEqual(getEmitted('story:chapter_unlocked').length, 0, 'not emitted');
+});
+
+// ===== 能力 6：解锁条件检查 =====
+
+section('C6 checkUnlock(stageId) — 解锁条件检查');
+
+test('prologue 路径，stageId=5 < 解锁要求10 → 不推进', function() {
+  // WHEN currentChapter='prologue'（currentIdx=-1, nextChapter=chapters[0]）
+  // AND chapters[0].unlockCondition={type:'stage_clear', stageId:10}
+  // AND checkUnlock(5)
+  // THEN advanceChapter() 不被调用
+  resetAll();
+  StoryManager._state.currentChapter = 'prologue';
+  StoryManager.checkUnlock(5);
+  assertEqual(StoryManager._state.currentChapter, 'prologue', 'currentChapter unchanged');
+  assertEqual(getEmitted('story:chapter_unlocked').length, 0, 'not emitted');
+});
+
+test('prologue 路径，stageId=10 >= 解锁要求10 → 推进到 chapter_1', function() {
+  // WHEN currentChapter='prologue' AND checkUnlock(10)
+  // THEN advanceChapter() 被调用，currentChapter→'chapter_1'
+  resetAll();
+  StoryManager._state.currentChapter = 'prologue';
+  StoryManager.checkUnlock(10);
+  assertEqual(StoryManager._state.currentChapter, 'chapter_1', 'advanced to chapter_1');
+  assertEqual(getEmitted('story:chapter_unlocked').length, 1, 'emitted');
+});
+
+test('chapter_1 路径，stageId=25 >= 下一章要求20 → 推进到 chapter_2', function() {
+  // WHEN currentChapter='chapter_1'（位于 chapters[0]）
+  // AND chapters[1].unlockCondition={type:'stage_clear', stageId:20}
+  // AND checkUnlock(25)
+  // THEN 推进到 chapter_2
+  resetAll();
+  StoryManager._state.currentChapter = 'chapter_1';
+  StoryManager.checkUnlock(25);
+  assertEqual(StoryManager._state.currentChapter, 'chapter_2', 'advanced to chapter_2');
+});
+
+test('非 stage_clear 类型 → 不推进', function() {
+  // WHEN chapters[1].unlockCondition = { type: 'time_based', hours: 24 }
+  // AND checkUnlock(999)
+  // THEN advanceChapter() 不被调用
+  resetAll();
+  var origCondition = MainStory.chapters[1].unlockCondition;
+  MainStory.chapters[1].unlockCondition = { type: 'time_based', hours: 24 };
+  StoryManager._state.currentChapter = 'chapter_1';
+  StoryManager.checkUnlock(999);
+  assertEqual(StoryManager._state.currentChapter, 'chapter_1', 'currentChapter unchanged');
+  MainStory.chapters[1].unlockCondition = origCondition;
+});
+
+test('unlockCondition=null → 不推进（D4）', function() {
+  // WHEN nextChapter.unlockCondition=null AND checkUnlock(任意)
+  // THEN 不推进（null?.type 为 undefined !== 'stage_clear'）
+  resetAll();
+  var origCondition = MainStory.chapters[1].unlockCondition;
+  MainStory.chapters[1].unlockCondition = null;
+  StoryManager._state.currentChapter = 'chapter_1';
+  StoryManager.checkUnlock(9999);
+  assertEqual(StoryManager._state.currentChapter, 'chapter_1', 'currentChapter unchanged');
+  MainStory.chapters[1].unlockCondition = origCondition;
+});
+
+test('已是最后一章 → 静默忽略（nextChapter=undefined）', function() {
+  // WHEN currentChapter='chapter_3'（最后一章）AND checkUnlock(任意)
+  // THEN 静默忽略，nextChapter 为 undefined，首条 nextChapter && 为 false
+  resetAll();
+  StoryManager._state.currentChapter = 'chapter_3';
+  StoryManager.checkUnlock(9999);
+  assertEqual(StoryManager._state.currentChapter, 'chapter_3', 'unchanged');
+  assertEqual(getEmitted('story:chapter_unlocked').length, 0, 'not emitted');
+});
+
+// ===== 能力 7：自言自语触发 =====
+
+section('C7 _triggerMonologue() — 自言自语触发');
+
+test('22:00 → category=night，从 pool.night 取文本', function() {
+  // WHEN 当前时间=23:00 AND _triggerMonologue()
+  // THEN category='night'，从 pool['night'] 取文本
+  resetAll();
+  var origDate = Date;
+  // 覆盖 getHours 以返回 23
+  var _origDateClass = Date;
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 23; };
+  mockRandom(0); // 选 sources[0]='system'，0 < 0.1 也会进 bored 但 isNight 先检查
+  StoryManager._triggerMonologue();
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'emitted');
+  // 验证 system 的 night 文本
+  assert(IdleMonologues.system.night.includes(events[0].args[0].text), 'text from night pool');
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('10:00，gold=50（<80）→ category=lowMoney', function() {
+  // WHEN 10:00 AND gold=50 AND _triggerMonologue()
+  // THEN category='lowMoney'
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  ResourceManager._gold = 50;
+  mockRandom(0); // 选 system
+  StoryManager._triggerMonologue();
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'emitted');
+  assert(IdleMonologues.system.lowMoney.includes(events[0].args[0].text), 'text from lowMoney pool');
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('10:00，gold=500（>=80），random=0.05 < 0.1 → category=bored', function() {
+  // WHEN 10:00 AND gold=500 AND random=0.05 AND _triggerMonologue()
+  // THEN category='bored'
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  ResourceManager._gold = 500;
+  // 让 randInt 在选 source 时用 0（选 system），让 Math.random 在 bored 判定时返回 0.05
+  var callCount = 0;
+  Math.random = function() {
+    callCount++;
+    // 第1次：bored 判断（< 0.1） → 0.05；第2次：randInt for source index → 0；第3次：randInt for line → 0
+    return callCount === 1 ? 0 : 0;
+  };
+  StoryManager._triggerMonologue();
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'emitted');
+  assert(IdleMonologues.system.bored.includes(events[0].args[0].text), 'text from bored pool');
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('10:00，gold=500，random=0.5 >= 0.1 → category=idle', function() {
+  // WHEN 10:00 AND gold=500 AND random=0.5 AND _triggerMonologue()
+  // THEN category='idle'
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  ResourceManager._gold = 500;
+  mockRandom(0.5); // >= 0.1，所以 bored 不触发，使用 idle
+  StoryManager._triggerMonologue();
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'emitted');
+  assert(IdleMonologues.system.idle.includes(events[0].args[0].text), 'text from idle pool');
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('无武将时候选池仅含 system → 发言者为 天道系统', function() {
+  // WHEN HeroManager.getAll()=[] AND _triggerMonologue()
+  // THEN 候选池=['system']，发言者='天道系统'
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  HeroManager._heroes = [];
+  mockRandom(0);
+  StoryManager._triggerMonologue();
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'emitted');
+  assertEqual(events[0].args[0].speaker, '天道系统', 'speaker=天道系统');
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('武将已拥有且 IdleMonologues 存在 → 候选池包含该武将，可能从其文本池取文本', function() {
+  // WHEN HeroManager.getAll() 含 shu_zhugeliang AND IdleMonologues['zhuge_liang'] 存在
+  // THEN 候选池包含 'zhuge_liang'（index=1），选 index=1 → 从诸葛亮文本池取
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  HeroManager._heroes = [{ id: 'shu_zhugeliang' }];
+  ResourceManager._gold = 500;
+  // randInt(0, 1)：返回 Math.floor(random * 2)；让 random=0.9 → floor(1.8)=1 → sources[1]='zhuge_liang'
+  mockRandom(0.9); // 确保选中 zhuge_liang（index=1），且不触发 bored（0.9 >= 0.1）
+  StoryManager._triggerMonologue();
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'emitted');
+  assertEqual(events[0].args[0].speaker, '诸葛亮', 'speaker=诸葛亮');
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('pool 不存在 → 静默返回，不 emit（D1 PASS 验证）', function() {
+  // WHEN 随机选中的 sourceId 对应的 pool 不存在
+  // THEN 静默返回，不 emit
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  // 注入一个没有 IdleMonologues 数据的英雄，但 sources 包含它（人为注入）
+  var origSources = null;
+  var origTrigger = StoryManager._triggerMonologue;
+  // 直接操纵：IdleMonologues 中插入一个空映射
+  IdleMonologues['ghost_hero'] = undefined; // 不存在
+  HeroManager._heroes = [{ id: 'ghost_hero' }]; // _toStoryHeroId('ghost_hero')='ghost_hero'，IdleMonologues['ghost_hero'] 不存在
+  // 让 randInt 选到 sources[0]='system'（有 pool），这里我们需要让 pool 不存在
+  // 更简单方法：mock sources 直接为一个不存在于 IdleMonologues 的 id
+  // 用 randInt mock 选 index 1（ghost_hero 不在 sources，因为 IdleMonologues[ghost_hero] 不存在）
+  // 实际上 sources = ['system'] 因为 ghost_hero 没有 IdleMonologues 数据
+  // 让我们直接替换 _triggerMonologue 内 pool 检查：故意传入没有映射的 id
+  // 改为直接验证：创建一个 IdleMonologues 中不存在的 sourceId 场景
+  // 我们先把 IdleMonologues 置为只含一个不含 'system' 的空映射
+  var origIdleMonologues = window.IdleMonologues;
+  IdleMonologues = { not_system: { idle: ['x'] } };
+  HeroManager._heroes = [];
+  // sources = ['system']，sourceId = 'system'，但 IdleMonologues['system'] 不存在 → pool = undefined → return
+  mockRandom(0);
+  StoryManager._triggerMonologue();
+  assertEqual(getEmitted('story:monologue').length, 0, 'not emitted when pool missing');
+  IdleMonologues = origIdleMonologues;
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('lines 为空（category 无内容且 idle fallback 也为空）→ 静默返回，不 emit', function() {
+  // WHEN pool[category]=[] AND pool.idle=[] → lines=[]
+  // THEN 静默返回，不 emit，latestMonologue 不更新
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  var origIdleMonologues = window.IdleMonologues;
+  IdleMonologues = {
+    system: { idle: [], night: [], lowMoney: [], bored: [] }
+  };
+  HeroManager._heroes = [];
+  ResourceManager._gold = 500;
+  mockRandom(0.5); // idle category, randInt selects system
+  StoryManager._triggerMonologue();
+  assertEqual(getEmitted('story:monologue').length, 0, 'not emitted');
+  assertEqual(StoryManager._state.latestMonologue, null, 'latestMonologue not updated');
+  IdleMonologues = origIdleMonologues;
+  Date.prototype.getHours = _origGetHours;
+});
+
+test('成功路径 → emit story:monologue({speaker, text, ts}), latestMonologue 更新', function() {
+  // WHEN _triggerMonologue() 成功取到文本
+  // THEN emit story:monologue({ speaker: '天道系统', text: '...', ts: <timestamp> })
+  // AND _state.latestMonologue = payload
+  resetAll();
+  var _origGetHours = Date.prototype.getHours;
+  Date.prototype.getHours = function() { return 10; };
+  HeroManager._heroes = [];
+  ResourceManager._gold = 500;
+  mockRandom(0.5); // idle, select system
+  mockDateNow(1234567890);
+  StoryManager._triggerMonologue();
+  var events = getEmitted('story:monologue');
+  assertEqual(events.length, 1, 'emitted once');
+  var payload = events[0].args[0];
+  assertEqual(payload.speaker, '天道系统', 'speaker');
+  assert(typeof payload.text === 'string' && payload.text.length > 0, 'text is non-empty string');
+  assertEqual(payload.ts, 1234567890, 'ts=Date.now()');
+  assertDeepEqual(StoryManager._state.latestMonologue, payload, 'latestMonologue updated');
+  Date.prototype.getHours = _origGetHours;
+});
+
+// ===== 能力 8：角色对话查询 =====
+
+section('C8 getDialogue(characterId, category) — 角色对话查询');
+
+test('存在的 characterId 和 category → 返回字符串', function() {
+  // WHEN characterId='zhuge_liang', category='greet'
+  // AND CharacterDialogues['zhuge_liang']['greet'] = ['你好...', '有何指教？']
+  // THEN 返回数组中的任意一条字符串
+  resetAll();
+  var result = StoryManager.getDialogue('zhuge_liang', 'greet');
+  assert(CharacterDialogues.zhuge_liang.greet.includes(result), 'result in greet array: ' + result);
+});
+
+test('不存在的 characterId → 返回 null', function() {
+  // WHEN characterId='unknown_hero'（不存在）
+  // THEN 返回 null
+  resetAll();
+  assertEqual(StoryManager.getDialogue('unknown_hero', 'greet'), null, 'returns null');
+});
+
+test('不存在的 category → 返回 null', function() {
+  // WHEN characterId='zhuge_liang', category='unknown_category'（不存在）
+  // THEN 返回 null
+  resetAll();
+  assertEqual(StoryManager.getDialogue('zhuge_liang', 'unknown_category'), null, 'returns null');
+});
+
+test('category 对应空数组 → 返回 null（D7 修复验证）', function() {
+  // WHEN CharacterDialogues['zhuge_liang']['gift'] = []（空数组）
+  // THEN 返回 null（修复后：lines.length===0 → return null）
+  // 修复前：randInt(0,-1)=0, lines[0]=undefined → 返回 undefined（FAIL）
+  resetAll();
+  var result = StoryManager.getDialogue('zhuge_liang', 'gift');
+  assertEqual(result, null, 'returns null for empty array (D7 fix)');
+});
+
+// ===== 能力 9：角色人设查询 =====
+
+section('C9 getProfile(characterId) — 角色人设查询');
+
+test('存在的 characterId → 返回原对象引用（不深拷贝）', function() {
+  // WHEN characterId='zhuge_liang' AND CharacterProfiles['zhuge_liang'] 存在
+  // THEN 返回该对象（原始引用，非深拷贝）
+  resetAll();
+  var profile = StoryManager.getProfile('zhuge_liang');
+  assertEqual(profile, CharacterProfiles.zhuge_liang, 'same object reference');
+  assertEqual(profile.name, '诸葛亮', 'name=诸葛亮');
+});
+
+test('不存在的 characterId → 返回 null', function() {
+  // WHEN characterId='nonexistent'
+  // THEN 返回 null
+  resetAll();
+  assertEqual(StoryManager.getProfile('nonexistent'), null, 'returns null');
+});
+
+// ===== 能力 10：状态导出 =====
+
+section('C10 getState() — 状态导出');
+
+test('返回包含全部 5 个字段的对象', function() {
+  // WHEN getState() 被调用
+  // THEN 返回对象包含 currentChapter, completedChapters, seenScenes, monologueCooldown, latestMonologue
+  resetAll();
+  StoryManager._state.currentChapter = 'chapter_1';
+  StoryManager._state.completedChapters = ['prologue'];
+  StoryManager._state.seenScenes = ['prologue_1'];
+  StoryManager._state.monologueCooldown = 20;
+  StoryManager._state.latestMonologue = { speaker: '测试', text: '内容', ts: 0 };
+  var state = StoryManager.getState();
+  assertEqual(state.currentChapter, 'chapter_1', 'currentChapter');
+  assertDeepEqual(state.completedChapters, ['prologue'], 'completedChapters');
+  assertDeepEqual(state.seenScenes, ['prologue_1'], 'seenScenes');
+  assertEqual(state.monologueCooldown, 20, 'monologueCooldown');
+  assert(state.latestMonologue !== null, 'latestMonologue present');
+});
+
+test('修改 getState() 返回对象不影响内部 _state（深拷贝隔离）', function() {
+  // WHEN 修改 getState() 返回的对象
+  // THEN StoryManager._state 不受影响（deepClone 隔离）
+  resetAll();
+  StoryManager._state.completedChapters = ['prologue'];
+  var state = StoryManager.getState();
+  state.completedChapters.push('chapter_1'); // 修改返回值
+  // 内部 _state 不应被修改
+  assertDeepEqual(StoryManager._state.completedChapters, ['prologue'], 'internal _state not affected');
+  assertEqual(state.completedChapters.length, 2, 'returned copy was mutated');
+});
+
+// ===== 汇总报告 =====
+
+var pass = _results.filter(function(r) { return r.status === 'pass'; }).length;
+var fail = _results.filter(function(r) { return r.status === 'fail'; }).length;
+var total = _results.length;
+
+var summaryEl = document.getElementById('summary');
+summaryEl.innerHTML =
+  '<strong>测试汇总</strong><br>' +
+  '总计：' + total + ' 个测试<br>' +
+  '<span class="pass">通过：' + pass + '</span><br>' +
+  (fail > 0 ? '<span class="fail">失败：' + fail + '</span><br>' : '') +
+  '<br>' +
+  '<strong>规范场景覆盖率：' + pass + '/' + total + '（' + Math.round(pass/total*100) + '%）</strong>';
+</script>
+</body>
+</html>

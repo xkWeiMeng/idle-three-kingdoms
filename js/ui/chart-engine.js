@@ -4,12 +4,12 @@
 var ChartEngine = {
 
   /** 预定义色板 */
-  _colors: ['#f5c518', '#4caf50', '#2196f3', '#ff9800', '#e94560', '#9c27b0', '#00bcd4'],
+  _colors: ['#d4a849', '#5d8a48', '#4a7fb5', '#c98a2e', '#c0392b', '#8b5ea8', '#5a9e8f'],
 
   /** 资源专属颜色 */
   _resourceColors: {
-    gold: '#f5c518', jade: '#a855f7', exp: '#60a5fa',
-    food: '#4caf50', wood: '#8b6914', stone: '#9e9e9e', iron: '#607d8b'
+    gold: '#d4a849', jade: '#8b5ea8', exp: '#4a7fb5',
+    food: '#5d8a48', wood: '#8b6914', stone: '#9e9e9e', iron: '#607d8b'
   },
 
   // ==================== 折线图 ====================
@@ -219,7 +219,7 @@ var ChartEngine = {
     if (min === max) { min -= 1; max += 1; }
     var range = max - min;
 
-    ctx.strokeStyle = color || '#f5c518';
+    ctx.strokeStyle = color || '#d4a849';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
 

@@ -5,7 +5,7 @@
   'use strict';
 
   // 品质颜色映射（全局使用）
-  window.QualityColors = { 1:'#aaaaaa', 2:'#4caf50', 3:'#2196f3', 4:'#9c27b0', 5:'#ff9800', 6:'#ff2222' };
+  window.QualityColors = { 1:'#b0a898', 2:'#5d8a48', 3:'#4a7fb5', 4:'#8b5ea8', 5:'#d4a849', 6:'#ff2222' };
   window.QualityNames  = { 1:'白·普通', 2:'绿·精良', 3:'蓝·稀有', 4:'紫·史诗', 5:'橙·传说', 6:'红·神话' };
 
   function getFullState() {
@@ -24,6 +24,8 @@
       merchant: MerchantManager.getState(),
       forge: ForgeManager.getState(),
       abyss: AbyssManager.getState(),
+      farm: FarmManager.getState(),
+      parking: ParkingManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
@@ -45,6 +47,8 @@
     MerchantManager.init(saved);
     ForgeManager.init(saved);
     AbyssManager.init(saved);
+    FarmManager.init(saved);
+    ParkingManager.init(saved);
 
     // 初始化 UI
     Toast.init();
@@ -67,6 +71,8 @@
     MerchantPanel.init();
     ForgePanel.init();
     AbyssPanel.init();
+    FarmPanel.init();
+    ParkingPanel.init();
 
     // 注册 tick 回调
     EventBus.on('game:tick', (dt) => {
@@ -79,6 +85,8 @@
       MerchantManager.onTick(dt);
       ForgeManager.onTick(dt);
       AbyssManager.onTick(dt);
+      FarmManager.onTick(dt);
+      ParkingManager.onTick(dt);
     });
 
     // 离线收益计算
@@ -139,6 +147,16 @@
     if (rewards.stone > 0) ResourceManager.add('stone', rewards.stone, 'offline', 'offline_reward');
     if (rewards.iron > 0) ResourceManager.add('iron', rewards.iron, 'offline', 'offline_reward');
 
+    // 停车场离线收入
+    var parkingOfflineGold = 0;
+    if (typeof ParkingManager !== 'undefined' && ParkingManager.calcOfflineIncome) {
+      parkingOfflineGold = ParkingManager.calcOfflineIncome(offlineSeconds);
+      if (parkingOfflineGold > 0) {
+        ResourceManager.add('gold', parkingOfflineGold, 'offline', 'parking_offline');
+        rewards.gold += parkingOfflineGold;
+      }
+    }
+
     var effPct = Math.round((rewards.efficiency || 0.5) * 100);
     var regionLine = rewards.region ? `<p>英雄们在「${rewards.region}」替你战斗了</p>` : '';
 
@@ -147,12 +165,12 @@
         title: '☀ 欢迎回来！',
         content: `
           <div style="text-align:center;line-height:2;">
-            <p>你离开了 <b style="color:#f5c518">${timeStr}</b></p>
+            <p>你离开了 <b style="color:#d4a849">${timeStr}</b></p>
             ${regionLine}
-            <p>共完成 <b style="color:#f5c518">${Utils.formatNumber(rewards.battles)}</b> 场战斗</p>
-            <hr style="border-color:#333;margin:8px 0;">
-            <p>💰 金币 <b style="color:#f5c518">+${Utils.formatNumber(rewards.gold)}</b></p>
-            <p>⭐ 经验 <b style="color:#f5c518">+${Utils.formatNumber(rewards.exp)}</b></p>
+            <p>共完成 <b style="color:#d4a849">${Utils.formatNumber(rewards.battles)}</b> 场战斗</p>
+            <hr style="border-color:#4a3728;margin:8px 0;">
+            <p>💰 金币 <b style="color:#d4a849">+${Utils.formatNumber(rewards.gold)}</b></p>
+            <p>⭐ 经验 <b style="color:#d4a849">+${Utils.formatNumber(rewards.exp)}</b></p>
             ${rewards.wood > 0 ? `<p>🪵 木材 <b style="color:#8b6914">+${Utils.formatNumber(rewards.wood)}</b></p>` : ''}
             ${rewards.stone > 0 ? `<p>🪨 石材 <b style="color:#9e9e9e">+${Utils.formatNumber(rewards.stone)}</b></p>` : ''}
             ${rewards.iron > 0 ? `<p>⛏️ 铁矿 <b style="color:#607d8b">+${Utils.formatNumber(rewards.iron)}</b></p>` : ''}

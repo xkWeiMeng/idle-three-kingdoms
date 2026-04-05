@@ -34,15 +34,15 @@ var BattleAnimations = {
   HP_BAR_H: 4,
 
   COLORS: {
-    allyHp: '#4caf50',
-    enemyHp: '#e94560',
-    heal: '#4caf50',
-    damage: '#f44336',
-    crit: '#f5c518',
-    skill: '#2196f3',
-    buff: '#9c27b0',
+    allyHp: '#5d8a48',
+    enemyHp: '#b33a3a',
+    heal: '#5d8a48',
+    damage: '#b33a3a',
+    crit: '#d4a849',
+    skill: '#4a7fb5',
+    buff: '#8b5ea8',
     hpBg: 'rgba(0,0,0,0.5)',
-    ground: '#16213e',
+    ground: '#1a1410',
   },
 
   // ===== 初始化 =====
@@ -184,10 +184,10 @@ var BattleAnimations = {
   // ===== 背景 =====
 
   _drawBackground: function (ctx, w, h) {
-    // 深色渐变背景
+    // 墨色渐变背景
     var grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, '#0d1b2a');
-    grad.addColorStop(1, '#1a1a2e');
+    grad.addColorStop(0, '#120e0a');
+    grad.addColorStop(1, '#1a1410');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
 
@@ -198,7 +198,7 @@ var BattleAnimations = {
     ctx.globalAlpha = 1;
 
     // 中线
-    ctx.strokeStyle = '#0f3460';
+    ctx.strokeStyle = '#4a3728';
     ctx.globalAlpha = 0.3;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -213,13 +213,13 @@ var BattleAnimations = {
     var cy = h / 2;
     ctx.beginPath();
     ctx.arc(cx, cy, 16, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(233,69,96,0.1)';
+    ctx.fillStyle = 'rgba(192,57,43,0.1)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(233,69,96,0.5)';
+    ctx.strokeStyle = 'rgba(192,57,43,0.5)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    ctx.fillStyle = '#e94560';
+    ctx.fillStyle = '#c0392b';
     ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -241,21 +241,21 @@ var BattleAnimations = {
     var text, color;
     if (bs.phase === 'fighting') {
       text = '第 ' + bs.round + ' 回合';
-      color = '#f5c518';
+      color = '#d4a849';
     } else if (bs.phase === 'victory') {
       text = '✦ 胜利！';
-      color = '#4caf50';
+      color = '#d4a849';
     } else if (bs.phase === 'defeat') {
       text = '✦ 战败';
-      color = '#e94560';
+      color = '#b33a3a';
     } else {
       text = '准备就绪';
-      color = '#999';
+      color = '#a09080';
     }
 
     var cx = w / 2;
-    ctx.fillStyle = '#16213e';
-    ctx.strokeStyle = '#0f3460';
+    ctx.fillStyle = '#2a2018';
+    ctx.strokeStyle = '#4a3728';
     ctx.lineWidth = 1;
 
     // 圆角矩形
@@ -379,7 +379,7 @@ var BattleAnimations = {
     // 血量颜色
     var color;
     if (ratio > 0.66) color = this.COLORS.allyHp;
-    else if (ratio > 0.33) color = '#ff9800';
+    else if (ratio > 0.33) color = '#c98a2e';
     else color = this.COLORS.enemyHp;
 
     ctx.fillStyle = color;

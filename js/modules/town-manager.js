@@ -23,7 +23,11 @@ var TownManager = {
       academy:          { level: 0, buildEndTime: null },
       watermill:        { level: 0, buildEndTime: null },
       stone_mason:      { level: 0, buildEndTime: null },
-      smelter:          { level: 0, buildEndTime: null }
+      smelter:          { level: 0, buildEndTime: null },
+      vegetable_garden: { level: 0, buildEndTime: null },
+      compost_pit:      { level: 0, buildEndTime: null },
+      seed_shop:        { level: 0, buildEndTime: null },
+      parking_lot:      { level: 0, buildEndTime: null }
     },
     placements: {}
   },
@@ -71,7 +75,11 @@ var TownManager = {
       academy:          { level: 0, buildEndTime: null },
       watermill:        { level: 0, buildEndTime: null },
       stone_mason:      { level: 0, buildEndTime: null },
-      smelter:          { level: 0, buildEndTime: null }
+      smelter:          { level: 0, buildEndTime: null },
+      vegetable_garden: { level: 0, buildEndTime: null },
+      compost_pit:      { level: 0, buildEndTime: null },
+      seed_shop:        { level: 0, buildEndTime: null },
+      parking_lot:      { level: 0, buildEndTime: null }
     };
   },
 

@@ -264,8 +264,8 @@ var EconomyPanel = {
     }
 
     ChartEngine.drawBarChart(canvas, [
-      { label: '收入', data: incomeData, color: '#4caf50' },
-      { label: '支出', data: expenseData, color: '#f44336' }
+      { label: '收入', data: incomeData, color: '#5d8a48' },
+      { label: '支出', data: expenseData, color: '#b33a3a' }
     ], {
       labels: labels,
       title: this._getResName(resourceType) + '收支对比',
@@ -279,8 +279,8 @@ var EconomyPanel = {
 
     var data = [];
     var colors = {
-      battle: '#f5c518', production: '#4caf50', offline: '#2196f3',
-      daily: '#ff9800', trade: '#9c27b0', system: '#607d8b', sell: '#00bcd4'
+      battle: '#d4a849', production: '#5d8a48', offline: '#4a7fb5',
+      daily: '#c98a2e', trade: '#8b5ea8', system: '#607d8b', sell: '#5a9e8f'
     };
     var names = {
       battle: '战斗', production: '城镇产出', offline: '离线',

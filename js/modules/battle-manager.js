@@ -95,10 +95,19 @@ const BattleManager = {
       ResourceManager.spend(CONSTANTS.RESOURCE.FOOD, cost);
     }
 
-    // 构建队友单位（含建筑加成）
+    // 构建队友单位（含建筑加成 + 料理加成）
     var atkBonus = typeof TownManager !== 'undefined' ? TownManager.getAtkBonus() : 0;
     var defBonus = typeof TownManager !== 'undefined' ? TownManager.getDefBonus() : 0;
     var hpBonus  = typeof TownManager !== 'undefined' ? TownManager.getHpBonus() : 0;
+
+    // 料理 Buff 加成
+    var cookBuff = typeof FarmManager !== 'undefined' ? FarmManager.getActiveBuff() : null;
+    if (cookBuff && cookBuff.effects) {
+      var ce = cookBuff.effects;
+      atkBonus += (ce.atkBonus || 0) + (ce.allBonus || 0);
+      defBonus += (ce.defBonus || 0) + (ce.allBonus || 0);
+      hpBonus  += (ce.hpBonus || 0) + (ce.allBonus || 0);
+    }
 
     var allies = [];
     // Pre-calculate team-wide set bonuses (e.g. teamDefPercent)
@@ -148,26 +157,29 @@ const BattleManager = {
         skillData.cooldown = Math.max(1, cd - setSkillCdRed);
       }
 
+      var cookSpdBonus = (cookBuff && cookBuff.effects.spdBonus) ? cookBuff.effects.spdBonus : 0;
+      var finalSpd = Math.floor(stats.spd * (1 + cookSpdBonus));
+
       allies.push({
         uid: hero.uid,
         id: hero.id,
         name: template.name,
-        emoji: template.emoji || '',
+        emoji: template.emoji,
         currentHp: finalHp,
         maxHp: finalHp,
         atk: finalAtk,
         def: finalDef,
-        spd: stats.spd,
+        spd: finalSpd,
         baseAtk: finalAtk,
         baseDef: finalDef,
-        baseSpd: stats.spd,
+        baseSpd: finalSpd,
         skill: skillData,
         skillCd: 0,
         buffs: [],
         isAlive: true,
         isAlly: true,
         position: i,
-        setCritRate: setCritRate,
+        setCritRate: setCritRate + (cookBuff && cookBuff.effects.critRate ? cookBuff.effects.critRate : 0),
         setDoubleDmg: setDoubleDmg,
         setSkillDmgPct: setSkillDmgPct,
         setHealInterval: setHealInterval,
@@ -611,9 +623,14 @@ const BattleManager = {
     var stage = this.getCurrentStage();
     var rewards = stage ? stage.rewards : {};
     var rewardSummary = [];
+    var stageId = this._state.currentStage;
 
-    // 基础奖励（含校场 EXP 加成）
+    // 基础奖励（含校场 EXP 加成 + 料理 EXP 加成）
     var expBonusMult = 1 + (typeof TownManager !== 'undefined' ? TownManager.getExpBonus() : 0);
+    var cookBuffReward = typeof FarmManager !== 'undefined' ? FarmManager.getActiveBuff() : null;
+    if (cookBuffReward && cookBuffReward.effects && cookBuffReward.effects.expBonus) {
+      expBonusMult += cookBuffReward.effects.expBonus;
+    }
 
     if (rewards.gold) {
       ResourceManager.add(CONSTANTS.RESOURCE.GOLD, rewards.gold, 'battle', 'stage_reward', stageId);
@@ -643,7 +660,6 @@ const BattleManager = {
     }
 
     // 首次通关奖励
-    var stageId = this._state.currentStage;
     var isFirstClear = this._state.clearedStages.indexOf(stageId) === -1;
     if (isFirstClear) {
       this._state.clearedStages.push(stageId);
@@ -740,9 +756,9 @@ const BattleManager = {
       level: 0
     };
 
-    // 加入背包
-    if (typeof EquipmentManager !== 'undefined' && EquipmentManager._inventory) {
-      EquipmentManager._inventory.push(equip);
+    // 加入背包（通过公共接口）
+    if (typeof EquipmentManager !== 'undefined' && typeof EquipmentManager.addToInventory === 'function') {
+      EquipmentManager.addToInventory(equip);
     }
 
     return equip;

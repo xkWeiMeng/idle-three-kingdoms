@@ -3,7 +3,7 @@ const HeroPanel = {
   _container: null,
   _selectedHero: null,
 
-  _qualityColors: { 1: '#aaaaaa', 2: '#4caf50', 3: '#2196f3', 4: '#9c27b0', 5: '#ff9800' },
+  _qualityColors: { 1: '#b0a898', 2: '#5d8a48', 3: '#4a7fb5', 4: '#8b5ea8', 5: '#d4a849' },
   _qualityNames: { 1: '白', 2: '绿', 3: '蓝', 4: '紫', 5: '橙' },
   _equipSlotNames: { weapon: '⚔武器', armor: '🛡防具', accessory: '💍饰品', mount: '🐴坐骑' },
 
@@ -137,10 +137,10 @@ const HeroPanel = {
     // Row 3: Stats
     if (stats) {
       html += '<div style="display:flex;gap:8px;font-size:0.78rem;margin-bottom:6px;flex-wrap:wrap;">';
-      html += '<span style="color:#e94560;">⚔' + stats.atk + '</span>';
-      html += '<span style="color:#2196f3;">🛡' + stats.def + '</span>';
-      html += '<span style="color:#4caf50;">❤' + stats.hp + '</span>';
-      html += '<span style="color:#ff9800;">💨' + stats.spd + '</span>';
+      html += '<span style="color:#c0392b;">⚔' + stats.atk + '</span>';
+      html += '<span style="color:#4a7fb5;">🛡' + stats.def + '</span>';
+      html += '<span style="color:#5d8a48;">❤' + stats.hp + '</span>';
+      html += '<span style="color:#c98a2e;">💨' + stats.spd + '</span>';
       html += '</div>';
     }
 

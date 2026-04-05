@@ -8,6 +8,24 @@
 
 ### Added
 
+- **停车场系统 (Parking System)** — 2026-04-05
+  - 产品规范 (`specs/product-specs/parking-system.md`)：10 个能力（CAP-PKG-01~10），26 个 WHEN/THEN 验收场景
+  - 执行计划 (`specs/exec-plans/parking-system.md`)：5 阶段 10 任务
+  - 新增 `js/data/parking.js`：10 级载具数据表（驽马→黄金跑车）、车位费用表、收入倍率
+  - 新增 `js/modules/parking-manager.js`：`ParkingManager` 单例，含车位解锁、载具购买/停入/取出/出售、被动收入（`_incomeAccum` 模式）、离线结算
+  - 新增 `js/ui/parking-panel.js`：`ParkingPanel` 浮层面板（3 标签页：车位/商店/车库）
+  - 新增 `assets/img/vehicles/` 10 张 SVG 载具占位图 + `assets/img/buildings/parking_lot.svg`
+  - `BuildingData` 新增 `parking_lot`（功能型建筑，5 级，requires town_hall:4 + stable:1）
+  - `TownManager._getDefaultBuildings()` 新增 `parking_lot`
+  - `TownWorld` 地图扩展 32×32 → 40×40，新增 `parking_lot` 建筑尺寸和默认位置
+  - `BottomNav` 更多菜单新增停车场入口
+  - `main.js` 注册 `ParkingManager`（init/onTick/getState）和 `ParkingPanel`
+  - `_showOfflineRewards()` 集成停车场离线收入
+  - 经 spec-reviewer 2 轮审查（修复 5P0+4P1 问题）、drift-detector 漂移检测（修复 3 项低中度漂移）
+  - 测试文件 (`tests/parking-manager.test.html`)：45 个测试，45 通过，10/10 能力覆盖
+
+### Added (previous)
+
 - **StoryManager 服务规范** (`specs/services/story-manager.md`) — 2026-04-04
   - 10 个能力：init、onTick、getCurrentChapter/getCurrentScenes、markSceneSeen、advanceChapter、checkUnlock、_triggerMonologue、getDialogue、getProfile、getState
   - 39 个 WHEN/THEN 验收场景（含正常/边界/错误路径）

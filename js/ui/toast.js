@@ -14,19 +14,20 @@ const Toast = {
     const toast = document.createElement('div');
 
     const colors = {
-      success: { bg: '#1b5e20', border: '#4caf50' },
-      warning: { bg: '#e65100', border: '#ff9800' },
-      error: { bg: '#b71c1c', border: '#e94560' },
-      info: { bg: '#0d47a1', border: '#2196f3' }
+      success: { bg: '#2a2018', border: '#5d8a48' },
+      warning: { bg: '#2a2018', border: '#c98a2e' },
+      error: { bg: '#2a2018', border: '#b33a3a' },
+      info: { bg: '#2a2018', border: '#4a7fb5' }
     };
     const color = colors[type] || colors.info;
 
     toast.style.cssText = `
       background: ${color.bg};
       border: 1px solid ${color.border};
-      color: #fff;
+      border-left: 3px solid ${color.border};
+      color: #e8dcc8;
       padding: 8px 20px;
-      border-radius: 18px;
+      border-radius: 2px;
       font-size: 0.78rem;
       opacity: 0;
       transition: opacity 0.3s, transform 0.3s;
@@ -34,7 +35,7 @@ const Toast = {
       pointer-events: auto;
       max-width: 340px;
       text-align: center;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.6);
     `;
     toast.textContent = message;
 

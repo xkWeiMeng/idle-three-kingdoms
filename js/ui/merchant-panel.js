@@ -4,7 +4,7 @@
 var MerchantPanel = {
   _el: null,
 
-  _qualityColors: { 1:'#aaa', 2:'#4caf50', 3:'#2196f3', 4:'#9c27b0', 5:'#ff9800', 6:'#ff2222' },
+  _qualityColors: { 1:'#b0a898', 2:'#5d8a48', 3:'#4a7fb5', 4:'#8b5ea8', 5:'#d4a849', 6:'#ff2222' },
   _qualityNames: { 1:'白', 2:'绿', 3:'蓝', 4:'紫', 5:'橙', 6:'神话' },
 
   init: function () {

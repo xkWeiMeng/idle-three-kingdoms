@@ -3,7 +3,7 @@ const RecruitPanel = {
   _container: null,
   _lastResults: null,
 
-  _qualityColors: { 1: '#aaaaaa', 2: '#4caf50', 3: '#2196f3', 4: '#9c27b0', 5: '#ff9800' },
+  _qualityColors: { 1: '#b0a898', 2: '#5d8a48', 3: '#4a7fb5', 4: '#8b5ea8', 5: '#d4a849' },
   _qualityNames: { 1: '白·普通', 2: '绿·精良', 3: '蓝·稀有', 4: '紫·史诗', 5: '橙·传说' },
 
   init: function () {
@@ -138,11 +138,11 @@ const RecruitPanel = {
     html += '<div style="font-weight:bold;font-size:0.85rem;margin-bottom:8px;">保底进度</div>';
 
     // Blue pity (rare): 10 pulls
-    html += this._renderPityBar('🔵 蓝色保底', pity.rare, 10, '#2196f3');
+    html += this._renderPityBar('🔵 蓝色保底', pity.rare, 10, '#4a7fb5');
     // Purple pity (epic): 30 pulls
-    html += this._renderPityBar('🟣 紫色保底', pity.epic, 30, '#9c27b0');
+    html += this._renderPityBar('🟣 紫色保底', pity.epic, 30, '#8b5ea8');
     // Orange pity (legendary): 80 pulls
-    html += this._renderPityBar('🟠 橙色保底', pity.legendary, 80, '#ff9800');
+    html += this._renderPityBar('🟠 橙色保底', pity.legendary, 80, '#d4a849');
 
     html += '</div>';
     return html;
@@ -199,11 +199,11 @@ const RecruitPanel = {
     // Free recruit button
     if (freeAvail) {
       html += '<button class="btn recruit-btn-free" style="width:100%;padding:10px;font-size:0.9rem;';
-      html += 'background:linear-gradient(135deg,var(--color-success),#2e7d32);';
+      html += 'background:linear-gradient(135deg,var(--color-success),#3d6a30);';
       html += 'animation:recruit-free-pulse 1.5s ease-in-out infinite;">';
       html += '🎁 免费单抽（保底蓝色+）';
       html += '</button>';
-      html += '<style>@keyframes recruit-free-pulse{0%,100%{box-shadow:0 0 4px #4caf5066;}50%{box-shadow:0 0 12px #4caf50aa;}}</style>';
+      html += '<style>@keyframes recruit-free-pulse{0%,100%{box-shadow:0 0 4px #5d8a4866;}50%{box-shadow:0 0 12px #5d8a48aa;}}</style>';
     }
 
     html += '</div>';

@@ -1,5 +1,24 @@
 ﻿{
   "features": {
+    "story-manager": {
+      "name": "StoryManager 剧情章节、对话、解锁",
+      "stage": "COMPLETE",
+      "spec": "specs/services/story-manager.md",
+      "execPlan": "specs/exec-plans/story-manager.md",
+      "testFiles": ["tests/story-manager.test.html"],
+      "changelog": "specs/changelog.md",
+      "adr": null,
+      "currentTask": null,
+      "history": [
+        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-04", "note": "逆向从现有实现生成规范" },
+        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-04", "note": "修复4个问题：变量命名、hero:added消费者、init参数格式、monologue载荷" },
+        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-04" },
+        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-04", "note": "1处修复：getDialogue空数组守卫(D7)" },
+        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-04", "note": "42个测试，39个规范场景，100%覆盖率" },
+        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-04", "note": "10/10能力PASS，无漂移" },
+        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-04" }
+      ]
+    },
     "battle-manager": {
       "currentTask": null,
       "changelog": "specs/changelog.md",
@@ -172,6 +191,25 @@
       "stage": "COMPLETE",
       "testFiles": [],
       "adr": null
+    },
+    "parking-system": {
+      "name": "停车场系统 — 载具停放、被动金币收入",
+      "stage": "COMPLETE",
+      "spec": "specs/product-specs/parking-system.md",
+      "execPlan": "specs/exec-plans/parking-system.md",
+      "testFiles": ["tests/parking-manager.test.html"],
+      "changelog": "specs/changelog.md",
+      "adr": null,
+      "currentTask": null,
+      "history": [
+        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-05" },
+        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-05", "note": "修复5个P0+4个P1问题" },
+        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-05" },
+        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-05", "note": "26/26场景实现，12文件创建/修改" },
+        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-05", "note": "45个测试，45通过，10/10能力覆盖" },
+        { "stage": "VERIFY", "result": "low_drift", "timestamp": "2026-04-05", "note": "3项漂移已修复：离线收入调用、3-tab UI对齐、出售Toast" },
+        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-05" }
+      ]
     }
   }
 }

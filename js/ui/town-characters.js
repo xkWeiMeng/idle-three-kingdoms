@@ -7,17 +7,29 @@ var TownCharacters = {
   _chars: [],       // 所有角色
   _images: {},      // 精灵图缓存
 
+  // ── 拖拽状态 ──
+  _dragChar: null,      // 当前被拖拽的角色
+  _dragOffsetX: 0,      // 拖拽偏移
+  _dragOffsetY: 0,
+  _dragPickupAnim: 0,   // 拿起动画进度 0→1
+  _dragDropAnim: null,  // {char, fromY, progress} 放下动画
+
   // ── 常量 ──
   NPC_SPAWN_COUNT: 6,
   CHAR_W: 36,       // 绘制宽
   CHAR_H: 48,       // 绘制高
   HIT_W: 32,        // 点击检测宽
   HIT_H: 44,        // 点击检测高
+  DRAG_LIFT: 18,    // 拿起时上浮像素
+  DRAG_SCALE: 1.15, // 拿起时放大倍率
+  PICKUP_DURATION: 0.18, // 拿起动画时长
+  DROP_DURATION: 0.15,   // 放下动画时长
 
   NPC_SPEED: 22,
   HERO_SPEED: 16,
   NPC_WANDER_RADIUS: 3,   // 格
   HERO_WANDER_RADIUS: 2,
+  CHAR_MIN_DIST: 20,       // 角色间最小距离（像素）
 
   // ── 初始化 ──
   init: function () {
@@ -171,8 +183,22 @@ var TownCharacters = {
 
   // ── AI 更新（每帧调用） ──
   update: function (dt) {
+    // 拿起动画
+    if (this._dragChar && this._dragPickupAnim < 1) {
+      this._dragPickupAnim = Math.min(1, this._dragPickupAnim + dt / this.PICKUP_DURATION);
+    }
+    // 放下动画
+    if (this._dragDropAnim) {
+      this._dragDropAnim.progress += dt / this.DROP_DURATION;
+      if (this._dragDropAnim.progress >= 1) {
+        this._dragDropAnim = null;
+      }
+    }
+
     for (var i = 0; i < this._chars.length; i++) {
-      this._tickAI(this._chars[i], dt);
+      var c = this._chars[i];
+      if (c.state === 'dragging') continue; // 拖拽中不更新 AI
+      this._tickAI(c, dt);
     }
   },
 
@@ -236,15 +262,46 @@ var TownCharacters = {
     }
 
     var radius = c.wanderRadius * CELL;
-    var angle = Math.random() * Math.PI * 2;
-    var dist = Math.random() * radius;
-    c.targetX = c.homeX + Math.cos(angle) * dist;
-    c.targetY = c.homeY + Math.sin(angle) * dist;
-
-    // 限制在地图范围内
     var mapPixels = TownWorld.MAP_W * CELL;
-    c.targetX = Math.max(CELL, Math.min(mapPixels - CELL, c.targetX));
-    c.targetY = Math.max(CELL, Math.min(mapPixels - CELL, c.targetY));
+    var found = false;
+
+    for (var attempt = 0; attempt < 8; attempt++) {
+      var angle = Math.random() * Math.PI * 2;
+      var dist = Math.random() * radius;
+      var tx = c.homeX + Math.cos(angle) * dist;
+      var ty = c.homeY + Math.sin(angle) * dist;
+
+      // 限制在地图范围内
+      tx = Math.max(CELL, Math.min(mapPixels - CELL, tx));
+      ty = Math.max(CELL, Math.min(mapPixels - CELL, ty));
+
+      // 检查建筑碰撞
+      if (!TownWorld.isPixelWalkable(tx, ty)) continue;
+
+      // 检查与静止角色的距离
+      var tooClose = false;
+      for (var j = 0; j < this._chars.length; j++) {
+        var other = this._chars[j];
+        if (other === c || other.state === 'walking') continue;
+        var ddx = tx - other.x;
+        var ddy = ty - other.y;
+        if (ddx * ddx + ddy * ddy < this.CHAR_MIN_DIST * this.CHAR_MIN_DIST) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (tooClose) continue;
+
+      c.targetX = tx;
+      c.targetY = ty;
+      found = true;
+      break;
+    }
+
+    if (!found) {
+      this._goIdle(c);
+      return;
+    }
 
     c.state = 'walking';
     c.direction = c.targetX >= c.x ? 1 : -1;
@@ -263,8 +320,29 @@ var TownCharacters = {
     }
 
     var step = c.speed * dt;
-    c.x += (dx / dist) * step;
-    c.y += (dy / dist) * step;
+    var newX = c.x + (dx / dist) * step;
+    var newY = c.y + (dy / dist) * step;
+
+    // 检查建筑碰撞
+    if (!TownWorld.isPixelWalkable(newX, newY)) {
+      this._goIdle(c);
+      return;
+    }
+
+    // 检查与非行走角色的距离
+    for (var i = 0; i < this._chars.length; i++) {
+      var other = this._chars[i];
+      if (other === c || other.state === 'walking') continue;
+      var odx = newX - other.x;
+      var ody = newY - other.y;
+      if (odx * odx + ody * ody < this.CHAR_MIN_DIST * this.CHAR_MIN_DIST) {
+        this._goIdle(c);
+        return;
+      }
+    }
+
+    c.x = newX;
+    c.y = newY;
     c.direction = dx > 0 ? 1 : -1;
     c.bobPhase += dt * 8;
   },
@@ -297,6 +375,9 @@ var TownCharacters = {
 
   // ── 点击交互 ──
   handleTap: function (c) {
+    // 拖拽中不响应点击
+    if (this._dragChar) return;
+
     var text = null;
     if (c.type === 'hero') {
       var hd = NpcDialogues.heroes[c.heroId];
@@ -328,10 +409,68 @@ var TownCharacters = {
     return null;
   },
 
+  // ── 拖拽系统 ──
+  startDrag: function (c, wx, wy) {
+    this._dragChar = c;
+    this._dragOffsetX = c.x - wx;
+    this._dragOffsetY = c.y - wy;
+    this._dragPickupAnim = 0;
+    this._dragDropAnim = null;
+    // 暂停角色 AI
+    c._prevState = c.state;
+    c.state = 'dragging';
+    c.bubble = null;
+  },
+
+  moveDrag: function (wx, wy) {
+    if (!this._dragChar) return;
+    var c = this._dragChar;
+    c.x = wx + this._dragOffsetX;
+    c.y = wy + this._dragOffsetY;
+    // 限制在地图范围内
+    var CELL = TownWorld.CELL;
+    var mapPx = TownWorld.MAP_W * CELL;
+    c.x = Math.max(CELL, Math.min(mapPx - CELL, c.x));
+    c.y = Math.max(CELL, Math.min(mapPx - CELL, c.y));
+  },
+
+  endDrag: function () {
+    if (!this._dragChar) return;
+    var c = this._dragChar;
+
+    // 检查放置是否合法（不在建筑上）
+    if (!TownWorld.isPixelWalkable(c.x, c.y)) {
+      // 弹回原位
+      c.x = c.homeX;
+      c.y = c.homeY;
+      EventBus.emit('toast:show', { type: 'warning', message: '此处无法放置角色' });
+    } else {
+      // 更新家坐标
+      c.homeX = c.x;
+      c.homeY = c.y;
+    }
+
+    // 启动放下动画
+    this._dragDropAnim = { char: c, progress: 0 };
+    c.state = 'idle';
+    c.stateTimer = 2 + Math.random() * 3;
+    this._dragChar = null;
+  },
+
+  isDragging: function () {
+    return !!this._dragChar;
+  },
+
   // ── 渲染 ──
   draw: function (ctx) {
-    // 按 Y 坐标排序（深度排序）
-    var sorted = this._chars.slice().sort(function (a, b) { return a.y - b.y; });
+    // 按 Y 坐标排序（深度排序），拖拽角色最后绘制（在最上层）
+    var self = this;
+    var sorted = this._chars.slice().sort(function (a, b) {
+      var aDrag = (self._dragChar === a) ? 1 : 0;
+      var bDrag = (self._dragChar === b) ? 1 : 0;
+      if (aDrag !== bDrag) return aDrag - bDrag;
+      return a.y - b.y;
+    });
 
     for (var i = 0; i < sorted.length; i++) {
       this._drawCharacter(ctx, sorted[i]);
@@ -343,36 +482,79 @@ var TownCharacters = {
     var W = this.CHAR_W;
     var H = this.CHAR_H;
 
-    // 行走弹跳
+    var isDragged = (this._dragChar === c);
+    var isDropping = (this._dragDropAnim && this._dragDropAnim.char === c);
+
+    // 计算拖拽相关参数
+    var liftY = 0;
+    var scale = 1;
+    var shadowScale = 1;
+    var shadowAlpha = 0.12;
+
+    if (isDragged) {
+      var t = this._easeOutBack(this._dragPickupAnim);
+      liftY = this.DRAG_LIFT * t;
+      scale = 1 + (this.DRAG_SCALE - 1) * t;
+      shadowScale = 1 + 0.4 * t; // 阴影变大
+      shadowAlpha = 0.12 - 0.06 * t; // 阴影变淡（离地效果）
+    } else if (isDropping) {
+      var dropT = this._easeInQuad(this._dragDropAnim.progress);
+      liftY = this.DRAG_LIFT * (1 - dropT);
+      scale = 1 + (this.DRAG_SCALE - 1) * (1 - dropT);
+      shadowScale = 1 + 0.4 * (1 - dropT);
+      shadowAlpha = 0.12 - 0.06 * (1 - dropT);
+    }
+
+    // 行走弹跳（拖拽时不弹跳）
     var bobY = 0;
     if (c.state === 'walking') {
       bobY = Math.sin(c.bobPhase) * 1.5;
     }
 
     // 阴影
-    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillStyle = 'rgba(0,0,0,' + shadowAlpha + ')';
     ctx.beginPath();
-    ctx.ellipse(c.x, c.y, W * 0.3, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(c.x, c.y, W * 0.3 * shadowScale, 3 * shadowScale, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // 拖拽选中光圈
+    if (isDragged) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(245,197,24,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, W * 0.45, 5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
 
     // 精灵图
     if (img && img.complete && img.naturalWidth > 0) {
       ctx.save();
-      ctx.translate(c.x, c.y - H + bobY);
+      ctx.translate(c.x, c.y - H + bobY - liftY);
       if (c.direction < 0) {
         ctx.scale(-1, 1);
+      }
+      // 缩放
+      if (scale !== 1) {
+        ctx.translate(0, H); // 以脚底为锚点缩放
+        ctx.scale(scale, scale);
+        ctx.translate(0, -H);
       }
       ctx.drawImage(img, -W / 2, 0, W, H);
       ctx.restore();
     } else {
       // 降级：彩色圆点
-      ctx.fillStyle = c.type === 'hero' ? '#e94560' : '#999';
+      ctx.fillStyle = c.type === 'hero' ? '#c0392b' : '#999';
       ctx.beginPath();
-      ctx.arc(c.x, c.y - H / 2 + bobY, 8, 0, Math.PI * 2);
+      ctx.arc(c.x, c.y - H / 2 + bobY - liftY, 8 * scale, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 名字标签
+    // 名字标签（拖拽时名字跟随人物上浮）
+    var nameLiftY = isDragged ? liftY : (isDropping ? liftY : 0);
     ctx.font = 'bold 9px "Microsoft YaHei", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -380,21 +562,21 @@ var TownCharacters = {
     var nameText = c.name;
     var nameW = ctx.measureText(nameText).width + 6;
     // 背景条
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    this._roundRect(ctx, c.x - nameW / 2, c.y + 2, nameW, 13, 3);
+    ctx.fillStyle = isDragged ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)';
+    this._roundRect(ctx, c.x - nameW / 2, c.y + 2 - nameLiftY, nameW, 13, 3);
     ctx.fill();
 
     // 名字颜色（武将按品质，NPC 灰色）
     if (c.type === 'hero') {
-      var qColors = { 5: '#ff8c00', 4: '#c084fc', 3: '#60a5fa', 2: '#4ade80', 1: '#ccc' };
-      ctx.fillStyle = qColors[c.quality] || '#f5c518';
+      var qColors = { 5: '#d4a849', 4: '#8b5ea8', 3: '#4a7fb5', 2: '#5d8a48', 1: '#b0a898' };
+      ctx.fillStyle = qColors[c.quality] || '#d4a849';
     } else {
       ctx.fillStyle = '#ccc';
     }
-    ctx.fillText(nameText, c.x, c.y + 3);
+    ctx.fillText(nameText, c.x, c.y + 3 - nameLiftY);
 
-    // 气泡
-    if (c.bubble) {
+    // 气泡（拖拽时不显示）
+    if (c.bubble && !isDragged) {
       this._drawBubble(ctx, c);
     }
   },
@@ -461,8 +643,8 @@ var TownCharacters = {
     // 武将名字（点击气泡显示）
     if (isClick && c.type === 'hero') {
       ctx.font = 'bold 10px "Microsoft YaHei", sans-serif';
-      var qCol = { 5: '#ff8c00', 4: '#9333ea', 3: '#3b82f6', 2: '#22c55e', 1: '#999' };
-      ctx.fillStyle = qCol[c.quality] || '#e94560';
+      var qCol = { 5: '#d4a849', 4: '#8b5ea8', 3: '#4a7fb5', 2: '#5d8a48', 1: '#b0a898' };
+      ctx.fillStyle = qCol[c.quality] || '#c0392b';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText(c.name + '：', bx, ry - 2);
@@ -479,6 +661,17 @@ var TownCharacters = {
 
     ctx.globalAlpha = 1;
     ctx.restore();
+  },
+
+  // ── 缓动函数 ──
+  _easeOutBack: function (t) {
+    var c1 = 1.70158;
+    var c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  },
+
+  _easeInQuad: function (t) {
+    return t * t;
   },
 
   // ── 工具方法 ──

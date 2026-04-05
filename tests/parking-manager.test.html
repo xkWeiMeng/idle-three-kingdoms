@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ParkingManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>ParkingManager 规范测试</h1>
+<pre>规范引用：specs/product-specs/parking-system.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+<script src="../js/data/parking.js"></script>
+<script src="../js/data/buildings.js"></script>
+<script src="../js/modules/parking-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/product-specs/parking-system.md
+ * 测试骨架：从 10 个能力（CAP-PKG-01 ~ CAP-PKG-10）的 WHEN/THEN 场景生成
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function skip(name) {
+  _results.push({ section: _currentSection, name: name, status: 'skip', error: null });
+  var el = document.createElement('div');
+  el.className = 'skip';
+  el.textContent = '  ⊘ ' + name + ' (需要完整环境)';
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) throw new Error((msg || '') + ' expected=' + expected + ' actual=' + actual);
+}
+
+function assertApprox(actual, expected, tolerance, msg) {
+  if (Math.abs(actual - expected) > tolerance) throw new Error((msg || '') + ' expected≈' + expected + ' actual=' + actual);
+}
+
+// ===== Mock 依赖 =====
+
+var _emitted = [];
+var _resourceState = { gold: 100000000, jade: 1000 };
+
+// Mock EventBus
+var _origEmit = EventBus.emit;
+EventBus.emit = function (event) {
+  _emitted.push({ event: event, args: Array.prototype.slice.call(arguments, 1) });
+  _origEmit.apply(EventBus, arguments);
+};
+
+// Mock ResourceManager
+var ResourceManager = {
+  canAfford: function (type, amount) {
+    return (_resourceState[type] || 0) >= amount;
+  },
+  canAffordMultiple: function (costs) {
+    for (var k in costs) {
+      if (costs.hasOwnProperty(k) && (_resourceState[k] || 0) < costs[k]) return false;
+    }
+    return true;
+  },
+  spend: function (type, amount) {
+    _resourceState[type] = (_resourceState[type] || 0) - amount;
+    return true;
+  },
+  spendMultiple: function (costs) {
+    for (var k in costs) {
+      if (costs.hasOwnProperty(k)) {
+        _resourceState[k] = (_resourceState[k] || 0) - costs[k];
+      }
+    }
+    return true;
+  },
+  add: function (type, amount) {
+    _resourceState[type] = (_resourceState[type] || 0) + amount;
+  }
+};
+
+// Mock TownManager
+var _mockBuildingLevels = { parking_lot: 0 };
+var TownManager = {
+  getBuildingLevel: function (id) { return _mockBuildingLevels[id] || 0; },
+  getOfflineEfficiency: function () { return 0.50; }
+};
+
+function resetMocks() {
+  _emitted = [];
+  _resourceState = { gold: 100000000, jade: 1000 };
+  _mockBuildingLevels = { parking_lot: 0 };
+}
+
+function resetParkingManager(opts) {
+  resetMocks();
+  if (opts && opts.parkingLevel !== undefined) {
+    _mockBuildingLevels.parking_lot = opts.parkingLevel;
+  }
+  var saved = null;
+  if (opts && opts.savedParking) {
+    saved = { parking: opts.savedParking };
+  }
+  ParkingManager.init(saved || {});
+}
+
+// ===== 测试用例 =====
+
+// --- CAP-PKG-01: 建造停车场 ---
+section('CAP-PKG-01: 建造停车场');
+
+test('BuildingData.parking_lot 存在且配置正确', function () {
+  assert(BuildingData.parking_lot, 'parking_lot should exist in BuildingData');
+  assertEqual(BuildingData.parking_lot.id, 'parking_lot');
+  assertEqual(BuildingData.parking_lot.emoji, '🅿️');
+  assertEqual(BuildingData.parking_lot.category, 'functional');
+  assertEqual(BuildingData.parking_lot.maxLevel, 5);
+  assertEqual(BuildingData.parking_lot.unlockOrder, 23);
+  assert(BuildingData.parking_lot.requires.town_hall === 4, 'requires town_hall 4');
+  assert(BuildingData.parking_lot.requires.stable === 1, 'requires stable 1');
+});
+
+test('WHEN 停车场建造完成（level=1）且无已有 slots THEN 初始化 2 个空车位', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  var state = ParkingManager.getState();
+  assertEqual(state.unlockedSlots, 2, 'unlockedSlots');
+  assertEqual(state.slots.length, 2, 'slots.length');
+  assertEqual(state.slots[0].status, 'empty');
+  assertEqual(state.slots[1].status, 'empty');
+});
+
+test('WHEN 停车场未建造 THEN slots 为空', function () {
+  resetParkingManager({ parkingLevel: 0 });
+  var state = ParkingManager.getState();
+  assertEqual(state.unlockedSlots, 0, 'unlockedSlots');
+  assertEqual(state.slots.length, 0, 'slots.length');
+});
+
+test('WHEN building_upgraded 事件触发 parking_lot level=1 THEN 自动初始化 2 车位', function () {
+  resetParkingManager({ parkingLevel: 0 });
+  _mockBuildingLevels.parking_lot = 1;
+  EventBus.emit('town:building_upgraded', { buildingId: 'parking_lot', newLevel: 1 });
+  var state = ParkingManager.getState();
+  assertEqual(state.unlockedSlots, 2, 'unlockedSlots');
+  assertEqual(state.slots.length, 2, 'slots.length');
+});
+
+// --- CAP-PKG-02: 升级停车场 ---
+section('CAP-PKG-02: 升级停车场');
+
+test('BuildingData.parking_lot.costFormula(1) 返回正确费用', function () {
+  var cost = BuildingData.parking_lot.costFormula(1);
+  assertEqual(cost.gold, 2000);
+  assertEqual(cost.wood, 500);
+  assertEqual(cost.stone, 500);
+  assertEqual(cost.iron, 200);
+});
+
+test('BuildingData.parking_lot.costFormula(3) 返回 2^2 倍费用', function () {
+  var cost = BuildingData.parking_lot.costFormula(3);
+  assertEqual(cost.gold, 8000);
+  assertEqual(cost.wood, 2000);
+  assertEqual(cost.stone, 2000);
+  assertEqual(cost.iron, 800);
+});
+
+test('BuildingData.parking_lot.effects(lv) 返回正确倍率和 Tier 上限', function () {
+  var e1 = BuildingData.parking_lot.effects(1);
+  assertEqual(e1.incomeMultiplier, 1.0);
+  assertEqual(e1.maxVehicleTier, 4);
+
+  var e3 = BuildingData.parking_lot.effects(3);
+  assertEqual(e3.incomeMultiplier, 1.25);
+  assertEqual(e3.maxVehicleTier, 7);
+
+  var e5 = BuildingData.parking_lot.effects(5);
+  assertEqual(e5.incomeMultiplier, 1.60);
+  assertEqual(e5.maxVehicleTier, 10);
+});
+
+// --- CAP-PKG-03: 解锁车位 ---
+section('CAP-PKG-03: 解锁车位');
+
+test('WHEN N<10 且资源足够 THEN 解锁第 3 个车位，消耗 1000 金', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  var goldBefore = _resourceState.gold;
+  var result = ParkingManager.unlockSlot();
+  assert(result, 'unlockSlot should return true');
+  var state = ParkingManager.getState();
+  assertEqual(state.unlockedSlots, 3, 'unlockedSlots');
+  assertEqual(state.slots.length, 3, 'slots.length');
+  assertEqual(state.slots[2].status, 'empty');
+  assertEqual(_resourceState.gold, goldBefore - 1000, 'gold spent');
+});
+
+test('WHEN 解锁车位 THEN 发出 parking:slot_unlocked 事件', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  _emitted = [];
+  ParkingManager.unlockSlot();
+  var found = _emitted.filter(function (e) { return e.event === 'parking:slot_unlocked'; });
+  assert(found.length > 0, 'parking:slot_unlocked event emitted');
+  assertEqual(found[0].args[0].totalSlots, 3);
+});
+
+test('WHEN 资源不足 THEN canUnlockSlot 返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  _resourceState.gold = 0;
+  _resourceState.jade = 0;
+  assert(!ParkingManager.canUnlockSlot(), 'should not be able to unlock');
+});
+
+test('WHEN 已解锁 10 THEN canUnlockSlot 返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  // Unlock all 8 remaining slots
+  for (var i = 0; i < 8; i++) {
+    ParkingManager.unlockSlot();
+  }
+  var state = ParkingManager.getState();
+  assertEqual(state.unlockedSlots, 10);
+  assert(!ParkingManager.canUnlockSlot(), 'should not unlock beyond 10');
+});
+
+test('SLOT_COSTS 表：slot 3 费用 = 1000 金 0 玉', function () {
+  assertEqual(SLOT_COSTS[3].gold, 1000);
+  assertEqual(SLOT_COSTS[3].jade, 0);
+});
+
+test('SLOT_COSTS 表：slot 10 费用 = 8000000 金 100 玉', function () {
+  assertEqual(SLOT_COSTS[10].gold, 8000000);
+  assertEqual(SLOT_COSTS[10].jade, 100);
+});
+
+// --- CAP-PKG-04: 购买载具 ---
+section('CAP-PKG-04: 购买载具');
+
+test('WHEN 资源足且 Tier ≤ 上限 THEN 购买成功', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  var result = ParkingManager.buyVehicle('nag_horse');
+  assert(result, 'buyVehicle should return true');
+  var state = ParkingManager.getState();
+  assertEqual(state.vehicles.length, 1);
+  assertEqual(state.vehicles[0].tierId, 'nag_horse');
+  assert(state.vehicles[0].uid, 'vehicle should have uid');
+  assert(state.vehicles[0].parkedAt === null, 'should not be parked');
+});
+
+test('WHEN 购买成功 THEN 发出 parking:vehicle_acquired 事件', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  _emitted = [];
+  ParkingManager.buyVehicle('nag_horse');
+  var found = _emitted.filter(function (e) { return e.event === 'parking:vehicle_acquired'; });
+  assert(found.length > 0, 'parking:vehicle_acquired event emitted');
+});
+
+test('WHEN Tier 超过上限 THEN canBuyVehicle 返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 }); // maxTier=4
+  assert(!ParkingManager.canBuyVehicle('bicycle'), 'bicycle tier 5 should be locked');
+  assert(!ParkingManager.canBuyVehicle('supercar'), 'supercar tier 9 should be locked');
+});
+
+test('WHEN 停车场 Lv.3 THEN 可购买 Tier 1~7', function () {
+  resetParkingManager({ parkingLevel: 3 }); // maxTier=7
+  assert(ParkingManager.canBuyVehicle('nag_horse'), 'tier 1');
+  assert(ParkingManager.canBuyVehicle('red_hare'), 'tier 4');
+  assert(ParkingManager.canBuyVehicle('sedan'), 'tier 7');
+  assert(!ParkingManager.canBuyVehicle('sports_car'), 'tier 8 locked');
+});
+
+test('WHEN 已拥有同 Tier 载具 THEN 仍可再次购买', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var result = ParkingManager.buyVehicle('nag_horse');
+  assert(result, 'second purchase should succeed');
+  var state = ParkingManager.getState();
+  assertEqual(state.vehicles.length, 2);
+});
+
+test('WHEN 金币不足 THEN canBuyVehicle 返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  _resourceState.gold = 0;
+  assert(!ParkingManager.canBuyVehicle('nag_horse'), 'insufficient gold');
+});
+
+test('WHEN 载具持有量达 50 THEN canBuyVehicle 返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  for (var i = 0; i < 50; i++) {
+    ParkingManager.buyVehicle('nag_horse');
+  }
+  assert(!ParkingManager.canBuyVehicle('nag_horse'), 'soft cap 50 reached');
+});
+
+// --- CAP-PKG-05: 停入载具 ---
+section('CAP-PKG-05: 停入载具');
+
+test('WHEN 有未停入载具+空车位 THEN 停入成功', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var state = ParkingManager.getState();
+  var uid = state.vehicles[0].uid;
+  var result = ParkingManager.parkVehicle(uid, 0);
+  assert(result, 'parkVehicle should return true');
+  state = ParkingManager.getState();
+  assertEqual(state.slots[0].status, 'occupied');
+  assertEqual(state.slots[0].vehicleId, uid);
+  assertEqual(state.vehicles[0].parkedAt, 0);
+});
+
+test('WHEN 停入成功 THEN 发出 parking:vehicle_parked 事件', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  _emitted = [];
+  ParkingManager.parkVehicle(uid, 0);
+  var found = _emitted.filter(function (e) { return e.event === 'parking:vehicle_parked'; });
+  assert(found.length > 0, 'parking:vehicle_parked event emitted');
+  assertEqual(found[0].args[0].slotIndex, 0);
+});
+
+test('WHEN 所有车位已满 THEN 停入返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  ParkingManager.buyVehicle('fine_horse');
+  ParkingManager.buyVehicle('swift_horse');
+  var state = ParkingManager.getState();
+  ParkingManager.parkVehicle(state.vehicles[0].uid, 0);
+  ParkingManager.parkVehicle(state.vehicles[1].uid, 1);
+  // Third vehicle, no empty slot
+  var result = ParkingManager.parkVehicle(state.vehicles[2].uid, 0);
+  assert(!result, 'should fail on full slot');
+});
+
+test('WHEN 载具已停入 THEN 不能再次停入', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  var result = ParkingManager.parkVehicle(uid, 1);
+  assert(!result, 'already parked vehicle should fail');
+});
+
+// --- CAP-PKG-06: 取出载具 ---
+section('CAP-PKG-06: 取出载具');
+
+test('WHEN 点击已停入车位 THEN 取出成功', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  var result = ParkingManager.removeVehicle(0);
+  assert(result, 'removeVehicle should return true');
+  var state = ParkingManager.getState();
+  assertEqual(state.slots[0].status, 'empty');
+  assert(state.slots[0].vehicleId === null);
+  assert(state.vehicles[0].parkedAt === null, 'vehicle.parkedAt should be null');
+});
+
+test('WHEN 取出成功 THEN 发出 parking:vehicle_removed 事件', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  _emitted = [];
+  ParkingManager.removeVehicle(0);
+  var found = _emitted.filter(function (e) { return e.event === 'parking:vehicle_removed'; });
+  assert(found.length > 0, 'parking:vehicle_removed event emitted');
+});
+
+test('WHEN 车位为空 THEN removeVehicle 返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  var result = ParkingManager.removeVehicle(0);
+  assert(!result, 'should fail on empty slot');
+});
+
+// --- CAP-PKG-07: 被动收入结算 ---
+section('CAP-PKG-07: 被动收入结算');
+
+test('WHEN tick+有停入载具 THEN 累加收入到 _incomeAccum', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('red_hare'); // 200 gold/hour = faster accumulation
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  // 赤兔: 200 gold/hour = 200/3600 per second ≈ 0.0556
+  // After 20 ticks of 1s each ≈ 1.11 gold → should trigger income
+  _emitted = [];
+  for (var t = 0; t < 100; t++) {
+    ParkingManager.onTick(1);
+  }
+  var incomeEvents = _emitted.filter(function (e) { return e.event === 'parking:income_collected'; });
+  assert(incomeEvents.length > 0, 'should have collected income');
+  var totalIncome = 0;
+  incomeEvents.forEach(function (e) { totalIncome += e.args[0].amount; });
+  assert(totalIncome >= 1, 'should have earned at least 1 gold after 100s with red_hare');
+});
+
+test('WHEN 无停入载具 THEN 不产生收入', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  _emitted = [];
+  ParkingManager.onTick(1);
+  var incomeEvents = _emitted.filter(function (e) { return e.event === 'parking:income_collected'; });
+  assertEqual(incomeEvents.length, 0, 'no income events');
+});
+
+test('WHEN 未建造 THEN onTick 直接返回', function () {
+  resetParkingManager({ parkingLevel: 0 });
+  _emitted = [];
+  ParkingManager.onTick(1);
+  var incomeEvents = _emitted.filter(function (e) { return e.event === 'parking:income_collected'; });
+  assertEqual(incomeEvents.length, 0, 'no income events');
+});
+
+test('WHEN 收入倍率为 Lv.5(1.60) THEN 收入正确放大', function () {
+  resetParkingManager({ parkingLevel: 5 });
+  ParkingManager.buyVehicle('golden_car');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  // 黄金跑车: 40000/hr, Lv5 multiplier: 1.60
+  // Expected: 40000 * 1.60 / 3600 per second ≈ 17.78 per second
+  _emitted = [];
+  ParkingManager.onTick(1);
+  var hourlyExpected = 40000 * 1.60;
+  var actualHourly = ParkingManager.getIncomePerHour();
+  assertApprox(actualHourly, hourlyExpected, 1, 'income per hour');
+});
+
+// --- CAP-PKG-08: 离线收入结算 ---
+section('CAP-PKG-08: 离线收入结算');
+
+test('WHEN 离线 3600s+有停入载具 THEN 计算正确离线收入', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  var income = ParkingManager.calcOfflineIncome(3600);
+  // 10/hr × 1.0 × 3600s/3600 × 0.50 efficiency = 5 gold
+  assertEqual(income, 5, 'offline income for 1hr nag_horse');
+});
+
+test('WHEN 离线 > 24h THEN 最多结算 86400s', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  var income48h = ParkingManager.calcOfflineIncome(172800);
+  var income24h = ParkingManager.calcOfflineIncome(86400);
+  assertEqual(income48h, income24h, '48h should be capped same as 24h');
+});
+
+test('WHEN 停车场未建造 THEN calcOfflineIncome 返回 0', function () {
+  resetParkingManager({ parkingLevel: 0 });
+  var income = ParkingManager.calcOfflineIncome(3600);
+  assertEqual(income, 0);
+});
+
+// --- CAP-PKG-09: 出售载具 ---
+section('CAP-PKG-09: 出售载具');
+
+test('WHEN 出售未停入载具 THEN 50% 金币回收', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('fine_horse'); // costs 1000 gold
+  var state = ParkingManager.getState();
+  var uid = state.vehicles[0].uid;
+  var goldBefore = _resourceState.gold;
+  var result = ParkingManager.sellVehicle(uid);
+  assert(result, 'sell should succeed');
+  var goldAfter = _resourceState.gold;
+  assertEqual(goldAfter - goldBefore, 500, '50% gold refund of 1000');
+  state = ParkingManager.getState();
+  assertEqual(state.vehicles.length, 0, 'vehicle removed from list');
+});
+
+test('WHEN 出售已停入载具 THEN canSellVehicle 返回 false', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');
+  var uid = ParkingManager.getState().vehicles[0].uid;
+  ParkingManager.parkVehicle(uid, 0);
+  assert(!ParkingManager.canSellVehicle(uid), 'cannot sell parked vehicle');
+});
+
+test('WHEN 出售黄金跑车（纯玉石）THEN 30% 玉石回收', function () {
+  resetParkingManager({ parkingLevel: 5 });
+  ParkingManager.buyVehicle('golden_car'); // costs 500 jade
+  var state = ParkingManager.getState();
+  var uid = state.vehicles[0].uid;
+  var jadeBefore = _resourceState.jade;
+  ParkingManager.sellVehicle(uid);
+  var jadeAfter = _resourceState.jade;
+  assertEqual(jadeAfter - jadeBefore, 150, '30% jade refund of 500');
+});
+
+// --- §5.1 载具数据表 ---
+section('§5.1 载具数据表完整性');
+
+test('ParkingData 包含 10 种载具', function () {
+  var count = 0;
+  for (var k in ParkingData) {
+    if (ParkingData.hasOwnProperty(k)) count++;
+  }
+  assertEqual(count, 10, 'should have 10 vehicles');
+});
+
+test('载具 Tier 递增 1~10', function () {
+  var expected = ['nag_horse', 'fine_horse', 'swift_horse', 'red_hare', 'bicycle', 'motorcycle', 'sedan', 'sports_car', 'supercar', 'golden_car'];
+  for (var i = 0; i < expected.length; i++) {
+    assertEqual(ParkingData[expected[i]].tier, i + 1, expected[i] + ' tier');
+  }
+});
+
+test('INCOME_MULTIPLIERS 数据正确', function () {
+  assertEqual(INCOME_MULTIPLIERS[0], 0);
+  assertEqual(INCOME_MULTIPLIERS[1], 1.0);
+  assertEqual(INCOME_MULTIPLIERS[2], 1.1);
+  assertEqual(INCOME_MULTIPLIERS[3], 1.25);
+  assertEqual(INCOME_MULTIPLIERS[4], 1.40);
+  assertEqual(INCOME_MULTIPLIERS[5], 1.60);
+});
+
+test('PARKING_TIER_CAPS 数据正确', function () {
+  assertEqual(PARKING_TIER_CAPS[0], 0);
+  assertEqual(PARKING_TIER_CAPS[1], 4);
+  assertEqual(PARKING_TIER_CAPS[2], 5);
+  assertEqual(PARKING_TIER_CAPS[3], 7);
+  assertEqual(PARKING_TIER_CAPS[4], 8);
+  assertEqual(PARKING_TIER_CAPS[5], 10);
+});
+
+// --- §9.1 状态一致性 ---
+section('§9.1 状态一致性契约');
+
+test('WHEN slot vehicleId 不存在 THEN 重置为 empty', function () {
+  resetParkingManager({ parkingLevel: 1, savedParking: {
+    slots: [
+      { status: 'occupied', vehicleId: 'nonexistent' },
+      { status: 'empty', vehicleId: null }
+    ],
+    vehicles: [],
+    unlockedSlots: 2,
+    totalIncomeEarned: 0,
+    lastTickTime: null
+  }});
+  var state = ParkingManager.getState();
+  assertEqual(state.slots[0].status, 'empty', 'slot should be reset to empty');
+  assert(state.slots[0].vehicleId === null, 'vehicleId should be null');
+});
+
+test('WHEN vehicles.parkedAt 不一致 THEN 以 slots 为准修正', function () {
+  var uid = 'test-uid-123';
+  resetParkingManager({ parkingLevel: 1, savedParking: {
+    slots: [
+      { status: 'occupied', vehicleId: uid },
+      { status: 'empty', vehicleId: null }
+    ],
+    vehicles: [
+      { uid: uid, tierId: 'nag_horse', parkedAt: 5 } // wrong parkedAt
+    ],
+    unlockedSlots: 2,
+    totalIncomeEarned: 0,
+    lastTickTime: null
+  }});
+  var state = ParkingManager.getState();
+  assertEqual(state.vehicles[0].parkedAt, 0, 'parkedAt should be corrected to 0');
+});
+
+// --- §9.2 存档迁移 ---
+section('§9.2 存档迁移');
+
+test('WHEN saved.parking 为 undefined THEN 初始化空状态', function () {
+  resetMocks();
+  ParkingManager.init({});
+  var state = ParkingManager.getState();
+  assertEqual(state.slots.length, 0);
+  assertEqual(state.vehicles.length, 0);
+  assertEqual(state.unlockedSlots, 0);
+  assertEqual(state.totalIncomeEarned, 0);
+});
+
+// --- getIncomePerHour ---
+section('getIncomePerHour 查询 API');
+
+test('WHEN 2 辆不同载具停入 THEN 收入正确合计', function () {
+  resetParkingManager({ parkingLevel: 1 });
+  ParkingManager.buyVehicle('nag_horse');    // 10/hr
+  ParkingManager.buyVehicle('fine_horse');   // 30/hr
+  var state = ParkingManager.getState();
+  ParkingManager.parkVehicle(state.vehicles[0].uid, 0);
+  ParkingManager.parkVehicle(state.vehicles[1].uid, 1);
+  var income = ParkingManager.getIncomePerHour();
+  assertEqual(income, 40, '10+30=40 per hour at Lv1');
+});
+
+// ===== 汇总 =====
+var passCount = _results.filter(function(r) { return r.status === 'pass'; }).length;
+var failCount = _results.filter(function(r) { return r.status === 'fail'; }).length;
+var skipCount = _results.filter(function(r) { return r.status === 'skip'; }).length;
+var summaryEl = document.getElementById('summary');
+summaryEl.innerHTML = '<strong>结果：</strong> ' +
+  '<span class="pass">' + passCount + ' 通过</span> / ' +
+  '<span class="fail">' + failCount + ' 失败</span> / ' +
+  '<span class="skip">' + skipCount + ' 跳过</span> / ' +
+  '共 ' + _results.length + ' 个测试<br>' +
+  '<strong>规范覆盖：</strong> CAP-PKG-01~09 + §5.1 + §9.1 + §9.2 = 10/10 能力，' +
+  _results.length + ' 个场景';
+</script>
+</body>
+</html>

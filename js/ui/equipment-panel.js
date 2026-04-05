@@ -5,7 +5,7 @@ const EquipmentPanel = {
   _selectedEquip: null,
   _filter: 'all',
 
-  _qualityColors: { 1: '#aaaaaa', 2: '#4caf50', 3: '#2196f3', 4: '#9c27b0', 5: '#ff9800' },
+  _qualityColors: { 1: '#b0a898', 2: '#5d8a48', 3: '#4a7fb5', 4: '#8b5ea8', 5: '#d4a849' },
   _qualityNames: { 1: '白·普通', 2: '绿·精良', 3: '蓝·稀有', 4: '紫·史诗', 5: '橙·传说' },
   _slotNames: { weapon: '⚔武器', armor: '🛡防具', accessory: '💍饰品', mount: '🐴坐骑' },
   _statLabels: { atk: '⚔ATK', def: '🛡DEF', hp: '❤HP', spd: '💨SPD' },
@@ -63,9 +63,9 @@ const EquipmentPanel = {
     // --- Overflow alert ---
     var overflow = EquipmentManager.getOverflow();
     if (overflow.length > 0) {
-      html += '<div class="card" style="background:#f4433622;border:1px solid #f44336;">';
+      html += '<div class="card" style="background:rgba(179,58,58,0.12);border:1px solid #b33a3a;">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<span style="color:#f44336;font-size:0.85rem;">⚠️ 溢出栏有 ' + overflow.length + ' 件装备待领取</span>';
+      html += '<span style="color:#b33a3a;font-size:0.85rem;">⚠️ 溢出栏有 ' + overflow.length + ' 件装备待领取</span>';
       html += '<button class="btn equip-btn-claim" style="font-size:0.75rem;padding:4px 10px;">领取</button>';
       html += '</div>';
       html += '</div>';

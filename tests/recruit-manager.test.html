@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>RecruitManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>RecruitManager 规范测试</h1>
+<pre>规范引用：specs/services/recruit-manager.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+<script src="../js/data/heroes.js"></script>
+<script src="../js/modules/recruit-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/recruit-manager.md
+ * 执行计划：specs/exec-plans/recruit-manager.md (T3.1-T3.5)
+ *
+ * 测试策略：mock Math.random() + MockResourceManager + MockHeroManager
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function skip(name, reason) {
+  _results.push({ section: _currentSection, name: name, status: 'skip', error: null });
+  var el = document.createElement('div');
+  el.className = 'skip';
+  el.textContent = '  ⊘ ' + name + (reason ? ' (' + reason + ')' : '');
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== Mock 依赖 =====
+
+var _originalRandom = Math.random;
+
+function mockRandom(value) {
+  Math.random = function() { return value; };
+}
+
+function restoreRandom() {
+  Math.random = _originalRandom;
+}
+
+// Mock EventBus — 拦截 emit，记录调用
+var _emitted = [];
+var _origEmit = EventBus.emit;
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+// Mock ResourceManager
+var ResourceManager = {
+  _canAfford: true,
+  _spendCalls: [],
+  canAfford: function(type, amount) { return this._canAfford; },
+  spend: function(type, amount) { this._spendCalls.push({ type: type, amount: amount }); },
+  reset: function() {
+    this._canAfford = true;
+    this._spendCalls = [];
+  }
+};
+
+// Mock HeroManager
+var HeroManager = {
+  _addHeroCalls: [],
+  _returnValue: { id: 'mock_hero', uid: 'uid_1' }, // non-null = new hero
+  addHero: function(heroId) {
+    this._addHeroCalls.push(heroId);
+    return this._returnValue;
+  },
+  reset: function() {
+    this._addHeroCalls = [];
+    this._returnValue = { id: 'mock_hero', uid: 'uid_1' };
+  }
+};
+
+// ===== 测试辅助 =====
+
+function resetAll() {
+  _emitted = [];
+  ResourceManager.reset();
+  HeroManager.reset();
+  restoreRandom();
+  // Re-init RecruitManager with fresh default state
+  RecruitManager._state = {
+    pity: { rare: 0, epic: 0, legendary: 0 },
+    totalRecruits: 0,
+    freeRecruitUsed: false
+  };
+}
+
+// ===== 能力 1：单次招募 =====
+
+section('能力 1：单次招募');
+
+test('单抽-资源足够-正常流程', function() {
+  // WHEN recruitSingle() AND canAfford true
+  // THEN spend called, result returned, recruit:result emitted
+  resetAll();
+  mockRandom(0.5); // roll=50 → quality 2 (green)
+  var result = RecruitManager.recruitSingle();
+  assert(result !== null, 'should return result');
+  assertEqual(result.quality, 2, 'quality');
+  assert(typeof result.heroId === 'string', 'heroId is string');
+  // spend was called with jade, 100
+  assertEqual(ResourceManager._spendCalls.length, 1, 'spend called once');
+  assertEqual(ResourceManager._spendCalls[0].type, 'jade', 'spend type');
+  assertEqual(ResourceManager._spendCalls[0].amount, 100, 'spend amount');
+  // HeroManager.addHero called
+  assertEqual(HeroManager._addHeroCalls.length, 1, 'addHero called once');
+  // recruit:result emitted
+  var events = getEmitted('recruit:result');
+  assertEqual(events.length, 1, 'recruit:result emitted once');
+  var payload = events[0].args[0];
+  assertEqual(payload.results.length, 1, 'results has 1 item');
+  assertEqual(payload.results[0].quality, 2, 'result quality');
+  assertEqual(payload.results[0].heroId, result.heroId, 'result heroId matches');
+  assertEqual(payload.results[0].isNew, true, 'isNew true when addHero returns non-null');
+  assert(payload.pity !== undefined, 'pity in payload');
+});
+
+test('单抽-资源不足-返回null', function() {
+  // WHEN recruitSingle() AND canAfford false
+  // THEN toast:show warning, return null, no spend
+  resetAll();
+  ResourceManager._canAfford = false;
+  var result = RecruitManager.recruitSingle();
+  assertEqual(result, null, 'should return null');
+  assertEqual(ResourceManager._spendCalls.length, 0, 'spend not called');
+  assertEqual(HeroManager._addHeroCalls.length, 0, 'addHero not called');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'toast emitted');
+  assertEqual(toasts[0].args[0].type, 'warning', 'toast type');
+  assertEqual(toasts[0].args[0].message, '玉璧不足！需要💎×100', 'toast message');
+  var recruits = getEmitted('recruit:result');
+  assertEqual(recruits.length, 0, 'no recruit:result emitted');
+});
+
+test('单抽-isNew为false当addHero返回null（重复武将）', function() {
+  // WHEN addHero returns null (duplicate hero)
+  // THEN isNew = false in result
+  resetAll();
+  mockRandom(0.5);
+  HeroManager._returnValue = null; // duplicate
+  var result = RecruitManager.recruitSingle();
+  assert(result !== null, 'should return result');
+  var events = getEmitted('recruit:result');
+  assertEqual(events[0].args[0].results[0].isNew, false, 'isNew false');
+});
+
+test('单抽-结果包含template字段', function() {
+  // WHEN recruitSingle succeeds
+  // THEN result contains template from HeroData
+  resetAll();
+  mockRandom(0.5); // quality 2, pool has wei_xunyu, wu_taishici
+  // Fix random to get deterministic hero
+  var result = RecruitManager.recruitSingle();
+  var events = getEmitted('recruit:result');
+  var item = events[0].args[0].results[0];
+  assert(item.template !== undefined, 'template exists');
+  assertEqual(item.template.id, item.heroId, 'template.id matches heroId');
+});
+
+test('单抽-池为空-降级到白色', function() {
+  // WHEN quality determined but pool is empty/missing
+  // THEN fallback to HeroPoolByQuality[1], quality becomes 1
+  resetAll();
+  // Temporarily make quality 2 pool empty
+  var origPool2 = HeroPoolByQuality[2];
+  HeroPoolByQuality[2] = [];
+  mockRandom(0.5); // roll=50 → would be quality 2
+  var result = RecruitManager.recruitSingle();
+  HeroPoolByQuality[2] = origPool2; // restore
+  assertEqual(result.quality, 1, 'quality downgraded to 1');
+  assert(HeroPoolByQuality[1].indexOf(result.heroId) >= 0, 'heroId from white pool');
+});
+
+// ===== 能力 2：十连招募 =====
+
+section('能力 2：十连招募');
+
+test('十连-正常流程-10条结果', function() {
+  // WHEN recruitTen() AND canAfford true
+  // THEN spend 900, 10 results, single recruit:result event
+  resetAll();
+  mockRandom(0.5);
+  var results = RecruitManager.recruitTen();
+  assert(results !== null, 'should return results');
+  assertEqual(results.length, 10, '10 results');
+  // spend called once with 900
+  assertEqual(ResourceManager._spendCalls.length, 1, 'spend called once');
+  assertEqual(ResourceManager._spendCalls[0].amount, 900, 'spend amount 900');
+  // addHero called 10 times
+  assertEqual(HeroManager._addHeroCalls.length, 10, 'addHero called 10 times');
+  // Single recruit:result event
+  var events = getEmitted('recruit:result');
+  assertEqual(events.length, 1, 'recruit:result emitted once');
+  assertEqual(events[0].args[0].results.length, 10, 'event has 10 results');
+});
+
+test('十连-资源不足-返回null', function() {
+  // WHEN recruitTen() AND canAfford false
+  // THEN toast warning, return null
+  resetAll();
+  ResourceManager._canAfford = false;
+  var results = RecruitManager.recruitTen();
+  assertEqual(results, null, 'should return null');
+  assertEqual(ResourceManager._spendCalls.length, 0, 'spend not called');
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, 'toast emitted');
+  assertEqual(toasts[0].args[0].message, '玉璧不足！需要💎×900', 'toast message');
+});
+
+test('十连-保底中段触发-计数器重置后继续累加', function() {
+  // WHEN 十连, epic pity starts at 28
+  // THEN by the 2nd pull (pity.epic=29+1=30→reset) epic pity triggers,
+  //      then subsequent pulls continue from reset state
+  resetAll();
+  RecruitManager._state.pity.epic = 28;
+  mockRandom(0.7); // roll=70 → quality 1 (white) without pity
+
+  var results = RecruitManager.recruitTen();
+  assert(results !== null, 'results exist');
+  assertEqual(results.length, 10, '10 results');
+
+  // The 2nd pull should have triggered epic pity (counter was 28, +1=29 at pull 1, then at pull 2 check: 29>=29 → epic)
+  // Actually: before pull 1, epic=28. _determineQuality checks >=29, so epic=28 < 29, no pity.
+  // After pull 1 _updatePity: epic becomes 29 (28+1). Quality 1, no reset.
+  // Before pull 2: epic=29. _determineQuality: 29>=29 → returns 4 (purple pity).
+  // After pull 2 _updatePity(4): epic becomes 30, then reset to 0.
+  assertEqual(results[1].quality, 4, '2nd pull triggers epic pity');
+
+  // After reset, remaining pulls (3-10) should NOT trigger epic pity
+  // Final epic pity should be: 0 + 8 increments = 8
+  var finalPity = RecruitManager.getPity();
+  assertEqual(finalPity.epic, 8, 'epic pity = 8 after reset + 8 more pulls');
+});
+
+test('十连-每次抽取独立计算保底', function() {
+  // WHEN ten-pull with rare pity at 8
+  // THEN 2nd pull triggers rare pity, resets, next rare pity triggers 10 pulls later
+  resetAll();
+  RecruitManager._state.pity.rare = 8;
+  mockRandom(0.7); // quality 1 normally
+
+  var results = RecruitManager.recruitTen();
+  // Pull 1: rare=8, no pity(8<9). _updatePity(1): rare→9
+  // Pull 2: rare=9 >=9 → quality 3. _updatePity(3): rare→10→reset 0
+  // Pulls 3-10: rare increments 1-8, no further rare pity
+  assertEqual(results[1].quality, 3, '2nd pull triggers rare pity');
+});
+
+// ===== 能力 3：免费招募 =====
+
+section('能力 3：免费招募');
+
+test('免费招募-首次-保证蓝色+', function() {
+  // WHEN freeRecruit() AND freeRecruitUsed false
+  // THEN freeRecruitUsed set true, pity.rare set to 9, quality >= 3
+  resetAll();
+  mockRandom(0.7); // roll=70 → would be quality 1, but pity.rare=9 forces blue
+  var result = RecruitManager.freeRecruit();
+  assert(result !== null, 'should return result');
+  assert(result.quality >= 3, 'quality should be >= 3 (blue+)');
+  // No jade spend
+  assertEqual(ResourceManager._spendCalls.length, 0, 'no spend');
+  // addHero called
+  assertEqual(HeroManager._addHeroCalls.length, 1, 'addHero called');
+  // recruit:result emitted
+  var events = getEmitted('recruit:result');
+  assertEqual(events.length, 1, 'recruit:result emitted');
+  // freeRecruitUsed flipped
+  assertEqual(RecruitManager.isFreeRecruitAvailable(), false, 'free recruit now unavailable');
+});
+
+test('免费招募-已使用-返回null无事件', function() {
+  // WHEN freeRecruit() AND freeRecruitUsed true
+  // THEN return null, no events, no state changes
+  resetAll();
+  RecruitManager._state.freeRecruitUsed = true;
+  var pityBefore = RecruitManager.getPity();
+  var result = RecruitManager.freeRecruit();
+  assertEqual(result, null, 'should return null');
+  assertEqual(_emitted.length, 0, 'no events emitted');
+  assertEqual(HeroManager._addHeroCalls.length, 0, 'addHero not called');
+  assertDeepEqual(RecruitManager.getPity(), pityBefore, 'pity unchanged');
+});
+
+test('免费招募-随机更高品质', function() {
+  // WHEN freeRecruit AND random roll happens to hit legendary
+  // THEN returns higher quality, not capped at blue
+  resetAll();
+  mockRandom(0.01); // roll=1 < 3 → legendary by probability
+  // But pity.rare is set to 9 first. _determineQuality checks legendary first (pity.legendary=0 < 79),
+  // then epic (0 < 29), then rare (9 >= 9) → returns 3 (blue).
+  // Wait — pity.rare=9 will trigger blue pity BEFORE the probability roll.
+  // To get higher quality, we need legendary/epic pity to also be triggered, OR we need to
+  // verify that if a higher pity triggers first, it returns that.
+
+  // Actually with pity.rare=9 set, _determineQuality will:
+  // 1. Check legendary >= 79? No (0). 2. Check epic >= 29? No (0). 3. Check rare >= 9? Yes → return 3.
+  // So with pity.rare=9, it always returns at least blue. To get higher, we need epic/legendary pity too.
+
+  // Let's test: set pity so that epic pity also triggers
+  RecruitManager._state.pity.epic = 29;
+  var result = RecruitManager.freeRecruit();
+  assert(result !== null, 'should return result');
+  assertEqual(result.quality, 4, 'quality should be 4 (purple) from epic pity');
+});
+
+test('免费招募-不消耗玉璧', function() {
+  // WHEN freeRecruit() succeeds
+  // THEN ResourceManager.spend is never called
+  resetAll();
+  mockRandom(0.5);
+  RecruitManager.freeRecruit();
+  assertEqual(ResourceManager._spendCalls.length, 0, 'no spend calls');
+});
+
+// ===== 能力 4：品质判定 =====
+
+section('能力 4：品质判定（_determineQuality）');
+
+test('品质判定-橙色保底触发(pity.legendary=79)', function() {
+  // WHEN pity.legendary = 79
+  // THEN returns 5
+  resetAll();
+  RecruitManager._state.pity.legendary = 79;
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 5, 'should return 5 (legendary pity)');
+});
+
+test('品质判定-橙色保底不需要Math.random', function() {
+  // WHEN pity.legendary = 79
+  // THEN Math.random is NOT called
+  resetAll();
+  RecruitManager._state.pity.legendary = 79;
+  var randomCalled = false;
+  Math.random = function() { randomCalled = true; return 0.5; };
+  RecruitManager._determineQuality();
+  restoreRandom();
+  assertEqual(randomCalled, false, 'Math.random should not be called');
+});
+
+test('品质判定-紫色保底触发(pity.epic=29,legendary<79)', function() {
+  // WHEN pity.legendary = 78, pity.epic = 29
+  // THEN returns 4
+  resetAll();
+  RecruitManager._state.pity.legendary = 78;
+  RecruitManager._state.pity.epic = 29;
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 4, 'should return 4 (epic pity)');
+});
+
+test('品质判定-蓝色保底触发(pity.rare=9,epic<29,legendary<79)', function() {
+  // WHEN pity.rare = 9, epic = 28, legendary = 78
+  // THEN returns 3
+  resetAll();
+  RecruitManager._state.pity.legendary = 78;
+  RecruitManager._state.pity.epic = 28;
+  RecruitManager._state.pity.rare = 9;
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 3, 'should return 3 (rare pity)');
+});
+
+test('品质判定-保底优先级:橙>紫>蓝', function() {
+  // WHEN all pity thresholds met simultaneously
+  // THEN returns 5 (legendary takes priority)
+  resetAll();
+  RecruitManager._state.pity.legendary = 79;
+  RecruitManager._state.pity.epic = 29;
+  RecruitManager._state.pity.rare = 9;
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 5, 'legendary pity has highest priority');
+});
+
+test('品质判定-无保底-概率命中橙色(roll<3)', function() {
+  // WHEN no pity, Math.random()*100 = 2.5
+  // THEN returns 5
+  resetAll();
+  mockRandom(0.025); // 0.025 * 100 = 2.5
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 5, 'should return 5 (legendary by probability)');
+});
+
+test('品质判定-无保底-概率命中紫色(3<=roll<12)', function() {
+  // WHEN no pity, Math.random()*100 = 5
+  // THEN returns 4
+  resetAll();
+  mockRandom(0.05); // 0.05 * 100 = 5
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 4, 'should return 4 (epic by probability)');
+});
+
+test('品质判定-无保底-概率命中蓝色(12<=roll<30)', function() {
+  // WHEN no pity, Math.random()*100 = 20
+  // THEN returns 3
+  resetAll();
+  mockRandom(0.20); // 0.20 * 100 = 20
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 3, 'should return 3 (rare by probability)');
+});
+
+test('品质判定-无保底-概率命中绿色(30<=roll<60)', function() {
+  // WHEN no pity, Math.random()*100 = 45
+  // THEN returns 2
+  resetAll();
+  mockRandom(0.45); // 0.45 * 100 = 45
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 2, 'should return 2 (uncommon by probability)');
+});
+
+test('品质判定-无保底-概率命中白色(roll>=60)', function() {
+  // WHEN no pity, Math.random()*100 = 75
+  // THEN returns 1
+  resetAll();
+  mockRandom(0.75); // 0.75 * 100 = 75
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 1, 'should return 1 (common by probability)');
+});
+
+test('品质判定-概率边界:roll刚过3进入紫色区间', function() {
+  // WHEN roll just above 3 (in [3, 12) range)
+  // THEN returns 4
+  resetAll();
+  mockRandom(0.035); // 0.035 * 100 = 3.5
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 4, 'roll=3.5 should return 4 (epic)');
+});
+
+test('品质判定-概率边界:roll刚过12进入蓝色区间', function() {
+  // WHEN roll just above 12 (in [12, 30) range)
+  // THEN returns 3
+  resetAll();
+  mockRandom(0.125); // 0.125 * 100 = 12.5
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 3, 'roll=12.5 should return 3 (rare)');
+});
+
+test('品质判定-概率边界:roll刚过30进入绿色区间', function() {
+  // WHEN roll just above 30 (in [30, 60) range)
+  // THEN returns 2
+  resetAll();
+  mockRandom(0.305); // 0.305 * 100 = 30.5
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 2, 'roll=30.5 should return 2 (uncommon)');
+});
+
+test('品质判定-概率边界:roll刚过60进入白色区间', function() {
+  // WHEN roll just above 60 (in [60, 100) range)
+  // THEN returns 1
+  resetAll();
+  mockRandom(0.605); // 0.605 * 100 = 60.5
+  var q = RecruitManager._determineQuality();
+  assertEqual(q, 1, 'roll=60.5 should return 1 (common)');
+});
+
+// ===== 能力 5：保底计数更新 =====
+
+section('能力 5：保底计数更新（_updatePity）');
+
+test('保底更新-白色品质-无重置', function() {
+  // WHEN _updatePity(1)
+  // THEN all counters +1, no reset, totalRecruits +1
+  resetAll();
+  RecruitManager._state.pity = { rare: 5, epic: 10, legendary: 30 };
+  RecruitManager._state.totalRecruits = 10;
+  RecruitManager._updatePity(1);
+  assertEqual(RecruitManager._state.pity.rare, 6, 'rare +1');
+  assertEqual(RecruitManager._state.pity.epic, 11, 'epic +1');
+  assertEqual(RecruitManager._state.pity.legendary, 31, 'legendary +1');
+  assertEqual(RecruitManager._state.totalRecruits, 11, 'totalRecruits +1');
+});
+
+test('保底更新-绿色品质-无重置', function() {
+  // WHEN _updatePity(2)
+  // THEN all counters +1, no reset
+  resetAll();
+  RecruitManager._state.pity = { rare: 3, epic: 7, legendary: 20 };
+  RecruitManager._updatePity(2);
+  assertEqual(RecruitManager._state.pity.rare, 4, 'rare +1');
+  assertEqual(RecruitManager._state.pity.epic, 8, 'epic +1');
+  assertEqual(RecruitManager._state.pity.legendary, 21, 'legendary +1');
+});
+
+test('保底更新-蓝色品质-重置rare', function() {
+  // WHEN _updatePity(3)
+  // THEN rare: +1 then reset to 0, epic: +1, legendary: +1
+  resetAll();
+  RecruitManager._state.pity = { rare: 5, epic: 20, legendary: 50 };
+  RecruitManager._updatePity(3);
+  assertEqual(RecruitManager._state.pity.rare, 0, 'rare reset to 0');
+  assertEqual(RecruitManager._state.pity.epic, 21, 'epic +1 no reset');
+  assertEqual(RecruitManager._state.pity.legendary, 51, 'legendary +1 no reset');
+});
+
+test('保底更新-紫色品质-重置rare和epic', function() {
+  // WHEN _updatePity(4)
+  // THEN rare and epic: +1 then reset to 0, legendary: +1
+  resetAll();
+  RecruitManager._state.pity = { rare: 5, epic: 20, legendary: 50 };
+  RecruitManager._updatePity(4);
+  assertEqual(RecruitManager._state.pity.rare, 0, 'rare reset to 0');
+  assertEqual(RecruitManager._state.pity.epic, 0, 'epic reset to 0');
+  assertEqual(RecruitManager._state.pity.legendary, 51, 'legendary +1 no reset');
+});
+
+test('保底更新-橙色品质-全部重置', function() {
+  // WHEN _updatePity(5)
+  // THEN all three: +1 then reset to 0
+  resetAll();
+  RecruitManager._state.pity = { rare: 5, epic: 20, legendary: 50 };
+  RecruitManager._updatePity(5);
+  assertEqual(RecruitManager._state.pity.rare, 0, 'rare reset to 0');
+  assertEqual(RecruitManager._state.pity.epic, 0, 'epic reset to 0');
+  assertEqual(RecruitManager._state.pity.legendary, 0, 'legendary reset to 0');
+});
+
+test('保底更新-数值计算验证(规范示例)', function() {
+  // WHEN pity = { rare: 5, epic: 20, legendary: 50 } AND _updatePity(3)
+  // THEN pity = { rare: 0, epic: 21, legendary: 51 }
+  resetAll();
+  RecruitManager._state.pity = { rare: 5, epic: 20, legendary: 50 };
+  RecruitManager._updatePity(3);
+  assertDeepEqual(RecruitManager._state.pity, { rare: 0, epic: 21, legendary: 51 }, 'exact spec example');
+});
+
+test('保底更新-totalRecruits每次递增', function() {
+  // WHEN _updatePity called multiple times
+  // THEN totalRecruits increments each time
+  resetAll();
+  RecruitManager._state.totalRecruits = 0;
+  RecruitManager._updatePity(1);
+  RecruitManager._updatePity(3);
+  RecruitManager._updatePity(5);
+  assertEqual(RecruitManager._state.totalRecruits, 3, 'totalRecruits = 3 after 3 calls');
+});
+
+// ===== 能力 6：查询接口 =====
+
+section('能力 6：查询接口');
+
+test('查询-getPity返回浅拷贝-修改不影响内部', function() {
+  // WHEN getPity()
+  // THEN returns copy; modifying it does not affect internal state
+  resetAll();
+  RecruitManager._state.pity = { rare: 5, epic: 10, legendary: 30 };
+  var p = RecruitManager.getPity();
+  assertEqual(p.rare, 5, 'rare value');
+  assertEqual(p.epic, 10, 'epic value');
+  assertEqual(p.legendary, 30, 'legendary value');
+  // Mutate returned object
+  p.rare = 999;
+  p.epic = 999;
+  p.legendary = 999;
+  // Verify internal state unchanged
+  var p2 = RecruitManager.getPity();
+  assertEqual(p2.rare, 5, 'rare unchanged after mutation');
+  assertEqual(p2.epic, 10, 'epic unchanged after mutation');
+  assertEqual(p2.legendary, 30, 'legendary unchanged after mutation');
+});
+
+test('查询-getTotalRecruits正确值', function() {
+  // WHEN totalRecruits = 42
+  // THEN getTotalRecruits() returns 42
+  resetAll();
+  RecruitManager._state.totalRecruits = 42;
+  assertEqual(RecruitManager.getTotalRecruits(), 42, 'should return 42');
+});
+
+test('查询-isFreeRecruitAvailable-未使用返回true', function() {
+  // WHEN freeRecruitUsed = false
+  // THEN isFreeRecruitAvailable() returns true
+  resetAll();
+  RecruitManager._state.freeRecruitUsed = false;
+  assertEqual(RecruitManager.isFreeRecruitAvailable(), true, 'should be true');
+});
+
+test('查询-isFreeRecruitAvailable-已使用返回false', function() {
+  // WHEN freeRecruitUsed = true
+  // THEN isFreeRecruitAvailable() returns false
+  resetAll();
+  RecruitManager._state.freeRecruitUsed = true;
+  assertEqual(RecruitManager.isFreeRecruitAvailable(), false, 'should be false');
+});
+
+// ===== 能力 7：初始化与存档 =====
+
+section('能力 7：初始化与存档');
+
+test('初始化-新游戏默认状态', function() {
+  // WHEN init(undefined)
+  // THEN state has defaults
+  resetAll();
+  RecruitManager.init(undefined);
+  var p = RecruitManager.getPity();
+  assertEqual(p.rare, 0, 'pity.rare = 0');
+  assertEqual(p.epic, 0, 'pity.epic = 0');
+  assertEqual(p.legendary, 0, 'pity.legendary = 0');
+  assertEqual(RecruitManager.getTotalRecruits(), 0, 'totalRecruits = 0');
+  assertEqual(RecruitManager.isFreeRecruitAvailable(), true, 'freeRecruit available');
+});
+
+test('初始化-新格式saved.recruit', function() {
+  // WHEN init({ recruit: { pity: {...}, totalRecruits: 42, freeRecruitUsed: true } })
+  // THEN state restored from saved.recruit
+  resetAll();
+  RecruitManager.init({
+    recruit: {
+      pity: { rare: 5, epic: 10, legendary: 30 },
+      totalRecruits: 42,
+      freeRecruitUsed: true
+    }
+  });
+  var p = RecruitManager.getPity();
+  assertEqual(p.rare, 5, 'pity.rare');
+  assertEqual(p.epic, 10, 'pity.epic');
+  assertEqual(p.legendary, 30, 'pity.legendary');
+  assertEqual(RecruitManager.getTotalRecruits(), 42, 'totalRecruits');
+  assertEqual(RecruitManager.isFreeRecruitAvailable(), false, 'freeRecruit used');
+});
+
+test('初始化-旧格式saved.pity兼容', function() {
+  // WHEN init({ pity: {...}, totalRecruits: 20, freeRecruitUsed: false })
+  // (old format without recruit wrapper)
+  // THEN state restored directly
+  resetAll();
+  RecruitManager.init({
+    pity: { rare: 3, epic: 7, legendary: 15 },
+    totalRecruits: 20,
+    freeRecruitUsed: false
+  });
+  var p = RecruitManager.getPity();
+  assertEqual(p.rare, 3, 'pity.rare');
+  assertEqual(p.epic, 7, 'pity.epic');
+  assertEqual(p.legendary, 15, 'pity.legendary');
+  assertEqual(RecruitManager.getTotalRecruits(), 20, 'totalRecruits');
+  assertEqual(RecruitManager.isFreeRecruitAvailable(), true, 'freeRecruit available');
+});
+
+test('存档-getState返回深拷贝-修改不影响内部', function() {
+  // WHEN getState()
+  // THEN returned object is deep copy; mutation does not affect internal
+  resetAll();
+  RecruitManager._state.pity = { rare: 5, epic: 10, legendary: 30 };
+  RecruitManager._state.totalRecruits = 42;
+  RecruitManager._state.freeRecruitUsed = true;
+  var state = RecruitManager.getState();
+  // Verify values
+  assertEqual(state.pity.rare, 5, 'pity.rare');
+  assertEqual(state.totalRecruits, 42, 'totalRecruits');
+  assertEqual(state.freeRecruitUsed, true, 'freeRecruitUsed');
+  // Mutate returned state
+  state.pity.rare = 999;
+  state.totalRecruits = 999;
+  state.freeRecruitUsed = false;
+  // Verify internal unchanged
+  assertEqual(RecruitManager._state.pity.rare, 5, 'internal pity.rare unchanged');
+  assertEqual(RecruitManager._state.totalRecruits, 42, 'internal totalRecruits unchanged');
+  assertEqual(RecruitManager._state.freeRecruitUsed, true, 'internal freeRecruitUsed unchanged');
+});
+
+test('存档-getState包含完整状态结构', function() {
+  // WHEN getState()
+  // THEN contains pity, totalRecruits, freeRecruitUsed
+  resetAll();
+  var state = RecruitManager.getState();
+  assert(state.pity !== undefined, 'has pity');
+  assert(state.pity.rare !== undefined, 'has pity.rare');
+  assert(state.pity.epic !== undefined, 'has pity.epic');
+  assert(state.pity.legendary !== undefined, 'has pity.legendary');
+  assert(state.totalRecruits !== undefined, 'has totalRecruits');
+  assert(state.freeRecruitUsed !== undefined, 'has freeRecruitUsed');
+});
+
+// ===== 汇总 =====
+
+restoreRandom();
+
+(function showSummary() {
+  var total = _results.length;
+  var passed = _results.filter(function(r) { return r.status === 'pass'; }).length;
+  var failed = _results.filter(function(r) { return r.status === 'fail'; }).length;
+  var skipped = _results.filter(function(r) { return r.status === 'skip'; }).length;
+  var el = document.getElementById('summary');
+  el.innerHTML = '<strong>汇总</strong>：' + total + ' 个测试，' +
+    '<span class="pass">' + passed + ' 通过</span>，' +
+    '<span class="fail">' + failed + ' 失败</span>，' +
+    '<span class="skip">' + skipped + ' 跳过</span>';
+  document.title = (failed ? '❌' : '✅') + ' RecruitManager 测试 (' + passed + '/' + total + ')';
+})();
+</script>
+</body>
+</html>

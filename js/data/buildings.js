@@ -480,6 +480,113 @@ const BuildingData = {
     effects: function (lv) {
       return { productionBoost: 0.05 * lv, boostTarget: '铁矿场' };
     }
+  },
+
+  // ===== 种菜系统建筑 =====
+  vegetable_garden: {
+    id: 'vegetable_garden',
+    name: '菜园',
+    emoji: '🥬',
+    category: 'production',
+    description: '种植蔬菜和药材，收获资源',
+    requires: { farmland: 3 },
+    maxLevel: 10,
+    unlockOrder: 20,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(300 * Math.pow(1.7, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.7, lv - 1)),
+        stone: Math.floor(60 * Math.pow(1.7, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      var data = (typeof GardenLevelData !== 'undefined' && GardenLevelData[lv])
+        ? GardenLevelData[lv]
+        : { plots: lv + 1, qualityUnlock: Math.min(5, Math.ceil(lv / 2)), speedBonus: 0.05 * lv, doubleChance: Math.min(0.20, 0.02 * lv) };
+      return {
+        plots: data.plots,
+        qualityUnlock: data.qualityUnlock,
+        speedBonus: data.speedBonus,
+        doubleHarvestChance: data.doubleChance
+      };
+    }
+  },
+
+  compost_pit: {
+    id: 'compost_pit',
+    name: '堆肥坑',
+    emoji: '♻️',
+    category: 'production',
+    description: '消耗低品级作物制作肥料，提升产出',
+    requires: { vegetable_garden: 3 },
+    maxLevel: 5,
+    unlockOrder: 21,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(400 * Math.pow(1.8, lv - 1)),
+        wood:  Math.floor(120 * Math.pow(1.8, lv - 1)),
+        stone: Math.floor(80 * Math.pow(1.8, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return {
+        fertilizerYieldBonus: 0.05 * lv,
+        maxFertilizer: 10 + 5 * lv
+      };
+    }
+  },
+
+  seed_shop: {
+    id: 'seed_shop',
+    name: '种子铺',
+    emoji: '🌱',
+    category: 'functional',
+    description: '购买和解锁更高品级种子',
+    requires: { vegetable_garden: 1 },
+    maxLevel: 5,
+    unlockOrder: 22,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(350 * Math.pow(1.8, lv - 1)),
+        wood:  Math.floor(80 * Math.pow(1.8, lv - 1)),
+        stone: Math.floor(50 * Math.pow(1.8, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      return {
+        maxSeedQuality: lv,
+        seedDiscount: 0.05 * (lv - 1),
+        synthUnlocked: lv >= 2
+      };
+    }
+  },
+
+  // ===== 停车场系统建筑 =====
+  parking_lot: {
+    id: 'parking_lot',
+    name: '停车场',
+    emoji: '🅿️',
+    category: 'functional',
+    description: '停放载具收取停车费，被动产出金币',
+    requires: { town_hall: 4, stable: 1 },
+    maxLevel: 5,
+    unlockOrder: 23,
+    costFormula: function (lv) {
+      return {
+        gold:  Math.floor(2000 * Math.pow(2, lv - 1)),
+        wood:  Math.floor(500 * Math.pow(2, lv - 1)),
+        stone: Math.floor(500 * Math.pow(2, lv - 1)),
+        iron:  Math.floor(200 * Math.pow(2, lv - 1))
+      };
+    },
+    effects: function (lv) {
+      var multipliers = [0, 1.0, 1.1, 1.25, 1.40, 1.60];
+      var tierCaps = [0, 4, 5, 7, 8, 10];
+      return {
+        incomeMultiplier: multipliers[lv] || 1.0,
+        maxVehicleTier: tierCaps[lv] || 4
+      };
+    }
   }
 };
 

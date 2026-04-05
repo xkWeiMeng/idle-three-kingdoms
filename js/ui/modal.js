@@ -11,21 +11,24 @@ const Modal = {
   show({ title, content, confirmText = '确认', cancelText = '取消', onConfirm, onCancel, showCancel = true }) {
     const modal = document.createElement('div');
     modal.style.cssText = `
-      background: #16213e;
-      border: 1px solid #0f3460;
-      border-radius: 12px;
+      background: #2a2018;
+      border: 2px solid #4a3728;
+      border-radius: 4px;
       padding: 20px;
       max-width: 320px;
       width: 85%;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+      position: relative;
     `;
 
     modal.innerHTML = `
-      <h3 style="color:#f5c518;margin:0 0 12px;font-size:0.95rem;">${title}</h3>
-      <div style="color:#eee;font-size:0.78rem;margin-bottom:16px;line-height:1.5;">${content}</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
-        ${showCancel ? `<button class="modal-cancel" style="padding:6px 16px;border-radius:4px;border:1px solid #0f3460;background:#0d1b2a;color:#999;cursor:pointer;font-size:0.75rem;">${cancelText}</button>` : ''}
-        <button class="modal-confirm" style="padding:6px 16px;border-radius:4px;border:none;background:#e94560;color:#fff;cursor:pointer;font-size:0.75rem;">${confirmText}</button>
+      <div style="position:absolute;top:-1px;left:-1px;width:14px;height:14px;border-top:2px solid #d4a849;border-left:2px solid #d4a849;opacity:0.5;pointer-events:none;"></div>
+      <div style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-bottom:2px solid #d4a849;border-right:2px solid #d4a849;opacity:0.5;pointer-events:none;"></div>
+      <h3 style="color:#d4a849;margin:0 0 12px;font-size:0.95rem;font-family:'STZhongsong','SimSun','Noto Serif SC',serif;">${title}</h3>
+      <div style="color:#e8dcc8;font-size:0.78rem;margin-bottom:16px;line-height:1.5;">${content}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #4a3728;padding-top:12px;">
+        ${showCancel ? `<button class="modal-cancel" style="padding:6px 16px;border-radius:2px;border:1px solid #4a3728;background:#120e0a;color:#a09080;cursor:pointer;font-size:0.75rem;">${cancelText}</button>` : ''}
+        <button class="modal-confirm" style="padding:6px 16px;border-radius:2px;border:1px solid rgba(232,81,58,0.4);background:linear-gradient(180deg,#d4392b,#a02820);color:#fff;cursor:pointer;font-size:0.75rem;text-shadow:0 1px 2px rgba(0,0,0,0.4);">${confirmText}</button>
       </div>
     `;
 
