@@ -1,18 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-<rect x="8" y="100" width="112" height="20" fill="#5D4037"/>
-<polygon points="20,100 64,24 108,100" fill="#616161"/>
-<polygon points="28,100 64,32 100,100" fill="#757575"/>
-<path d="M44,100 Q44,68 64,66 Q84,68 84,100 Z" fill="#263238"/>
-<path d="M48,100 Q48,72 64,70 Q80,72 80,100 Z" fill="#1a1a2e"/>
-<rect x="54" y="102" width="20" height="10" rx="2" fill="#78909C"/>
-<rect x="56" y="98" width="16" height="6" fill="#607D8B"/>
-<circle cx="62" cy="98" r="3" fill="#37474F"/>
-<circle cx="68" cy="97" r="2.5" fill="#455A64"/>
-<rect x="46" y="68" width="4" height="32" fill="#6D4C41"/>
-<rect x="78" y="68" width="4" height="32" fill="#6D4C41"/>
-<rect x="46" y="68" width="36" height="4" fill="#795548"/>
-<rect x="62" y="72" width="4" height="6" fill="#F5C518"/>
-<circle cx="64" cy="76" r="4" fill="#FFF176" opacity="0.4"/>
-<circle cx="36" cy="72" r="3" fill="#455A64"/>
-<circle cx="88" cy="68" r="2.5" fill="#546E7A"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<ellipse cx="48" cy="94" rx="40" ry="5" fill="rgba(0,0,0,0.18)"/>
+<!-- 矿山 -->
+<polygon points="14,80 48,18 82,80" fill="#616161"/>
+<polygon points="20,80 48,26 76,80" fill="#757575"/>
+<!-- 矿洞 -->
+<path d="M34,80 Q34,56 48,54 Q62,56 62,80 Z" fill="#263238"/>
+<path d="M38,80 Q38,60 48,58 Q58,60 58,80 Z" fill="#1a1a2e"/>
+<!-- 矿车 -->
+<rect x="40" y="82" width="16" height="8" rx="2" fill="#78909C"/>
+<rect x="42" y="78" width="12" height="5" fill="#607D8B"/>
+<!-- 矿灯 -->
+<circle cx="48" cy="60" r="3" fill="#FFF176" opacity="0.5"/>
+<!-- 支撑木 -->
+<rect x="34" y="54" width="3" height="26" fill="#4A3728"/>
+<rect x="59" y="54" width="3" height="26" fill="#4A3728"/>
+<rect x="34" y="54" width="28" height="3" fill="#6B4F3A"/>
+<!-- 矿石 -->
+<circle cx="24" cy="74" r="3" fill="#455A64"/>
+<circle cx="70" cy="70" r="2.5" fill="#546E7A"/>
 </svg>

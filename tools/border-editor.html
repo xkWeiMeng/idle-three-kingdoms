@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>山脉背景编辑器 — Border Editor</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #1c2a4a;
+  --primary: #e94560;
+  --gold: #f5c518;
+  --text: #eee;
+  --text-dim: #999;
+  --success: #4caf50;
+  --border: #2a2a4a;
+  --border-light: #3a3a5a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Layout */
+.app {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: 48px 1fr;
+  height: 100vh;
+}
+
+/* Header */
+.header {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 { font-size: 1rem; color: var(--gold); white-space: nowrap; }
+.header .sep { width: 1px; height: 24px; background: var(--border); }
+.header .coords { color: var(--text-dim); font-size: 0.75rem; font-family: monospace; margin-left: auto; }
+.btn {
+  padding: 5px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn:hover { background: var(--border-light); }
+.btn-primary { background: var(--primary); border-color: var(--primary); }
+.btn-primary:hover { background: #d03050; }
+.btn-success { background: var(--success); border-color: var(--success); }
+.btn-success:hover { background: #3d9040; }
+
+/* Canvas */
+.canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  background: #111;
+}
+.canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Side Panel */
+.side {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+}
+.side h2 {
+  font-size: 0.9rem;
+  color: var(--gold);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.side h3 {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin: 10px 0 4px;
+}
+
+/* Layer List */
+.layer-list { list-style: none; }
+.layer-item {
+  padding: 6px 8px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  transition: background 0.1s;
+}
+.layer-item:hover { background: var(--surface2); }
+.layer-item.selected { background: var(--primary); color: #fff; }
+.layer-item .eye {
+  width: 18px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.layer-item .eye:hover { opacity: 1; }
+.layer-item .label { flex: 1; }
+
+/* Props */
+.prop-group { margin-bottom: 14px; }
+.prop-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.prop-row label {
+  width: 60px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-align: right;
+  flex-shrink: 0;
+}
+.prop-row input[type="number"] {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  width: 0;
+}
+.prop-row input[type="range"] {
+  flex: 1;
+}
+.prop-row .val {
+  width: 50px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-align: left;
+}
+.prop-row input[type="checkbox"] { width: 16px; height: 16px; }
+
+/* Export */
+.export-box {
+  margin-top: 10px;
+}
+.export-box textarea {
+  width: 100%;
+  height: 160px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--gold);
+  font-family: 'Consolas', monospace;
+  font-size: 0.7rem;
+  padding: 8px;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+/* Selected highlight */
+.selection-box {
+  pointer-events: none;
+  position: absolute;
+  border: 2px dashed var(--primary);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--success);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 1000;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <h1>🏔️ 山脉背景编辑器</h1>
+    <div class="sep"></div>
+    <button class="btn" onclick="Editor.resetAll()">重置默认</button>
+    <button class="btn btn-primary" onclick="Editor.exportConfig()">导出配置</button>
+    <button class="btn btn-success" onclick="Editor.copyCode()">复制代码</button>
+    <span class="coords" id="coords">x: 0, y: 0 | zoom: 1.00</span>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="side">
+    <h2>图层列表</h2>
+    <ul class="layer-list" id="layerList"></ul>
+
+    <h2 style="margin-top:14px;">属性</h2>
+    <div id="propsPanel">
+      <p style="font-size:0.75rem;color:var(--text-dim)">点选左侧画布中的山脉或从列表选择图层</p>
+    </div>
+
+    <h2 style="margin-top:14px;">导出</h2>
+    <div class="export-box">
+      <textarea id="exportArea" readonly placeholder="点击"导出配置"生成代码..."></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">已复制到剪贴板</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// Border Editor — 山脉背景可视化编辑器
+// ════════════════════════════════════════════════════════
+
+var Editor = (function () {
+
+  // ── Constants ──
+  var MAP_W = 40, MAP_H = 40, CELL = 48;
+  var MW = MAP_W * CELL;  // 1920
+  var MH = MAP_H * CELL;  // 1920
+
+  // ── State ──
+  var canvas, ctx, wrap;
+  var cam = { x: -400, y: -400, zoom: 0.25 };
+  var drag = { active: false, sx: 0, sy: 0, cx: 0, cy: 0 };
+  var moveLayer = { active: false, layer: null, sx: 0, sy: 0, ox: 0, oy: 0 };
+  var selectedIdx = -1;
+  var images = {};
+
+  // ── Default Layer Config ──
+  // Each layer: { id, label, side, image, x, y, w, h, rotation, flipX, flipY, visible }
+  // rotation in degrees, x/y/w/h in world pixels
+  var defaultLayers = [
+    // ─── 上方 ───
+    { id: 'top_far',  label: '上方-远山', side: 'top', image: 'mountain_far',  x: -500, y: -1300, w: 2920, h: 1360, rotation: 0, flipX: false, flipY: false, visible: true },
+    { id: 'top_mid',  label: '上方-中山', side: 'top', image: 'mountain_mid',  x: -450, y: -1220, w: 2820, h: 1360, rotation: 0, flipX: false, flipY: false, visible: true },
+    { id: 'top_near', label: '上方-近山', side: 'top', image: 'mountain_near', x: -400, y: -1160, w: 2720, h: 1360, rotation: 0, flipX: false, flipY: false, visible: true },
+    // ─── 下方 ───
+    { id: 'bot_far',  label: '下方-远山', side: 'bottom', image: 'mountain_far',  x: -500, y: 1860, w: 2920, h: 1360, rotation: 0, flipX: false, flipY: true, visible: true },
+    { id: 'bot_mid',  label: '下方-中山', side: 'bottom', image: 'mountain_mid',  x: -450, y: 1780, w: 2820, h: 1360, rotation: 0, flipX: false, flipY: true, visible: true },
+    { id: 'bot_near', label: '下方-近山', side: 'bottom', image: 'mountain_near', x: -400, y: 1720, w: 2720, h: 1360, rotation: 0, flipX: false, flipY: true, visible: true },
+    // ─── 左侧 ───
+    { id: 'left_far',  label: '左侧-远山', side: 'left', image: 'mountain_far',  x: -1440, y: -400, w: 1360, h: 2720, rotation: -90, flipX: false, flipY: false, visible: true },
+    { id: 'left_mid',  label: '左侧-中山', side: 'left', image: 'mountain_mid',  x: -1380, y: -350, w: 1260, h: 2620, rotation: -90, flipX: false, flipY: false, visible: true },
+    { id: 'left_near', label: '左侧-近山', side: 'left', image: 'mountain_near', x: -1320, y: -300, w: 1160, h: 2520, rotation: -90, flipX: false, flipY: false, visible: true },
+    // ─── 右侧 ───
+    { id: 'right_far',  label: '右侧-远山', side: 'right', image: 'mountain_far',  x: 2000, y: -400, w: 1360, h: 2720, rotation: 90, flipX: false, flipY: false, visible: true },
+    { id: 'right_mid',  label: '右侧-中山', side: 'right', image: 'mountain_mid',  x: 1940, y: -350, w: 1260, h: 2620, rotation: 90, flipX: false, flipY: false, visible: true },
+    { id: 'right_near', label: '右侧-近山', side: 'right', image: 'mountain_near', x: 1880, y: -300, w: 1160, h: 2520, rotation: 90, flipX: false, flipY: false, visible: true },
+  ];
+
+  var layers = [];
+
+  // ── Helpers ──
+  function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function loadImage(key, src) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () { images[key] = img; resolve(); };
+      img.onerror = function () { console.warn('Failed to load:', src); resolve(); };
+      img.src = src;
+    });
+  }
+
+  function worldToScreen(wx, wy) {
+    return {
+      x: (wx - cam.x) * cam.zoom,
+      y: (wy - cam.y) * cam.zoom
+    };
+  }
+  function screenToWorld(sx, sy) {
+    return {
+      x: sx / cam.zoom + cam.x,
+      y: sy / cam.zoom + cam.y
+    };
+  }
+
+  // ── Calculate AABB of a (possibly rotated) layer in world coords ──
+  function getLayerAABB(L) {
+    var cx = L.x + L.w / 2;
+    var cy = L.y + L.h / 2;
+    var rad = (L.rotation || 0) * Math.PI / 180;
+    var hw = L.w / 2, hh = L.h / 2;
+    // 4 corners before rotation
+    var corners = [
+      { x: -hw, y: -hh },
+      { x:  hw, y: -hh },
+      { x:  hw, y:  hh },
+      { x: -hw, y:  hh }
+    ];
+    var cosR = Math.cos(rad), sinR = Math.sin(rad);
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var i = 0; i < 4; i++) {
+      var rx = corners[i].x * cosR - corners[i].y * sinR + cx;
+      var ry = corners[i].x * sinR + corners[i].y * cosR + cy;
+      if (rx < minX) minX = rx;
+      if (ry < minY) minY = ry;
+      if (rx > maxX) maxX = rx;
+      if (ry > maxY) maxY = ry;
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  // ── Hit test: is world point inside layer? ──
+  function hitTestLayer(L, wx, wy) {
+    var cx = L.x + L.w / 2;
+    var cy = L.y + L.h / 2;
+    var rad = -(L.rotation || 0) * Math.PI / 180;
+    var cosR = Math.cos(rad), sinR = Math.sin(rad);
+    // transform point into local (unrotated) space
+    var dx = wx - cx, dy = wy - cy;
+    var lx = dx * cosR - dy * sinR;
+    var ly = dx * sinR + dy * cosR;
+    return Math.abs(lx) <= L.w / 2 && Math.abs(ly) <= L.h / 2;
+  }
+
+  // ══════ Rendering ══════
+
+  function render() {
+    canvas.width = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.scale(cam.zoom, cam.zoom);
+    ctx.translate(-cam.x, -cam.y);
+
+    // Background
+    var vw = w / cam.zoom, vh = h / cam.zoom;
+    ctx.fillStyle = '#2E3527';
+    ctx.fillRect(cam.x - 10, cam.y - 10, vw + 20, vh + 20);
+
+    // Draw layers (bottom to top)
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (!L.visible) continue;
+      var img = images[L.image];
+      if (!img) continue;
+
+      ctx.save();
+      var cx = L.x + L.w / 2;
+      var cy = L.y + L.h / 2;
+      ctx.translate(cx, cy);
+      if (L.rotation) ctx.rotate(L.rotation * Math.PI / 180);
+      if (L.flipX) ctx.scale(-1, 1);
+      if (L.flipY) ctx.scale(1, -1);
+      ctx.drawImage(img, -L.w / 2, -L.h / 2, L.w, L.h);
+      ctx.restore();
+    }
+
+    // River placeholder
+    drawRiverPreview();
+
+    // Map area outline
+    ctx.strokeStyle = '#8B8';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 6]);
+    ctx.strokeRect(0, 0, MW, MH);
+    ctx.setLineDash([]);
+
+    // Map fill (semi-transparent green)
+    ctx.fillStyle = 'rgba(76, 120, 60, 0.25)';
+    ctx.fillRect(0, 0, MW, MH);
+
+    // Label
+    ctx.fillStyle = '#AAD0A0';
+    ctx.font = '48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('地图区域 ' + MW + '×' + MH, MW / 2, MH / 2);
+
+    // Selected layer highlight
+    if (selectedIdx >= 0 && selectedIdx < layers.length) {
+      var sel = layers[selectedIdx];
+      var aabb = getLayerAABB(sel);
+      ctx.strokeStyle = '#e94560';
+      ctx.lineWidth = 3 / cam.zoom;
+      ctx.setLineDash([8 / cam.zoom, 4 / cam.zoom]);
+      ctx.strokeRect(aabb.x, aabb.y, aabb.w, aabb.h);
+      ctx.setLineDash([]);
+      // Center cross
+      var scx = sel.x + sel.w / 2;
+      var scy = sel.y + sel.h / 2;
+      var cross = 20 / cam.zoom;
+      ctx.strokeStyle = '#f5c518';
+      ctx.lineWidth = 2 / cam.zoom;
+      ctx.beginPath();
+      ctx.moveTo(scx - cross, scy); ctx.lineTo(scx + cross, scy);
+      ctx.moveTo(scx, scy - cross); ctx.lineTo(scx, scy + cross);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // Coords
+    document.getElementById('coords').textContent =
+      'cam: ' + Math.round(cam.x) + ', ' + Math.round(cam.y) + ' | zoom: ' + cam.zoom.toFixed(2);
+
+    requestAnimationFrame(render);
+  }
+
+  function drawRiverPreview() {
+    var riverPts = [
+      { x: MW + 260, y: -300 }, { x: MW + 200, y: -100 },
+      { x: MW + 120, y: 100 },  { x: MW + 180, y: 350 },
+      { x: MW + 100, y: 550 },  { x: MW + 160, y: 800 },
+      { x: MW + 80,  y: 1000 }, { x: MW + 140, y: 1250 },
+      { x: MW + 60,  y: 1500 }, { x: MW + 130, y: 1700 },
+      { x: MW + 90,  y: 1920 }, { x: MW + 180, y: 2100 },
+      { x: MW + 240, y: 2300 }
+    ];
+    var rw = 80;
+    ctx.beginPath();
+    ctx.moveTo(riverPts[0].x - rw * 0.5, riverPts[0].y);
+    for (var i = 1; i < riverPts.length; i++) {
+      var p = riverPts[i - 1], c = riverPts[i];
+      ctx.quadraticCurveTo(p.x, p.y, (p.x + c.x) / 2, (p.y + c.y) / 2);
+    }
+    var lp = riverPts[riverPts.length - 1];
+    ctx.lineTo(lp.x, lp.y);
+    ctx.lineWidth = rw;
+    ctx.strokeStyle = 'rgba(30,111,160,0.6)';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  // ══════ UI ══════
+
+  function buildLayerList() {
+    var list = document.getElementById('layerList');
+    list.innerHTML = '';
+    for (var i = 0; i < layers.length; i++) {
+      (function (idx) {
+        var L = layers[idx];
+        var li = document.createElement('li');
+        li.className = 'layer-item' + (idx === selectedIdx ? ' selected' : '');
+
+        var eye = document.createElement('span');
+        eye.className = 'eye';
+        eye.textContent = L.visible ? '👁' : '—';
+        eye.onclick = function (e) {
+          e.stopPropagation();
+          L.visible = !L.visible;
+          buildLayerList();
+        };
+
+        var label = document.createElement('span');
+        label.className = 'label';
+        label.textContent = L.label;
+
+        li.appendChild(eye);
+        li.appendChild(label);
+        li.onclick = function () {
+          selectedIdx = idx;
+          buildLayerList();
+          buildProps();
+        };
+
+        list.appendChild(li);
+      })(i);
+    }
+  }
+
+  function buildProps() {
+    var panel = document.getElementById('propsPanel');
+    if (selectedIdx < 0 || selectedIdx >= layers.length) {
+      panel.innerHTML = '<p style="font-size:0.75rem;color:var(--text-dim)">请选择一个图层</p>';
+      return;
+    }
+    var L = layers[selectedIdx];
+
+    var html = '';
+    html += '<div class="prop-group">';
+    html += '<h3>' + L.label + ' (' + L.id + ')</h3>';
+
+    // Image selector
+    html += '<div class="prop-row"><label>图片</label>';
+    html += '<select id="propImage" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:3px;font-size:0.8rem">';
+    var imgKeys = ['mountain_far', 'mountain_mid', 'mountain_near'];
+    for (var ki = 0; ki < imgKeys.length; ki++) {
+      html += '<option value="' + imgKeys[ki] + '"' + (L.image === imgKeys[ki] ? ' selected' : '') + '>' + imgKeys[ki] + '</option>';
+    }
+    html += '</select></div>';
+
+    // Position
+    html += makeNumRow('X 坐标', 'propX', L.x, -3000, 5000, 10);
+    html += makeNumRow('Y 坐标', 'propY', L.y, -3000, 5000, 10);
+    html += makeNumRow('宽度', 'propW', L.w, 100, 6000, 10);
+    html += makeNumRow('高度', 'propH', L.h, 100, 6000, 10);
+
+    // Rotation
+    html += '<div class="prop-row"><label>旋转°</label>';
+    html += '<input type="range" id="propRotRange" min="-180" max="180" step="1" value="' + (L.rotation || 0) + '">';
+    html += '<input type="number" id="propRot" value="' + (L.rotation || 0) + '" style="width:55px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:3px;font-size:0.8rem">';
+    html += '</div>';
+
+    // Flip
+    html += '<div class="prop-row"><label>水平翻转</label><input type="checkbox" id="propFlipX"' + (L.flipX ? ' checked' : '') + '></div>';
+    html += '<div class="prop-row"><label>垂直翻转</label><input type="checkbox" id="propFlipY"' + (L.flipY ? ' checked' : '') + '></div>';
+
+    // Keep aspect ratio lock
+    html += '<div class="prop-row"><label>锁定比例</label><input type="checkbox" id="propLockAspect" checked></div>';
+
+    html += '</div>';
+    panel.innerHTML = html;
+
+    // Bind events
+    bindNumProp('propX', 'x');
+    bindNumProp('propY', 'y');
+    bindNumProp('propW', 'w', true);
+    bindNumProp('propH', 'h', true);
+
+    var rotRange = document.getElementById('propRotRange');
+    var rotNum = document.getElementById('propRot');
+    rotRange.oninput = function () {
+      L.rotation = parseInt(this.value);
+      rotNum.value = L.rotation;
+    };
+    rotNum.onchange = function () {
+      L.rotation = parseInt(this.value) || 0;
+      rotRange.value = L.rotation;
+    };
+
+    document.getElementById('propFlipX').onchange = function () { L.flipX = this.checked; };
+    document.getElementById('propFlipY').onchange = function () { L.flipY = this.checked; };
+    document.getElementById('propImage').onchange = function () { L.image = this.value; };
+  }
+
+  function makeNumRow(label, id, val, min, max, step) {
+    return '<div class="prop-row"><label>' + label + '</label>' +
+      '<input type="number" id="' + id + '" value="' + val + '" min="' + min + '" max="' + max + '" step="' + step + '">' +
+      '</div>';
+  }
+
+  function bindNumProp(elId, prop, isSize) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.onchange = function () {
+      var L = layers[selectedIdx];
+      if (!L) return;
+      var v = parseInt(this.value) || 0;
+
+      if (isSize && document.getElementById('propLockAspect').checked) {
+        var aspect = L.w / L.h;
+        if (prop === 'w') {
+          L.w = v;
+          L.h = Math.round(v / aspect);
+          var hEl = document.getElementById('propH');
+          if (hEl) hEl.value = L.h;
+        } else {
+          L.h = v;
+          L.w = Math.round(v * aspect);
+          var wEl = document.getElementById('propW');
+          if (wEl) wEl.value = L.w;
+        }
+      } else {
+        L[prop] = v;
+      }
+    };
+  }
+
+  // ══════ Export ══════
+
+  function exportConfig() {
+    var lines = [];
+    lines.push('// ── 山脉背景配置（由 border-editor 导出） ──');
+    lines.push('var borderMountainConfig = [');
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      lines.push('  { id: ' + q(L.id) + ', image: ' + q(L.image) +
+        ', x: ' + L.x + ', y: ' + L.y + ', w: ' + L.w + ', h: ' + L.h +
+        ', rotation: ' + (L.rotation || 0) +
+        ', flipX: ' + (L.flipX ? 'true' : 'false') +
+        ', flipY: ' + (L.flipY ? 'true' : 'false') +
+        ' }' + (i < layers.length - 1 ? ',' : ''));
+    }
+    lines.push('];');
+    lines.push('');
+    lines.push('// ── _drawBorder 渲染代码 ──');
+    lines.push('// 将以下代码粘贴到 town-world.js 的 _drawBorder 山脉部分：');
+    lines.push('');
+    lines.push('var mtConfig = borderMountainConfig;');
+    lines.push('for (var mi = 0; mi < mtConfig.length; mi++) {');
+    lines.push('  var mt = mtConfig[mi];');
+    lines.push('  var mtImg = this._images[mt.image];');
+    lines.push('  if (!mtImg) continue;');
+    lines.push('  ctx.save();');
+    lines.push('  var mcx = mt.x + mt.w / 2, mcy = mt.y + mt.h / 2;');
+    lines.push('  ctx.translate(mcx, mcy);');
+    lines.push('  if (mt.rotation) ctx.rotate(mt.rotation * Math.PI / 180);');
+    lines.push('  if (mt.flipX) ctx.scale(-1, 1);');
+    lines.push('  if (mt.flipY) ctx.scale(1, -1);');
+    lines.push('  ctx.drawImage(mtImg, -mt.w / 2, -mt.h / 2, mt.w, mt.h);');
+    lines.push('  ctx.restore();');
+    lines.push('}');
+
+    var text = lines.join('\n');
+    document.getElementById('exportArea').value = text;
+    return text;
+  }
+
+  function q(s) { return "'" + s + "'"; }
+
+  function copyCode() {
+    var text = exportConfig();
+    navigator.clipboard.writeText(text).then(function () {
+      showToast('已复制到剪贴板');
+    });
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 1500);
+  }
+
+  // ══════ Input ══════
+
+  function initInput() {
+    // Wheel zoom
+    canvas.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var r = canvas.getBoundingClientRect();
+      var mx = e.clientX - r.left;
+      var my = e.clientY - r.top;
+      var wx = mx / cam.zoom + cam.x;
+      var wy = my / cam.zoom + cam.y;
+
+      var dz = e.deltaY < 0 ? 1.12 : 0.89;
+      cam.zoom = Math.max(0.05, Math.min(3, cam.zoom * dz));
+
+      cam.x = wx - mx / cam.zoom;
+      cam.y = wy - my / cam.zoom;
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', function (e) {
+      var r = canvas.getBoundingClientRect();
+      var mx = e.clientX - r.left;
+      var my = e.clientY - r.top;
+      var w = screenToWorld(mx, my);
+
+      if (e.button === 0) {
+        // Try hit test layers (top to bottom)
+        var hit = -1;
+        for (var i = layers.length - 1; i >= 0; i--) {
+          if (!layers[i].visible) continue;
+          if (hitTestLayer(layers[i], w.x, w.y)) { hit = i; break; }
+        }
+        if (hit >= 0) {
+          selectedIdx = hit;
+          buildLayerList();
+          buildProps();
+          // Start move
+          moveLayer.active = true;
+          moveLayer.layer = layers[hit];
+          moveLayer.sx = w.x;
+          moveLayer.sy = w.y;
+          moveLayer.ox = layers[hit].x;
+          moveLayer.oy = layers[hit].y;
+          return;
+        }
+      }
+
+      // Pan (middle button or missed click)
+      drag.active = true;
+      drag.sx = e.clientX;
+      drag.sy = e.clientY;
+      drag.cx = cam.x;
+      drag.cy = cam.y;
+    });
+
+    window.addEventListener('mousemove', function (e) {
+      if (drag.active) {
+        cam.x = drag.cx - (e.clientX - drag.sx) / cam.zoom;
+        cam.y = drag.cy - (e.clientY - drag.sy) / cam.zoom;
+      }
+      if (moveLayer.active) {
+        var r = canvas.getBoundingClientRect();
+        var mx = e.clientX - r.left;
+        var my = e.clientY - r.top;
+        var w = screenToWorld(mx, my);
+        var L = moveLayer.layer;
+        L.x = moveLayer.ox + (w.x - moveLayer.sx);
+        L.y = moveLayer.oy + (w.y - moveLayer.sy);
+        // Update prop inputs if visible
+        var xEl = document.getElementById('propX');
+        var yEl = document.getElementById('propY');
+        if (xEl) xEl.value = Math.round(L.x);
+        if (yEl) yEl.value = Math.round(L.y);
+      }
+    });
+
+    window.addEventListener('mouseup', function () {
+      drag.active = false;
+      if (moveLayer.active) {
+        moveLayer.layer.x = Math.round(moveLayer.layer.x);
+        moveLayer.layer.y = Math.round(moveLayer.layer.y);
+        moveLayer.active = false;
+      }
+    });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', function (e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      var L = selectedIdx >= 0 ? layers[selectedIdx] : null;
+
+      var step = e.shiftKey ? 50 : 10;
+      if (!L) return;
+
+      switch (e.key) {
+        case 'ArrowLeft':  e.preventDefault(); L.x -= step; buildProps(); break;
+        case 'ArrowRight': e.preventDefault(); L.x += step; buildProps(); break;
+        case 'ArrowUp':    e.preventDefault(); L.y -= step; buildProps(); break;
+        case 'ArrowDown':  e.preventDefault(); L.y += step; buildProps(); break;
+        case '[': L.rotation = (L.rotation || 0) - (e.shiftKey ? 10 : 1); buildProps(); break;
+        case ']': L.rotation = (L.rotation || 0) + (e.shiftKey ? 10 : 1); buildProps(); break;
+        case 'h': L.flipX = !L.flipX; buildProps(); break;
+        case 'v': L.flipY = !L.flipY; buildProps(); break;
+        case 'Delete': L.visible = !L.visible; buildLayerList(); break;
+      }
+    });
+  }
+
+  // ══════ Init ══════
+
+  function init() {
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d');
+    wrap = document.getElementById('canvasWrap');
+
+    layers = deepClone(defaultLayers);
+
+    // Load images
+    Promise.all([
+      loadImage('mountain_far',  '../assets/img/terrain/mountain_far.svg'),
+      loadImage('mountain_mid',  '../assets/img/terrain/mountain_mid.svg'),
+      loadImage('mountain_near', '../assets/img/terrain/mountain_near.svg')
+    ]).then(function () {
+      buildLayerList();
+      render();
+    });
+
+    initInput();
+  }
+
+  // ══════ Public API ══════
+
+  return {
+    init: init,
+    exportConfig: exportConfig,
+    copyCode: copyCode,
+    resetAll: function () {
+      layers = deepClone(defaultLayers);
+      selectedIdx = -1;
+      buildLayerList();
+      buildProps();
+      showToast('已重置为默认值');
+    }
+  };
+
+})();
+
+window.addEventListener('DOMContentLoaded', Editor.init);
+</script>
+</body>
+</html>

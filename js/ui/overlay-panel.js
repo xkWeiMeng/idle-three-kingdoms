@@ -107,6 +107,12 @@ var OverlayPanel = {
   show: function (opts) {
     if (!opts) return;
 
+    // Return previous panel to its original parent before replacing content
+    if (this._onCloseCallback) {
+      this._onCloseCallback();
+      this._onCloseCallback = null;
+    }
+
     this._currentId = opts.panelId || null;
     this._onCloseCallback = opts.onClose || null;
     this._titleEl.textContent = opts.title || '';
@@ -141,6 +147,12 @@ var OverlayPanel = {
   showPanel: function (panelId, title) {
     var panelEl = document.getElementById('panel-' + panelId);
     if (!panelEl) return;
+
+    // Return previous panel to its original parent before replacing content
+    if (this._onCloseCallback) {
+      this._onCloseCallback();
+      this._onCloseCallback = null;
+    }
 
     // Move panel content into overlay
     this._content.innerHTML = '';

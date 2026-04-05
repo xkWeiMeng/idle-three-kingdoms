@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 40">
+<!-- 旗杆 -->
+<rect x="3" y="0" width="2.5" height="40" fill="#6B4F3A"/>
+<circle cx="4.25" cy="0" r="2" fill="#D4A849"/>
+<!-- 旗面 -->
+<rect x="5.5" y="2" width="16" height="20" fill="#C62828"/>
+<path d="M21.5,2 L24,6 L21.5,10" fill="#C62828" opacity="0.7"/>
+<path d="M21.5,12 L23,15 L21.5,18" fill="#C62828" opacity="0.5"/>
+<!-- 旗穗 -->
+<line x1="8" y1="22" x2="7" y2="28" stroke="#C62828" stroke-width="0.8"/>
+<line x1="14" y1="22" x2="13" y2="28" stroke="#C62828" stroke-width="0.8"/>
+<line x1="20" y1="22" x2="19" y2="28" stroke="#C62828" stroke-width="0.8"/>
+</svg>

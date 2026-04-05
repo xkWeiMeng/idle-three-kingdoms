@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<ellipse cx="48" cy="94" rx="40" ry="5" fill="rgba(0,0,0,0.18)"/>
+<rect x="8" y="76" width="80" height="18" fill="#7A6B55"/>
+<rect x="8" y="76" width="80" height="5.3999999999999995" fill="#9E8E75"/>
+<line x1="8" y1="85" x2="88" y2="85" stroke="#5D4E3C" stroke-width="0.5" opacity="0.5"/>
+<!-- 主体 -->
+<rect x="12" y="38" width="72" height="40" fill="#C4B8A4"/>
+<rect x="16" y="42" width="64" height="34" fill="#D7CCC8"/>
+<!-- 屋顶 -->
+<path d="M-5.32,40 Q48,18 101.32,40" fill="#33691E"/>
+<path d="M-1.1920000000000002,32 Q48,24 97.19200000000001,32 L101.32,40 Q48,30 -5.32,40 Z" fill="#1B5E20" opacity="0.4"/>
+<line x1="17.900000000000002" y1="21" x2="78.1" y2="21" stroke="#D4A849" stroke-width="1.5"/>
+<circle cx="-5.32" cy="38.2" r="1.5" fill="#D4A849"/>
+<circle cx="101.32" cy="38.2" r="1.5" fill="#D4A849"/>
+<!-- 大门 -->
+<rect x="36" y="56" width="20" height="20" rx="1" fill="#3E2C1E"/>
+<rect x="37" y="57" width="8.5" height="18" fill="#5D4037"/>
+<rect x="46.5" y="57" width="8.5" height="18" fill="#5D4037"/>
+<circle cx="46" cy="67" r="1.2" fill="#D4A849"/>
+<!-- 种子袋 -->
+<ellipse cx="22" cy="66" rx="6" ry="8" fill="#8B6914"/>
+<ellipse cx="22" cy="62" rx="5" ry="3" fill="#A38040"/>
+<ellipse cx="74" cy="68" rx="5" ry="7" fill="#6B4F12"/>
+<ellipse cx="74" cy="64" rx="4" ry="2.5" fill="#8B6914"/>
+<!-- 匾额 -->
+<rect x="26" y="42" width="40" height="10" rx="1" fill="#D4A849"/>
+<text x="46" y="50" text-anchor="middle" font-size="7" fill="#1B5E20" font-weight="bold" font-family="sans-serif">种子铺</text>
+<!-- 盆栽 -->
+<rect x="66" y="50" width="10" height="6" fill="#8D6E63"/>
+<circle cx="71" cy="48" r="3" fill="#4CAF50"/>
+<circle cx="69" cy="46" r="2.5" fill="#66BB6A"/>
+</svg>

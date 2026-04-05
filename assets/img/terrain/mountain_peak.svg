@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+<rect width="48" height="48" fill="#3D4530"/>
+<!-- 主峰 -->
+<path d="M-4,48 Q0,28 12,16 Q18,6 24,2 Q30,6 36,16 Q48,28 52,48 Z" fill="#556B4A"/>
+<path d="M2,48 Q6,30 16,20 Q20,10 24,6 Q28,10 32,20 Q42,30 46,48 Z" fill="#6B8058"/>
+<!-- 雪顶 -->
+<path d="M20,10 Q22,4 24,2 Q26,4 28,10 Q24,8 20,10 Z" fill="rgba(255,255,255,0.25)"/>
+<!-- 岩石纹理 -->
+<path d="M14,26 Q18,22 22,26" fill="none" stroke="#3D4530" stroke-width="1" opacity="0.4"/>
+<path d="M26,24 Q30,20 34,24" fill="none" stroke="#3D4530" stroke-width="1" opacity="0.35"/>
+<!-- 松树 -->
+<polygon points="10,36 8,44 12,44" fill="#2E4228"/>
+<polygon points="18,32 16,40 20,40" fill="#3D5030"/>
+<polygon points="34,34 32,42 36,42" fill="#2E4228"/>
+<polygon points="40,36 38,44 42,44" fill="#3D5030"/>
+<!-- 云雾 -->
+<ellipse cx="24" cy="14" rx="10" ry="2" fill="rgba(255,255,255,0.1)"/>
+</svg>

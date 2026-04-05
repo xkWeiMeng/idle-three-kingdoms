@@ -1,22 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-<rect x="8" y="86" width="112" height="34" rx="4" fill="#5D4037"/>
-<rect x="16" y="46" width="96" height="44" fill="#8D6E63"/>
-<rect x="20" y="50" width="88" height="38" fill="#A1887F"/>
-<polygon points="8,50 64,22 120,50" fill="#B71C1C"/>
-<polygon points="14,50 64,26 114,50" fill="#D32F2F"/>
-<rect x="56" y="8" width="4" height="18" fill="#795548"/>
-<rect x="60" y="8" width="16" height="12" fill="#F44336"/>
-<text x="68" y="17" text-anchor="middle" font-size="8" fill="#FFF" font-weight="bold" font-family="sans-serif">兵</text>
-<rect x="48" y="62" width="32" height="28" rx="2" fill="#4E342E"/>
-<rect x="48" y="62" width="32" height="4" fill="#F44336"/>
-<line x1="24" y1="56" x2="24" y2="84" stroke="#795548" stroke-width="2"/>
-<line x1="36" y1="56" x2="36" y2="84" stroke="#795548" stroke-width="2"/>
-<line x1="22" y1="62" x2="38" y2="62" stroke="#9E9E9E" stroke-width="1.5"/>
-<line x1="22" y1="72" x2="38" y2="72" stroke="#9E9E9E" stroke-width="1.5"/>
-<line x1="26" y1="56" x2="26" y2="70" stroke="#B0BEC5" stroke-width="1.5"/>
-<line x1="30" y1="56" x2="30" y2="70" stroke="#B0BEC5" stroke-width="1.5"/>
-<line x1="34" y1="56" x2="34" y2="70" stroke="#B0BEC5" stroke-width="1.5"/>
-<circle cx="100" cy="68" r="10" fill="#E53935"/>
-<circle cx="100" cy="68" r="7" fill="#C62828"/>
-<circle cx="100" cy="68" r="3" fill="#F5C518"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<ellipse cx="48" cy="94" rx="40" ry="5" fill="rgba(0,0,0,0.18)"/>
+<rect x="6" y="76" width="84" height="18" fill="#7A6B55"/>
+<rect x="6" y="76" width="84" height="5.3999999999999995" fill="#9E8E75"/>
+<line x1="6" y1="85" x2="90" y2="85" stroke="#5D4E3C" stroke-width="0.5" opacity="0.5"/>
+<!-- 主体 -->
+<rect x="10" y="38" width="76" height="40" fill="#C4B8A4"/>
+<rect x="14" y="42" width="68" height="34" fill="#D7CCC8"/>
+<!-- 屋顶 -->
+<path d="M-7.799999999999999,40 Q48,18 103.8,40" fill="#A0422D"/>
+<path d="M-3.4799999999999995,32 Q48,24 99.48,32 L103.8,40 Q48,30 -7.799999999999999,40 Z" fill="#7B2D26" opacity="0.4"/>
+<line x1="16.500000000000004" y1="21" x2="79.5" y2="21" stroke="#D4A849" stroke-width="1.5"/>
+<circle cx="-7.799999999999999" cy="38.2" r="1.5" fill="#D4A849"/>
+<circle cx="103.8" cy="38.2" r="1.5" fill="#D4A849"/>
+<!-- 旗杆+军旗 -->
+<rect x="44" y="4" width="2.5" height="18" fill="#6B4F3A"/>
+<rect x="46.5" y="4" width="14" height="10" fill="#C62828"/>
+<text x="53.5" y="12" text-anchor="middle" font-size="7" fill="#FFF" font-weight="bold" font-family="sans-serif">兵</text>
+<!-- 大门 -->
+<rect x="34" y="54" width="24" height="22" rx="1" fill="#3E2C1E"/>
+<rect x="35" y="55" width="10.5" height="20" fill="#5D4037"/>
+<rect x="46.5" y="55" width="10.5" height="20" fill="#5D4037"/>
+<circle cx="46" cy="66.1" r="1.2" fill="#D4A849"/>
+<rect x="34" y="52" width="24" height="3" fill="#C62828"/>
+<!-- 武器架 -->
+<line x1="16" y1="46" x2="16" y2="72" stroke="#6B4F3A" stroke-width="1.5"/>
+<line x1="24" y1="46" x2="24" y2="72" stroke="#6B4F3A" stroke-width="1.5"/>
+<line x1="14" y1="52" x2="26" y2="52" stroke="#9E9E9E" stroke-width="1"/>
+<line x1="14" y1="60" x2="26" y2="60" stroke="#9E9E9E" stroke-width="1"/>
+<!-- 靶子 -->
+<circle cx="76" cy="56" r="8" fill="#FFF"/>
+<circle cx="76" cy="56" r="5.5" fill="#C62828"/>
+<circle cx="76" cy="56" r="3" fill="#FFF"/>
+<circle cx="76" cy="56" r="1.5" fill="#C62828"/>
 </svg>

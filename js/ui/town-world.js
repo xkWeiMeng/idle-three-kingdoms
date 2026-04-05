@@ -32,6 +32,22 @@ var TownWorld = {
   _imagesLoading: {},
   _decorations: [],   // random trees, rocks, etc.
 
+  // 山脉背景配置（由 tools/border-editor.html 导出）
+  _mountainConfig: [
+    { id: 'top_far', image: 'mountain_far', x: -500, y: -1300, w: 2920, h: 1360, rotation: 0, flipX: false, flipY: false },
+    { id: 'top_mid', image: 'mountain_mid', x: -602, y: -936, w: 2820, h: 1360, rotation: 0, flipX: false, flipY: false },
+    { id: 'top_near', image: 'mountain_near', x: 2028, y: 828, w: 2720, h: 1360, rotation: 0, flipX: false, flipY: false },
+    { id: 'bot_far', image: 'mountain_far', x: 512, y: 1780, w: 2920, h: 1360, rotation: -180, flipX: false, flipY: true },
+    { id: 'bot_mid', image: 'mountain_mid', x: -1938, y: 1236, w: 2820, h: 1360, rotation: 180, flipX: false, flipY: true },
+    { id: 'bot_near', image: 'mountain_near', x: -1032, y: 1780, w: 3500, h: 1750, rotation: 180, flipX: false, flipY: true },
+    { id: 'left_far', image: 'mountain_far', x: -632, y: -760, w: 820, h: 1640, rotation: 5, flipX: false, flipY: false },
+    { id: 'left_mid', image: 'mountain_mid', x: -1348, y: -966, w: 1690, h: 3514, rotation: 3, flipX: false, flipY: false },
+    { id: 'left_near', image: 'mountain_near', x: -1688, y: -36, w: 1820, h: 3955, rotation: 180, flipX: false, flipY: true },
+    { id: 'right_far', image: 'mountain_far', x: 2092, y: -1460, w: 1360, h: 2720, rotation: 3, flipX: false, flipY: false },
+    { id: 'right_mid', image: 'mountain_mid', x: 2040, y: -678, w: 1260, h: 2620, rotation: -4, flipX: false, flipY: false },
+    { id: 'right_near', image: 'mountain_near', x: 1952, y: 640, w: 1160, h: 2520, rotation: 3, flipX: false, flipY: false },
+  ],
+
   // Building grid sizes
   _buildingSizes: {
     town_hall: { w: 3, h: 3 },
@@ -131,9 +147,14 @@ var TownWorld = {
     for (var i = 0; i < buildingIds.length; i++) {
       this._loadImage('building_' + buildingIds[i], 'assets/img/buildings/' + buildingIds[i] + '.svg');
     }
-    var terrains = ['grass', 'tree', 'rock', 'bush', 'flower', 'water', 'path_tile'];
+    var terrains = ['grass', 'tree', 'rock', 'bush', 'flower', 'water', 'path_tile', 'flag', 'lantern'];
     for (var j = 0; j < terrains.length; j++) {
       this._loadImage('terrain_' + terrains[j], 'assets/img/terrain/' + terrains[j] + '.svg');
+    }
+    // 山脉层
+    var mtLayers = ['mountain_far', 'mountain_mid', 'mountain_near'];
+    for (var m = 0; m < mtLayers.length; m++) {
+      this._loadImage(mtLayers[m], 'assets/img/terrain/' + mtLayers[m] + '.svg');
     }
   },
 
@@ -155,32 +176,46 @@ var TownWorld = {
   _generateDecorations: function () {
     this._decorations = [];
     var rand = function (min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; };
-    // Trees
-    for (var i = 0; i < 35; i++) {
+    // 古松
+    for (var i = 0; i < 20; i++) {
       this._decorations.push({
         type: 'tree', gx: rand(0, this.MAP_W - 1), gy: rand(0, this.MAP_H - 1),
         ox: rand(-8, 8), oy: rand(-8, 8), scale: 0.6 + Math.random() * 0.5
       });
     }
-    // Rocks
-    for (var j = 0; j < 15; j++) {
+    // 竹丛
+    for (var k = 0; k < 10; k++) {
+      this._decorations.push({
+        type: 'bush', gx: rand(0, this.MAP_W - 1), gy: rand(0, this.MAP_H - 1),
+        ox: rand(-10, 10), oy: rand(-4, 4), scale: 0.5 + Math.random() * 0.5
+      });
+    }
+    // 太湖石
+    for (var j = 0; j < 8; j++) {
       this._decorations.push({
         type: 'rock', gx: rand(0, this.MAP_W - 1), gy: rand(0, this.MAP_H - 1),
         ox: rand(-12, 12), oy: rand(-6, 6), scale: 0.5 + Math.random() * 0.6
       });
     }
-    // Bushes
-    for (var k = 0; k < 20; k++) {
-      this._decorations.push({
-        type: 'bush', gx: rand(0, this.MAP_W - 1), gy: rand(0, this.MAP_H - 1),
-        ox: rand(-10, 10), oy: rand(-4, 4), scale: 0.4 + Math.random() * 0.4
-      });
-    }
-    // Flowers
-    for (var l = 0; l < 25; l++) {
+    // 桃花
+    for (var l = 0; l < 12; l++) {
       this._decorations.push({
         type: 'flower', gx: rand(0, this.MAP_W - 1), gy: rand(0, this.MAP_H - 1),
         ox: rand(-16, 16), oy: rand(-10, 10), scale: 0.8 + Math.random() * 0.4
+      });
+    }
+    // 旌旗
+    for (var f = 0; f < 8; f++) {
+      this._decorations.push({
+        type: 'flag', gx: rand(0, this.MAP_W - 1), gy: rand(0, this.MAP_H - 1),
+        ox: rand(-6, 6), oy: rand(-4, 4), scale: 0.7 + Math.random() * 0.4
+      });
+    }
+    // 灯笼
+    for (var g = 0; g < 6; g++) {
+      this._decorations.push({
+        type: 'lantern', gx: rand(0, this.MAP_W - 1), gy: rand(0, this.MAP_H - 1),
+        ox: rand(-8, 8), oy: rand(-6, 6), scale: 0.6 + Math.random() * 0.4
       });
     }
     // Filter decorations that overlap with buildings
@@ -1009,23 +1044,179 @@ var TownWorld = {
     ctx.scale(this._cam.zoom, this._cam.zoom);
     ctx.translate(-this._cam.x, -this._cam.y);
 
+    this._drawBorder(ctx);
     this._drawGround(ctx);
     this._drawDecorations(ctx);
     this._drawBuildings(ctx);
 
-    // 绘制角色（在建筑之后，网格之前）
+    // 绘制角色
     if (typeof TownCharacters !== 'undefined') {
       TownCharacters.draw(ctx);
-    }
-
-    if (this._editMode) {
-      this._drawGrid(ctx);
     }
 
     ctx.restore();
 
     // Draw UI overlay (on screen coordinates)
     this._drawHUD(ctx, w, h);
+  },
+
+  _drawBorder: function (ctx) {
+    var CELL = this.CELL;
+    var MW = this.MAP_W * CELL;   // 1920
+    var MH = this.MAP_H * CELL;   // 1920
+    var cam = this._cam;
+    var vw = this._canvas.width / cam.zoom;
+    var vh = this._canvas.height / cam.zoom;
+    var vx0 = cam.x;
+    var vy0 = cam.y;
+
+    // ── 1. 底色填充（深山绿） ──
+    ctx.fillStyle = '#2E3527';
+    ctx.fillRect(vx0 - 10, vy0 - 10, vw + 20, vh + 20);
+
+    // ── 2. 山脉 — 使用数据驱动配置渲染 SVG 山脉 ──
+    var mtConfig = this._mountainConfig;
+    for (var mi = 0; mi < mtConfig.length; mi++) {
+      var mt = mtConfig[mi];
+      var mtImg = this._images[mt.image];
+      if (!mtImg) continue;
+      ctx.save();
+      var mcx = mt.x + mt.w / 2, mcy = mt.y + mt.h / 2;
+      ctx.translate(mcx, mcy);
+      if (mt.rotation) ctx.rotate(mt.rotation * Math.PI / 180);
+      if (mt.flipX) ctx.scale(-1, 1);
+      if (mt.flipY) ctx.scale(1, -1);
+      ctx.drawImage(mtImg, -mt.w / 2, -mt.h / 2, mt.w, mt.h);
+      ctx.restore();
+    }
+
+    // ── 3. 河流 — 从右上角蜿蜒流向右下角 ──
+    var riverPts = [
+      { x: MW + 260, y: -300 },
+      { x: MW + 200, y: -100 },
+      { x: MW + 120, y: 100 },
+      { x: MW + 180, y: 350 },
+      { x: MW + 100, y: 550 },
+      { x: MW + 160, y: 800 },
+      { x: MW + 80,  y: 1000 },
+      { x: MW + 140, y: 1250 },
+      { x: MW + 60,  y: 1500 },
+      { x: MW + 130, y: 1700 },
+      { x: MW + 90,  y: 1920 },
+      { x: MW + 180, y: 2100 },
+      { x: MW + 240, y: 2300 }
+    ];
+    var riverWidth = 80;
+
+    // 河岸（深色边缘）
+    ctx.beginPath();
+    ctx.moveTo(riverPts[0].x - riverWidth * 0.7, riverPts[0].y);
+    for (var ri = 0; ri < riverPts.length; ri++) {
+      var rip = riverPts[ri];
+      ctx.lineTo(rip.x - riverWidth * 0.7, rip.y);
+    }
+    for (var rj = riverPts.length - 1; rj >= 0; rj--) {
+      var rjp = riverPts[rj];
+      ctx.lineTo(rjp.x + riverWidth * 0.7, rjp.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#1A4060';
+    ctx.fill();
+
+    // 河水主体
+    ctx.beginPath();
+    ctx.moveTo(riverPts[0].x - riverWidth * 0.5, riverPts[0].y);
+    for (var ra = 1; ra < riverPts.length; ra++) {
+      var prev = riverPts[ra - 1];
+      var curr = riverPts[ra];
+      var cpx = (prev.x + curr.x) / 2 - riverWidth * 0.5;
+      var cpy = (prev.y + curr.y) / 2;
+      ctx.quadraticCurveTo(prev.x - riverWidth * 0.5, prev.y, cpx, cpy);
+    }
+    var lastPt = riverPts[riverPts.length - 1];
+    ctx.lineTo(lastPt.x - riverWidth * 0.5, lastPt.y);
+    ctx.lineTo(lastPt.x + riverWidth * 0.5, lastPt.y);
+    for (var rb = riverPts.length - 2; rb >= 0; rb--) {
+      var next = riverPts[rb + 1];
+      var cur2 = riverPts[rb];
+      var cpx2 = (next.x + cur2.x) / 2 + riverWidth * 0.5;
+      var cpy2 = (next.y + cur2.y) / 2;
+      ctx.quadraticCurveTo(next.x + riverWidth * 0.5, next.y, cpx2, cpy2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#1E6FA0';
+    ctx.fill();
+
+    // 河面波纹高光（动态流动）
+    var now = Date.now();
+    var flowSpeed = 0.03;   // 流速
+    var flowOffset = now * flowSpeed;
+
+    ctx.save();
+
+    // ── 主波纹线（3条，不同相位和透明度） ──
+    var waveConfigs = [
+      { ox: -20, oy: 0,  alpha: 0.22, width: 2.5, color: '#5CB8E8', phase: 0 },
+      { ox: 5,   oy: 15, alpha: 0.15, width: 2,   color: '#7DD3F8', phase: 2.1 },
+      { ox: 18,  oy: 8,  alpha: 0.10, width: 1.5, color: '#A0E0FF', phase: 4.2 }
+    ];
+
+    for (var wc = 0; wc < waveConfigs.length; wc++) {
+      var cfg = waveConfigs[wc];
+      ctx.globalAlpha = cfg.alpha;
+      ctx.strokeStyle = cfg.color;
+      ctx.lineWidth = cfg.width;
+
+      for (var rw = 0; rw < riverPts.length - 1; rw++) {
+        var p1 = riverPts[rw];
+        var p2 = riverPts[rw + 1];
+        var segLen = p2.y - p1.y;
+        var steps = Math.ceil(segLen / 30);
+
+        ctx.beginPath();
+        for (var st = 0; st <= steps; st++) {
+          var t = st / steps;
+          var baseX = p1.x + (p2.x - p1.x) * t + cfg.ox;
+          var baseY = p1.y + (p2.y - p1.y) * t + cfg.oy;
+          // 正弦横向摆动 + 随流动偏移
+          var wave = Math.sin((baseY + flowOffset + cfg.phase) * 0.025) * 12;
+          var px2 = baseX + wave;
+          if (st === 0) ctx.moveTo(px2, baseY);
+          else ctx.lineTo(px2, baseY);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // ── 流动水花/亮点 ──
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#B0E8FF';
+    for (var sp = 0; sp < 20; sp++) {
+      // 沿河流分布，位置随时间缓慢移动
+      var spIdx = sp / 20 * (riverPts.length - 1);
+      var spI = Math.floor(spIdx);
+      var spT = spIdx - spI;
+      if (spI >= riverPts.length - 1) { spI = riverPts.length - 2; spT = 1; }
+      var spP1 = riverPts[spI];
+      var spP2 = riverPts[spI + 1];
+      var spBaseX = spP1.x + (spP2.x - spP1.x) * spT;
+      var spBaseY = spP1.y + (spP2.y - spP1.y) * spT;
+
+      // 水花随时间向下流动（循环）
+      var spFlow = ((now * 0.02 + sp * 137) % 2600) - 300;
+      var spY = spBaseY + spFlow - 1000;
+      var spWave = Math.sin((spY + flowOffset) * 0.03 + sp) * 15;
+      var spX = spBaseX + spWave + ((sp * 7) % 30 - 15);
+
+      var spAlpha = 0.15 + 0.15 * Math.sin(now * 0.003 + sp * 1.7);
+      ctx.globalAlpha = spAlpha;
+      var spR = 1.5 + Math.sin(now * 0.005 + sp * 2.3) * 1;
+      ctx.beginPath();
+      ctx.ellipse(spX, spY, spR * 2, spR, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
   },
 
   _drawGround: function (ctx) {
@@ -1042,33 +1233,11 @@ var TownWorld = {
         if (grassImg) {
           ctx.drawImage(grassImg, px, py, this.CELL, this.CELL);
         } else {
-          // Checkerboard grass fallback
-          ctx.fillStyle = (gx + gy) % 2 === 0 ? '#4a7c3f' : '#3d6b32';
+          // 古风黄绿土色 fallback
+          ctx.fillStyle = (gx + gy) % 2 === 0 ? '#7A8A4A' : '#6B7340';
           ctx.fillRect(px, py, this.CELL, this.CELL);
         }
       }
-    }
-
-    // Map border
-    ctx.strokeStyle = '#2E7D32';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(0, 0, this.MAP_W * this.CELL, this.MAP_H * this.CELL);
-  },
-
-  _drawGrid: function (ctx) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 0.5;
-    for (var gx = 0; gx <= this.MAP_W; gx++) {
-      ctx.beginPath();
-      ctx.moveTo(gx * this.CELL, 0);
-      ctx.lineTo(gx * this.CELL, this.MAP_H * this.CELL);
-      ctx.stroke();
-    }
-    for (var gy = 0; gy <= this.MAP_H; gy++) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy * this.CELL);
-      ctx.lineTo(this.MAP_W * this.CELL, gy * this.CELL);
-      ctx.stroke();
     }
   },
 
@@ -1110,8 +1279,7 @@ var TownWorld = {
       ctx.globalAlpha = 0.3;
       var uImg = this._images['building_' + uid];
       if (uImg) {
-        var uImgH = uph * 1.3;
-        ctx.drawImage(uImg, upx, upy + uph - uImgH, upw, uImgH);
+        ctx.drawImage(uImg, upx, upy, upw, uph);
       } else {
         ctx.fillStyle = '#78909C';
         ctx.fillRect(upx + 4, upy + 4, upw - 8, uph - 8);
@@ -1164,11 +1332,7 @@ var TownWorld = {
       var isSelected = this._selectedBuilding === bId;
       var isBuildingNow = item.state.buildEndTime && item.state.buildEndTime > now;
 
-      // Building shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.beginPath();
-      ctx.ellipse(px + pw / 2, py + ph + 4, pw / 2 - 4, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // Shadow is baked into SVG — no canvas shadow needed
 
       // Dim non-selected buildings when one is selected
       if (this._selectedBuilding && !isSelected) {
@@ -1177,9 +1341,6 @@ var TownWorld = {
 
       var img = this._images['building_' + bId];
       if (img) {
-        var imgH = ph * 1.3;
-        var imgY = py + ph - imgH;
-
         // Construction pulse effect
         if (isBuildingNow) {
           ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.5 + 0.3 * Math.sin(now / 300));
@@ -1190,7 +1351,7 @@ var TownWorld = {
           ctx.globalAlpha = 0.6;
         }
 
-        ctx.drawImage(img, px, imgY, pw, imgH);
+        ctx.drawImage(img, px, py, pw, ph);
         ctx.globalAlpha = 1.0;
 
         // Construction progress bar

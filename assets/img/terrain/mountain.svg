@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+<rect width="48" height="48" fill="#4A5238"/>
+<!-- 远山层 -->
+<path d="M-4,42 Q4,14 16,18 Q24,6 32,16 Q38,10 52,38 L52,48 L-4,48 Z" fill="#5D6650"/>
+<path d="M-2,44 Q6,20 18,24 Q24,12 34,22 Q40,16 50,40 L50,48 L-2,48 Z" fill="#6B7A58"/>
+<!-- 山石纹理 -->
+<path d="M10,30 Q14,26 18,30" fill="none" stroke="#4A5238" stroke-width="0.8" opacity="0.5"/>
+<path d="M28,28 Q32,24 36,28" fill="none" stroke="#4A5238" stroke-width="0.8" opacity="0.4"/>
+<!-- 树点缀 -->
+<polygon points="8,34 6,40 10,40" fill="#3D5030"/>
+<polygon points="22,30 20,36 24,36" fill="#4A6040"/>
+<polygon points="38,32 36,38 40,38" fill="#3D5030"/>
+<!-- 云雾 -->
+<ellipse cx="12" cy="22" rx="8" ry="2" fill="rgba(255,255,255,0.08)"/>
+<ellipse cx="36" cy="18" rx="6" ry="1.5" fill="rgba(255,255,255,0.06)"/>
+</svg>

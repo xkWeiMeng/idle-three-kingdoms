@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+<rect width="48" height="48" fill="#4A5238"/>
+<!-- 河岸上 -->
+<path d="M0,0 L48,0 L48,14 Q36,16 24,14 Q12,12 0,16 Z" fill="#5D6650"/>
+<!-- 河面 -->
+<rect x="0" y="14" width="48" height="20" fill="#1A5276"/>
+<path d="M0,20 Q12,18 24,22 T48,20" fill="none" stroke="#2E86C1" stroke-width="1.5" opacity="0.4"/>
+<path d="M0,28 Q12,26 24,30 T48,28" fill="none" stroke="#2E86C1" stroke-width="1" opacity="0.3"/>
+<!-- 河岸下 -->
+<path d="M0,34 Q12,32 24,34 Q36,36 48,34 L48,48 L0,48 Z" fill="#5D6650"/>
+<!-- 岸边石 -->
+<ellipse cx="8" cy="14" rx="3" ry="1.5" fill="#78909C" opacity="0.5"/>
+<ellipse cx="32" cy="35" rx="2.5" ry="1.2" fill="#78909C" opacity="0.4"/>
+<!-- 岸草 -->
+<circle cx="14" cy="12" r="1.5" fill="#4A6040" opacity="0.5"/>
+<circle cx="40" cy="37" r="1.5" fill="#4A6040" opacity="0.5"/>
+</svg>

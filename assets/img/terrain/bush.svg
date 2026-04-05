@@ -1,6 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24">
-<ellipse cx="16" cy="18" rx="14" ry="6" fill="#2E7D32"/>
-<circle cx="10" cy="14" r="7" fill="#388E3C"/>
-<circle cx="22" cy="14" r="7" fill="#388E3C"/>
-<circle cx="16" cy="10" r="6" fill="#4CAF50"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 28">
+<!-- 竹竿 -->
+<rect x="8" y="2" width="2" height="24" fill="#4CAF50"/>
+<rect x="14" y="0" width="2" height="26" fill="#388E3C"/>
+<rect x="20" y="3" width="2" height="23" fill="#4CAF50"/>
+<!-- 竹节 -->
+<line x1="8" y1="8" x2="10" y2="8" stroke="#2E7D32" stroke-width="1.5"/>
+<line x1="14" y1="10" x2="16" y2="10" stroke="#1B5E20" stroke-width="1.5"/>
+<line x1="20" y1="9" x2="22" y2="9" stroke="#2E7D32" stroke-width="1.5"/>
+<line x1="8" y1="16" x2="10" y2="16" stroke="#2E7D32" stroke-width="1.5"/>
+<line x1="14" y1="18" x2="16" y2="18" stroke="#1B5E20" stroke-width="1.5"/>
+<line x1="20" y1="17" x2="22" y2="17" stroke="#2E7D32" stroke-width="1.5"/>
+<!-- 竹叶 -->
+<path d="M10,6 Q16,2 14,8" fill="#66BB6A"/>
+<path d="M16,4 Q22,0 20,6" fill="#4CAF50"/>
+<path d="M8,14 Q2,10 6,16" fill="#66BB6A"/>
+<path d="M22,12 Q28,8 24,14" fill="#4CAF50"/>
 </svg>
