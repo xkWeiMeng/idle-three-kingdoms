@@ -178,6 +178,10 @@ var TownCharacters = {
       speed: opts.speed,
       wanderRadius: opts.wanderRadius,
       talkCooldown: opts.talkCooldown || 15,
+
+      // A* pathfinding state
+      path: null,       // Array of {gx, gy} waypoints
+      pathIndex: 0,     // Current waypoint index
     };
   },
 
@@ -303,6 +307,31 @@ var TownCharacters = {
       return;
     }
 
+    // Try A* pathfinding for longer distances
+    var fromGX = Math.floor(c.x / CELL);
+    var fromGY = Math.floor(c.y / CELL);
+    var toGX = Math.floor(c.targetX / CELL);
+    var toGY = Math.floor(c.targetY / CELL);
+    var gridDist = Math.abs(fromGX - toGX) + Math.abs(fromGY - toGY);
+
+    if (gridDist > 2) {
+      var path = this._findPath(fromGX, fromGY, toGX, toGY);
+      if (path && path.length > 0) {
+        c.path = path;
+        c.pathIndex = 0;
+        // Set first waypoint as target
+        var wp = path[0];
+        c.targetX = wp.gx * CELL + CELL / 2;
+        c.targetY = wp.gy * CELL + CELL / 2;
+      } else {
+        c.path = null;
+        c.pathIndex = 0;
+      }
+    } else {
+      c.path = null;
+      c.pathIndex = 0;
+    }
+
     c.state = 'walking';
     c.direction = c.targetX >= c.x ? 1 : -1;
   },
@@ -315,6 +344,21 @@ var TownCharacters = {
     if (dist < 2) {
       c.x = c.targetX;
       c.y = c.targetY;
+
+      // If following A* path, advance to next waypoint
+      if (c.path && c.pathIndex < c.path.length - 1) {
+        c.pathIndex++;
+        var wp = c.path[c.pathIndex];
+        var CELL = TownWorld.CELL;
+        c.targetX = wp.gx * CELL + CELL / 2;
+        c.targetY = wp.gy * CELL + CELL / 2;
+        c.direction = c.targetX >= c.x ? 1 : -1;
+        return;
+      }
+
+      // Path complete or no path
+      c.path = null;
+      c.pathIndex = 0;
       this._goIdle(c);
       return;
     }
@@ -325,6 +369,8 @@ var TownCharacters = {
 
     // 检查建筑碰撞
     if (!TownWorld.isPixelWalkable(newX, newY)) {
+      c.path = null;
+      c.pathIndex = 0;
       this._goIdle(c);
       return;
     }
@@ -336,6 +382,8 @@ var TownCharacters = {
       var odx = newX - other.x;
       var ody = newY - other.y;
       if (odx * odx + ody * ody < this.CHAR_MIN_DIST * this.CHAR_MIN_DIST) {
+        c.path = null;
+        c.pathIndex = 0;
         this._goIdle(c);
         return;
       }
@@ -345,6 +393,99 @@ var TownCharacters = {
     c.y = newY;
     c.direction = dx > 0 ? 1 : -1;
     c.bobPhase += dt * 8;
+  },
+
+  /** A* pathfinding with road preference */
+  _findPath: function (fromGX, fromGY, toGX, toGY) {
+    if (typeof TownWorld === 'undefined') return null;
+    var MAP_W = TownWorld.MAP_W;
+    var MAP_H = TownWorld.MAP_H;
+    var roadGrid = TownWorld._roadGrid;
+    var MAX_NODES = 800;
+
+    // Validate endpoints
+    if (fromGX < 0 || fromGY < 0 || fromGX >= MAP_W || fromGY >= MAP_H) return null;
+    if (toGX < 0 || toGY < 0 || toGX >= MAP_W || toGY >= MAP_H) return null;
+    if (!TownWorld.isWalkable(toGX, toGY)) return null;
+
+    var key = function (gx, gy) { return gy * MAP_W + gx; };
+    var heuristic = function (gx, gy) {
+      return Math.abs(gx - toGX) + Math.abs(gy - toGY);
+    };
+
+    // Simple binary heap for open set (min-heap by f score)
+    var openSet = [];
+    var gScore = {};
+    var cameFrom = {};
+    var closedSet = {};
+    var explored = 0;
+
+    var startKey = key(fromGX, fromGY);
+    gScore[startKey] = 0;
+    openSet.push({ gx: fromGX, gy: fromGY, f: heuristic(fromGX, fromGY), key: startKey });
+
+    var dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+
+    while (openSet.length > 0 && explored < MAX_NODES) {
+      // Find min-f node (simple linear scan — adequate for 40×40 grid)
+      var minIdx = 0;
+      for (var oi = 1; oi < openSet.length; oi++) {
+        if (openSet[oi].f < openSet[minIdx].f) minIdx = oi;
+      }
+      var current = openSet[minIdx];
+      openSet.splice(minIdx, 1);
+
+      if (current.gx === toGX && current.gy === toGY) {
+        // Reconstruct path
+        var path = [];
+        var ck = current.key;
+        while (cameFrom[ck] !== undefined) {
+          var cy = Math.floor(ck / MAP_W);
+          var cx = ck % MAP_W;
+          path.unshift({ gx: cx, gy: cy });
+          ck = cameFrom[ck];
+        }
+        return path;
+      }
+
+      closedSet[current.key] = true;
+      explored++;
+
+      for (var d = 0; d < dirs.length; d++) {
+        var nx = current.gx + dirs[d][0];
+        var ny = current.gy + dirs[d][1];
+        if (nx < 0 || ny < 0 || nx >= MAP_W || ny >= MAP_H) continue;
+        if (!TownWorld.isWalkable(nx, ny)) continue;
+
+        var nk = key(nx, ny);
+        if (closedSet[nk]) continue;
+
+        // Movement cost: 1.0 for road, 3.0 for non-road
+        var moveCost = (roadGrid && roadGrid[ny][nx] > 0) ? 1.0 : 3.0;
+        var tentativeG = gScore[current.key] + moveCost;
+
+        if (gScore[nk] !== undefined && tentativeG >= gScore[nk]) continue;
+
+        gScore[nk] = tentativeG;
+        cameFrom[nk] = current.key;
+        var f = tentativeG + heuristic(nx, ny);
+
+        // Check if already in openSet
+        var inOpen = false;
+        for (var oj = 0; oj < openSet.length; oj++) {
+          if (openSet[oj].key === nk) {
+            openSet[oj].f = f;
+            inOpen = true;
+            break;
+          }
+        }
+        if (!inOpen) {
+          openSet.push({ gx: nx, gy: ny, f: f, key: nk });
+        }
+      }
+    }
+
+    return null; // No path found within limit
   },
 
   _startTalking: function (c) {

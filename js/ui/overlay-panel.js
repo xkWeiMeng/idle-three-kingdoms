@@ -156,7 +156,7 @@ var OverlayPanel = {
 
     // Move panel content into overlay
     this._content.innerHTML = '';
-    panelEl.style.display = 'block';
+    panelEl.style.display = '';
     this._content.appendChild(panelEl);
 
     this._titleEl.textContent = title || panelId;

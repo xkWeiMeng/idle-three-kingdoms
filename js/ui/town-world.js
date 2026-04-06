@@ -27,6 +27,11 @@ var TownWorld = {
   // Collision grid (true = blocked)
   _collisionGrid: null,
 
+  // Road grid (usage count per cell, 0 = no road)
+  _roadGrid: null,
+  // Fade-in tracking: map of "gx,gy" → timestamp when road appeared
+  _roadFadeStart: {},
+
   // Images cache
   _images: {},
   _imagesLoading: {},
@@ -125,6 +130,9 @@ var TownWorld = {
 
     // Build collision grid
     this.rebuildCollisionGrid();
+
+    // Build road grid from saved data
+    this._buildRoadGrid();
 
     // Start render loop
     this._raf = requestAnimationFrame(this._loop.bind(this));
@@ -225,6 +233,10 @@ var TownWorld = {
   _filterDecorations: function () {
     var self = this;
     this._decorations = this._decorations.filter(function (d) {
+      // Filter decorations on road cells
+      if (self._roadGrid && self._roadGrid[d.gy] && self._roadGrid[d.gy][d.gx] > 0) {
+        return false;
+      }
       var buildingIds = Object.keys(self._buildingSizes);
       for (var i = 0; i < buildingIds.length; i++) {
         var p = self._getPlacement(buildingIds[i]);
@@ -279,6 +291,19 @@ var TownWorld = {
     this._collisionGrid = grid;
   },
 
+  getCollisionGrid: function () {
+    if (!this._collisionGrid) this.rebuildCollisionGrid();
+    var src = this._collisionGrid;
+    var copy = [];
+    for (var y = 0; y < this.MAP_H; y++) {
+      copy[y] = [];
+      for (var x = 0; x < this.MAP_W; x++) {
+        copy[y][x] = src[y][x] ? 1 : 0;
+      }
+    }
+    return copy;
+  },
+
   isWalkable: function (gx, gy) {
     if (gx < 0 || gy < 0 || gx >= this.MAP_W || gy >= this.MAP_H) return false;
     if (!this._collisionGrid) return true;
@@ -289,6 +314,68 @@ var TownWorld = {
     var gx = Math.floor(px / this.CELL);
     var gy = Math.floor(py / this.CELL);
     return this.isWalkable(gx, gy);
+  },
+
+  /** Build _roadGrid from TownManager._state.roads */
+  _buildRoadGrid: function () {
+    var grid = [];
+    for (var y = 0; y < this.MAP_H; y++) {
+      grid[y] = [];
+      for (var x = 0; x < this.MAP_W; x++) {
+        grid[y][x] = 0;
+      }
+    }
+
+    if (typeof TownManager === 'undefined' || !TownManager._state.roads) {
+      this._roadGrid = grid;
+      return;
+    }
+
+    var roads = TownManager._state.roads;
+    var now = performance.now();
+    var oldGrid = this._roadGrid;
+
+    for (var i = 0; i < roads.length; i++) {
+      var r = roads[i];
+      if (r.gy >= 0 && r.gy < this.MAP_H && r.gx >= 0 && r.gx < this.MAP_W) {
+        grid[r.gy][r.gx] = r.usage;
+        // Track fade-in for new road cells
+        var key = r.gx + ',' + r.gy;
+        if (!oldGrid || oldGrid[r.gy][r.gx] === 0) {
+          if (!this._roadFadeStart[key]) {
+            this._roadFadeStart[key] = now;
+          }
+        }
+      }
+    }
+
+    // Clean up fade entries for cells no longer roads
+    for (var fk in this._roadFadeStart) {
+      if (this._roadFadeStart.hasOwnProperty(fk)) {
+        var parts = fk.split(',');
+        var fx = parseInt(parts[0], 10);
+        var fy = parseInt(parts[1], 10);
+        if (grid[fy][fx] === 0) {
+          delete this._roadFadeStart[fk];
+        }
+      }
+    }
+
+    this._roadGrid = grid;
+    // Re-filter decorations to remove those on roads
+    this._filterDecorations();
+  },
+
+  /** Check if a grid cell is a road */
+  isRoad: function (gx, gy) {
+    if (!this._roadGrid || gx < 0 || gy < 0 || gx >= this.MAP_W || gy >= this.MAP_H) return false;
+    return this._roadGrid[gy][gx] > 0;
+  },
+
+  /** Get road usage count at a grid cell */
+  getRoadUsage: function (gx, gy) {
+    if (!this._roadGrid || gx < 0 || gy < 0 || gx >= this.MAP_W || gy >= this.MAP_H) return 0;
+    return this._roadGrid[gy][gx];
   },
 
   // --- Input Handling ---
@@ -947,6 +1034,10 @@ var TownWorld = {
       EventBus.emit('town:building_moved', { buildingId: this._selectedBuilding, x: p.gx, y: p.gy });
     }
     this._finishMove();
+    // Recalculate roads after building placement confirmed
+    if (typeof TownManager !== 'undefined' && TownManager.recalcRoads) {
+      TownManager.recalcRoads();
+    }
   },
 
   _finishMove: function () {
@@ -1046,6 +1137,10 @@ var TownWorld = {
 
     this._drawBorder(ctx);
     this._drawGround(ctx);
+    if (this._editMode || this._buildingDrag) {
+      this._drawGrid(ctx);
+    }
+    this._drawRoads(ctx);
     this._drawDecorations(ctx);
     this._drawBuildings(ctx);
 
@@ -1226,17 +1321,102 @@ var TownWorld = {
     var endGX = Math.min(this.MAP_W, Math.ceil((this._cam.x + this._canvas.width / this._cam.zoom) / this.CELL));
     var endGY = Math.min(this.MAP_H, Math.ceil((this._cam.y + this._canvas.height / this._cam.zoom) / this.CELL));
 
+    // Fill continuous base color first to eliminate tile seams
+    ctx.fillStyle = '#7A8A4A';
+    ctx.fillRect(startGX * this.CELL, startGY * this.CELL,
+                 (endGX - startGX) * this.CELL, (endGY - startGY) * this.CELL);
+
+    if (grassImg) {
+      for (var gy = startGY; gy < endGY; gy++) {
+        for (var gx = startGX; gx < endGX; gx++) {
+          ctx.drawImage(grassImg, gx * this.CELL, gy * this.CELL, this.CELL, this.CELL);
+        }
+      }
+    }
+  },
+
+  _drawGrid: function (ctx) {
+    var CELL = this.CELL;
+    var startGX = Math.max(0, Math.floor(this._cam.x / CELL));
+    var startGY = Math.max(0, Math.floor(this._cam.y / CELL));
+    var endGX = Math.min(this.MAP_W, Math.ceil((this._cam.x + this._canvas.width / this._cam.zoom) / CELL));
+    var endGY = Math.min(this.MAP_H, Math.ceil((this._cam.y + this._canvas.height / this._cam.zoom) / CELL));
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    // Vertical lines
+    for (var gx = startGX; gx <= endGX; gx++) {
+      var px = gx * CELL;
+      ctx.moveTo(px, startGY * CELL);
+      ctx.lineTo(px, endGY * CELL);
+    }
+    // Horizontal lines
+    for (var gy = startGY; gy <= endGY; gy++) {
+      var py = gy * CELL;
+      ctx.moveTo(startGX * CELL, py);
+      ctx.lineTo(endGX * CELL, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+  },
+
+  _drawRoads: function (ctx) {
+    if (!this._roadGrid) return;
+    var pathImg = this._images['terrain_path_tile'];
+    var CELL = this.CELL;
+    var now = performance.now();
+    var FADE_DURATION = 2000; // ms
+
+    var startGX = Math.max(0, Math.floor(this._cam.x / CELL));
+    var startGY = Math.max(0, Math.floor(this._cam.y / CELL));
+    var endGX = Math.min(this.MAP_W, Math.ceil((this._cam.x + this._canvas.width / this._cam.zoom) / CELL));
+    var endGY = Math.min(this.MAP_H, Math.ceil((this._cam.y + this._canvas.height / this._cam.zoom) / CELL));
+
     for (var gy = startGY; gy < endGY; gy++) {
       for (var gx = startGX; gx < endGX; gx++) {
-        var px = gx * this.CELL;
-        var py = gy * this.CELL;
-        if (grassImg) {
-          ctx.drawImage(grassImg, px, py, this.CELL, this.CELL);
+        var usage = this._roadGrid[gy][gx];
+        if (usage <= 0) continue;
+
+        // Determine width and target alpha based on usage
+        var widthFraction, targetAlpha;
+        if (usage >= 5) {
+          widthFraction = 1.0;
+          targetAlpha = 0.9;
+        } else if (usage >= 3) {
+          widthFraction = 0.8;
+          targetAlpha = 0.7;
         } else {
-          // 古风黄绿土色 fallback
-          ctx.fillStyle = (gx + gy) % 2 === 0 ? '#7A8A4A' : '#6B7340';
-          ctx.fillRect(px, py, this.CELL, this.CELL);
+          widthFraction = 0.6;
+          targetAlpha = 0.5;
         }
+
+        // Fade-in
+        var key = gx + ',' + gy;
+        var fadeStart = this._roadFadeStart[key];
+        var fadeProgress = 1;
+        if (fadeStart) {
+          fadeProgress = Math.min(1, (now - fadeStart) / FADE_DURATION);
+        }
+
+        var alpha = targetAlpha * fadeProgress;
+        var drawW = CELL * widthFraction;
+        var drawH = CELL * widthFraction;
+        var px = gx * CELL + (CELL - drawW) / 2;
+        var py = gy * CELL + (CELL - drawH) / 2;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        if (pathImg) {
+          ctx.drawImage(pathImg, px, py, drawW, drawH);
+        } else {
+          // Fallback: earthy brown road color
+          ctx.fillStyle = '#B8956A';
+          ctx.fillRect(px, py, drawW, drawH);
+        }
+        ctx.restore();
       }
     }
   },

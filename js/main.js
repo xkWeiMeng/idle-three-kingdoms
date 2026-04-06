@@ -26,6 +26,7 @@
       abyss: AbyssManager.getState(),
       farm: FarmManager.getState(),
       parking: ParkingManager.getState(),
+      towerDefense: TowerDefenseManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
@@ -49,6 +50,7 @@
     AbyssManager.init(saved);
     FarmManager.init(saved);
     ParkingManager.init(saved);
+    TowerDefenseManager.init(saved);
 
     // 初始化 UI
     Toast.init();
@@ -73,6 +75,7 @@
     AbyssPanel.init();
     FarmPanel.init();
     ParkingPanel.init();
+    TowerDefensePanel.init();
 
     // 注册 tick 回调
     EventBus.on('game:tick', (dt) => {
@@ -87,6 +90,7 @@
       AbyssManager.onTick(dt);
       FarmManager.onTick(dt);
       ParkingManager.onTick(dt);
+      TowerDefenseManager.onTick(dt);
     });
 
     // 离线收益计算

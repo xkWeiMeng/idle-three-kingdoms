@@ -140,7 +140,7 @@ var MerchantManager = {
     }
 
     // Check inventory space
-    if (EquipmentManager.getInventory().length >= EquipmentManager._maxSlots) {
+    if (EquipmentManager.getInventory().length >= EquipmentManager.getMaxCapacity()) {
       EventBus.emit('toast:show', { type: 'warning', message: '背包已满！' });
       return false;
     }
@@ -191,7 +191,7 @@ var MerchantManager = {
       EventBus.emit('toast:show', { type: 'warning', message: '金币不足！需要💰×' + Utils.formatNumber(item.price) });
       return false;
     }
-    if (EquipmentManager.getInventory().length >= EquipmentManager._maxSlots) {
+    if (EquipmentManager.getInventory().length >= EquipmentManager.getMaxCapacity()) {
       EventBus.emit('toast:show', { type: 'warning', message: '背包已满！' });
       return false;
     }

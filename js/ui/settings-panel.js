@@ -301,7 +301,7 @@ var SettingsPanel = {
         '<div>🏔️ 最高关卡: <strong>' + highStage + '</strong></div>' +
         '<div>📅 签到天数: <strong>' + (stats.loginDays || 0) + '</strong></div>' +
         '<div>🦸 拥有武将: <strong>' + heroes.length + '/' + totalHeroes + '</strong></div>' +
-        '<div>🗡️ 拥有装备: <strong>' + equips.length + '/' + EquipmentManager._maxSlots + '</strong></div>' +
+        '<div>🗡️ 拥有装备: <strong>' + equips.length + '/' + EquipmentManager.getMaxCapacity() + '</strong></div>' +
         '<div>🏁 已通关卡: <strong>' + cleared.length + '/50</strong></div>' +
         '<div>💰 累计金币: <strong>' + Utils.formatNumber(stats.totalGoldEarned || 0) + '</strong></div>' +
       '</div>' +

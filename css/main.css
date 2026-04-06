@@ -722,7 +722,6 @@ img, svg { display: block; max-width: 100%; }
   border: 1px solid var(--color-secondary);
   border-radius: var(--radius-md);
   padding: 8px 10px;
-  max-height: 200px;
   overflow-y: auto;
   font-size: 0.7rem;
   line-height: 1.6;
@@ -1389,6 +1388,7 @@ html, body, #app {
   border-radius: var(--radius-md);
   padding: 8px 10px;
   margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .battle-stage-info {
@@ -1468,6 +1468,7 @@ html, body, #app {
   margin-bottom: 8px;
   overflow: hidden;
   position: relative;
+  flex-shrink: 0;
 }
 
 /* --- 待机场景 --- */
@@ -1566,6 +1567,7 @@ html, body, #app {
   display: flex;
   gap: 6px;
   margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .battle-btn-main {
@@ -1600,6 +1602,7 @@ html, body, #app {
   margin-bottom: 8px;
   text-align: center;
   animation: slideUp 0.3s ease;
+  flex-shrink: 0;
 }
 
 .battle-result.victory {
@@ -1660,6 +1663,10 @@ html, body, #app {
   border-radius: var(--radius-md);
   margin-bottom: 8px;
   overflow: hidden;
+  flex-shrink: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .battle-log-header {
@@ -1673,6 +1680,7 @@ html, body, #app {
   cursor: pointer;
   user-select: none;
   border-bottom: 1px solid var(--color-secondary);
+  flex-shrink: 0;
 }
 
 .battle-log-header:hover {
@@ -1685,7 +1693,7 @@ html, body, #app {
 }
 
 .battle-log-body {
-  max-height: 140px;
+  max-height: 120px;
   overflow-y: auto;
   padding: 4px 10px;
   font-size: 0.7rem;
@@ -1733,6 +1741,7 @@ html, body, #app {
   background: var(--color-surface-dark);
   border-radius: var(--radius-pill);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .battle-progress-fill {
@@ -2968,9 +2977,29 @@ html, body, #app {
   background-image: var(--bg-parchment);
 }
 
+/* 战斗面板固定布局 — 日志不撑高整体 */
+.overlay-content:has(#panel-battle) {
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#panel-battle {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#panel-battle.game-panel.active {
+  display: flex;
+}
+
 /* When game panel is inside overlay, show it */
 .overlay-content .game-panel {
   display: block !important;
+}
+.overlay-content #panel-battle {
+  display: flex !important;
 }
 
 /* =============================================

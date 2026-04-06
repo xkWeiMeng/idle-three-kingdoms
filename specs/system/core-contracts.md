@@ -25,6 +25,7 @@ author: AI (spec-architect)
 | AdventureManager | 冒险地图、离线收益 | [specs/services/adventure-manager.md](../services/adventure-manager.md) |
 | EconomyManager | 经济追踪、预警、统计 | [specs/services/economy-manager.md](../services/economy-manager.md) |
 | StoryManager | 剧情章节、对话、解锁 | [specs/services/story-manager.md](../services/story-manager.md) |
+| TowerDefenseManager | 塔防波次、防御塔管理、科技研究 | [specs/product-specs/tower-defense-system.md](../product-specs/tower-defense-system.md) |
 
 ## 服务边界
 
@@ -58,6 +59,10 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 - `TownManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 建筑建造消耗
 - `BattleManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` — 食物消耗、奖励发放
 - `AdventureManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` / `ResourceManager.get()` — 挂机粮草消耗检查、挂机战斗资源结算、推荐区域资源需求分析
+- `TowerDefenseManager` → `ResourceManager.canAffordMultiple()` / `ResourceManager.spendMultiple()` / `ResourceManager.add()` — 建造/升级/研究消耗、波次奖励
+- `TowerDefenseManager` → `HeroManager.getHeroStats()` / `HeroManager.getTeam()` / `HeroManager.getTemplate()` — 武将派驻属性
+- `TowerDefenseManager` → `TownManager.getBuildingLevel()` / `TownManager.getCollisionGrid()` — 城主府等级、碰撞网格
+- `TowerDefenseManager` → `EquipmentManager.addToInventory()` — 波次装备掉落
 - `BattleManager` → `ResourceManager.addBattleCount()` / `ResourceManager.setHighestStage()` — 统计更新
 - `BattleManager` → `HeroManager.addHero(heroId)` — 首通武将奖励
 - `BattleManager` → `EquipmentManager.addToInventory(equip)` — 装备掉落加入背包
@@ -174,6 +179,17 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 | `tab:switched` | BottomNav | UI Panels | `(tabId)` | 切换页签 |
 | `overlay:opened` | OverlayPanel | UI | `(panelId)` | 浮层打开 |
 | `overlay:closed` | OverlayPanel | UI | `(closedId)` | 浮层关闭 |
+| `td:unlocked` | TowerDefenseManager | UI | 无 | 塔防系统解锁 |
+| `td:wave_started` | TowerDefenseManager | UI | `{wave}` | 波次开始 |
+| `td:wave_cleared` | TowerDefenseManager | UI, ResourceManager | `{wave, rewards, auto}` | 波次通关 |
+| `td:wave_failed` | TowerDefenseManager | UI | `{wave, townHallHpLost}` | 波次失败 |
+| `td:tower_built` | TowerDefenseManager | UI | `{tower:{uid,type,gridX,gridY}}` | 防御塔建造 |
+| `td:tower_upgraded` | TowerDefenseManager | UI | `{uid,type,newLevel}` | 防御塔升级 |
+| `td:tower_sold` | TowerDefenseManager | UI | `{uid,refund}` | 防御塔出售 |
+| `td:enemy_killed` | TowerDefenseManager | UI | `{enemyUid,killerTowerUid}` | 敌人击杀 |
+| `td:hero_assigned` | TowerDefenseManager | UI | `{heroUid,slot}` | 武将派驻 |
+| `td:research_started` | TowerDefenseManager | UI | `{era,endTime}` | 科技研究开始 |
+| `td:era_unlocked` | TowerDefenseManager | UI | `{era}` | 时代解锁 |
 
 **事件规则**：
 - EventBus 仅支持 `on` / `off` / `emit`，无 `once`
@@ -195,7 +211,8 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
   "town": "TownManager.getState()",
   "adventure": "AdventureManager.getState()",
   "economy": "EconomyManager.getState()",
-  "settings": "SettingsPanel.getState()"
+  "settings": "SettingsPanel.getState()",
+  "towerDefense": "TowerDefenseManager.getState()"
 }
 ```
 
@@ -218,6 +235,7 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 7. TownManager        ← 依赖 ResourceManager（消耗资源建造）
 8. AdventureManager   ← 依赖 BattleManager, ResourceManager
 9. StoryManager       ← 依赖多个 Manager（解锁条件检查）
+10. TowerDefenseManager ← 依赖 ResourceManager, HeroManager, TownManager, EquipmentManager
 ```
 
 **规则**：

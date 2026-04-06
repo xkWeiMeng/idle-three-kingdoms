@@ -1,18 +1,25 @@
 /**
- * 装备管理器 —— 装备掉落、强化、穿戴、出售
+ * 装备管理器 —— 装备掉落、强化、穿戴、出售、扩容、排序、批量售卖
  */
 const EquipmentManager = {
   _inventory: [],     // Array of equipment instances
-  _maxSlots: 50,
+  _maxSlots: 100,     // Default for new saves (INVENTORY_DEFAULTS.BASE_SLOTS)
+  _expandedSlots: 0,  // Extra slots purchased with gold
   _overflow: [],      // Items pending claim when inventory full
 
   init(saved) {
     const data = (saved && saved.equipment) ? saved.equipment : saved;
     if (data && data.inventory) {
       this._inventory = data.inventory || [];
-      this._maxSlots = data.maxSlots || 50;
+      this._maxSlots = data.maxSlots || 100;
+      this._expandedSlots = data.expandedSlots || 0;
       this._overflow = data.overflow || [];
     }
+  },
+
+  // Effective max capacity
+  getMaxCapacity() {
+    return this._maxSlots + this._expandedSlots;
   },
 
   // Generate a random equipment drop based on chapter quality weights
@@ -52,7 +59,7 @@ const EquipmentManager = {
     };
 
     // 6. Add to inventory or overflow
-    if (this._inventory.length < this._maxSlots) {
+    if (this._inventory.length < this.getMaxCapacity()) {
       this._inventory.push(equip);
     } else if (this._overflow.length < 10) {
       this._overflow.push(equip);
@@ -68,7 +75,7 @@ const EquipmentManager = {
   // Add equipment to inventory (with overflow handling)
   addToInventory(equip) {
     if (!equip) return false;
-    if (this._inventory.length < this._maxSlots) {
+    if (this._inventory.length < this.getMaxCapacity()) {
       this._inventory.push(equip);
       return true;
     } else if (this._overflow.length < 10) {
@@ -93,7 +100,7 @@ const EquipmentManager = {
   // Claim overflow items
   claimOverflow() {
     const claimed = [];
-    while (this._overflow.length > 0 && this._inventory.length < this._maxSlots) {
+    while (this._overflow.length > 0 && this._inventory.length < this.getMaxCapacity()) {
       const item = this._overflow.shift();
       this._inventory.push(item);
       claimed.push(item);
@@ -216,10 +223,86 @@ const EquipmentManager = {
     return equip.stats[statKey] * (1 + equip.level * growthRate);
   },
 
+  // Expand inventory by paying gold
+  expandInventory() {
+    if (this._expandedSlots >= INVENTORY_DEFAULTS.MAX_EXPAND) {
+      EventBus.emit('toast:show', { type: 'warning', message: '背包已达最大容量！' });
+      return false;
+    }
+    const cost = this.getExpandCost();
+    if (!ResourceManager.canAfford('gold', cost)) {
+      EventBus.emit('toast:show', { type: 'warning', message: `金币不足！需要💰×${cost}` });
+      return false;
+    }
+    ResourceManager.spend('gold', cost);
+    this._expandedSlots += INVENTORY_DEFAULTS.EXPAND_STEP;
+    EventBus.emit('toast:show', { type: 'success', message: `背包扩容成功！当前容量：${this.getMaxCapacity()}` });
+    return true;
+  },
+
+  // Get cost for next expansion
+  getExpandCost() {
+    if (this._expandedSlots >= INVENTORY_DEFAULTS.MAX_EXPAND) return 0;
+    const n = this._expandedSlots / INVENTORY_DEFAULTS.EXPAND_STEP;
+    return Math.floor(INVENTORY_DEFAULTS.EXPAND_BASE_COST * Math.pow(INVENTORY_DEFAULTS.EXPAND_COST_MULTIPLIER, n));
+  },
+
+  // Get expansion info for UI
+  getExpandInfo() {
+    const canExpand = this._expandedSlots < INVENTORY_DEFAULTS.MAX_EXPAND;
+    return {
+      expandedSlots: this._expandedSlots,
+      maxExpand: INVENTORY_DEFAULTS.MAX_EXPAND,
+      nextCost: this.getExpandCost(),
+      canExpand: canExpand
+    };
+  },
+
+  // Sort inventory by quality (desc), level (desc), uid (asc)
+  sortInventory() {
+    this._inventory.sort(function (a, b) {
+      if (b.quality !== a.quality) return b.quality - a.quality;
+      if (b.level !== a.level) return b.level - a.level;
+      return a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0;
+    });
+    EventBus.emit('equip:inventory_changed');
+    EventBus.emit('toast:show', { type: 'info', message: '背包已排序' });
+  },
+
+  // Batch sell all unequipped non-unsellable equipment with quality <= maxQuality
+  batchSell(maxQuality) {
+    if (typeof maxQuality !== 'number' || maxQuality < 1 || maxQuality > 5 || maxQuality !== Math.floor(maxQuality)) {
+      return { sold: 0, earned: 0 };
+    }
+    var totalGold = 0;
+    var sold = 0;
+    var kept = [];
+    for (var i = 0; i < this._inventory.length; i++) {
+      var eq = this._inventory[i];
+      if (eq.quality <= maxQuality && eq.equippedBy === null && eq.unsellable !== true) {
+        var price = EquipSellPrice[eq.quality] || 0;
+        totalGold += price;
+        sold++;
+      } else {
+        kept.push(eq);
+      }
+    }
+    this._inventory = kept;
+    if (sold === 0) {
+      EventBus.emit('toast:show', { type: 'info', message: '没有可出售的装备' });
+    } else {
+      ResourceManager.add('gold', totalGold);
+      EventBus.emit('toast:show', { type: 'success', message: `批量出售 ${sold} 件装备，获得💰×${totalGold}` });
+      EventBus.emit('equip:inventory_changed');
+    }
+    return { sold: sold, earned: totalGold };
+  },
+
   getState() {
     return {
       inventory: Utils.deepClone(this._inventory),
       maxSlots: this._maxSlots,
+      expandedSlots: this._expandedSlots,
       overflow: Utils.deepClone(this._overflow)
     };
   }

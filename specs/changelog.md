@@ -8,6 +8,78 @@
 
 ### Added
 
+- **城防塔防系统 (Tower Defense System)** — 2026-04-06
+  - 产品规范 (`specs/product-specs/tower-defense-system.md`)：12 个能力（CAP-TD-01~12），58 个 WHEN/THEN 验收场景
+  - 执行计划 (`specs/exec-plans/tower-defense-system.md`)：6 阶段 20 任务
+  - 新增 `js/data/td-data.js`：16 种防御塔（4 时代×4 类型）、9 种敌人（地面/地下/空中+终极Boss）、20 波数值表（公式验算零误差）、4 时代科技树、Lv1-5 升级倍率表、波次奖励函数
+  - 新增 `js/core/pathfinding.js`：A* 寻路（4 方向）+ 封路检测
+  - 新增 `js/modules/tower-defense-manager.js`（~1560 行）：
+    - 解锁条件：通关 stage_2_10 + 城主府≥3
+    - 防御塔建造/升级/出售（科技/资源/位置/封路/容量 5 项检查）
+    - 4 时代科技研究（前置、倒计时、离线补偿）
+    - 武将派驻（最多 2 人，出征互斥，ATK 光环加成）
+    - 双频率战斗架构：game:tick (1Hz) 驱动研究/自动防守 + rAF (~60Hz) 驱动实时战斗
+    - 波次状态机：idle→prep(15s)→active→settlement
+    - 敌人行为：A* 寻路、墙体攻击、空中直线飞行、地下隐身
+    - 塔攻击特效：溅射/穿透/探测/多目标/贯穿光束/持续伤害/减速
+    - 自动防守模式（70% 奖励）
+    - 城主府 HP = 500 + 等级×200，轰炸者伤害×2
+    - 11 个 EventBus 事件（td:unlocked/wave_started/wave_cleared/wave_failed/tower_built/tower_upgraded/tower_sold/enemy_killed/hero_assigned/research_started/era_unlocked）
+  - 新增 `js/ui/tower-defense-panel.js`：Canvas 战场渲染、塔建造/升级/出售面板、科技研究面板、武将派驻面板、波次结算 Modal、3 步新手引导
+  - 修改 `js/ui/town-world.js`：新增 `getCollisionGrid()` 方法
+  - 修改 `js/modules/town-manager.js`：新增 `getCollisionGrid()` 委托方法
+  - 修改 `index.html`：4 个 script 标签（core→data→modules→ui 顺序）
+  - 修改 `js/main.js`：getFullState/initGame/onTick/UI init 集成
+  - 更新 `specs/system/core-contracts.md`：TowerDefenseManager 服务注册、跨模块依赖、11 事件契约、存档键、初始化顺序
+  - 测试文件 (`tests/tower-defense-manager.test.html`)：40+ 测试覆盖 12 能力，100% 场景覆盖
+  - 经 spec-reviewer 3 轮审查（修复 6P0+6P1 问题：tick 架构、数值表、Boss 倍率、城主府费用、API 引用）
+  - 经 drift-detector 漂移检测（修复 3 项：轰炸者特效、core-contracts 集成、参考表取整）
+
+- **装备栏逻辑优化 (Equipment Inventory Optimization)** — 2026-04-06
+  - 产品规范 (`specs/product-specs/equipment-inventory-optimization.md`)：5 个能力（CAP-INV-01–05），25+ 个 WHEN/THEN 验收场景
+  - 执行计划 (`specs/exec-plans/equipment-inventory-optimization.md`)：3 阶段 10 任务
+  - `js/data/equipment.js`：新增 `INVENTORY_DEFAULTS` 常量（容量、扩展步长、费用公式参数）
+  - `js/modules/equipment-manager.js`：
+    - 默认背包容量从 50 提升至 100（新存档）；旧存档保持原值
+    - `getMaxCapacity()` — 返回有效上限（`_maxSlots + _expandedSlots`）
+    - `expandInventory()` — 花费金币扩容 +10 格/次，最多 90 格，费用递增（×1.5）
+    - `getExpandCost()` / `getExpandInfo()` — 扩容状态查询
+    - `sortInventory()` — 按品质↓ → 强化等级↓ → UID↑ 排序
+    - `batchSell(maxQuality)` — 按品质阈值批量出售（输入验证 1–5，保护已穿戴和神话装备）
+    - 新事件 `equip:inventory_changed`（排序/批量售卖后触发 UI 刷新）
+  - `js/ui/equipment-panel.js`：
+    - 背包工具栏：扩容按钮、🔃排序按钮、🗑️售卖按钮
+    - 内联操作按钮：点击装备卡片在下方展开装备/强化/出售按钮，替代原底部详情面板
+    - 一键售卖 Modal：按品质阈值选择，显示可售数量和预估金币
+    - 容量显示使用 `getMaxCapacity()` 动态值
+  - `js/modules/merchant-manager.js`：满包检查从 `_maxSlots` 改为 `getMaxCapacity()`
+  - `js/ui/settings-panel.js`：装备统计从 `_maxSlots` 改为 `getMaxCapacity()`
+
+- **城镇道路系统 (Town Road System)** — 2026-04-06
+  - 产品规范 (`specs/product-specs/town-road-system.md`)：6 个能力（C1–C6），29 个 WHEN/THEN 验收场景
+  - 执行计划 (`specs/exec-plans/town-road-system.md`)：3 阶段 12 任务
+  - `js/modules/town-manager.js`：新增道路系统核心
+    - `_state.roads` 数组（`{gx, gy, usage}`）持久化道路数据
+    - `recalcRoads()` — MST 道路网络生成（Prim 算法 + L 形曼哈顿路径）
+    - `_getBuildingEntrance()` — 建筑入口点计算（底部中心优先，4 方向回退）
+    - `_layPath()` / `_traceLPath()` — L 形路径铺设，优先复用已有道路格
+    - `_bfsPath()` — BFS 绕行障碍物（最大 50 节点）
+    - 建筑建造完成自动触发道路重算
+  - `js/ui/town-world.js`：道路渲染层
+    - `_roadGrid[40][40]` — 运行时使用频率网格
+    - `_buildRoadGrid()` — 从 state.roads 构建渲染网格
+    - `_drawRoads(ctx)` — usage 分级渲染（小路/中路/大道），淡入动画（2s）
+    - 渲染管线：ground → **roads** → decorations → buildings → characters
+    - `_filterDecorations()` 扩展排除道路格上的装饰
+    - 建筑移动确认后触发道路重算
+  - `js/ui/town-characters.js`：A* 寻路系统
+    - `_findPath()` — A* 寻路（道路代价 1.0，地面代价 3.0，800 节点上限）
+    - `_startWandering()` 集成 A* 路径计算（距离 > 2 格时启用）
+    - `_moveToward()` 支持路径点跟随（waypoint following）
+    - 短距离或 A* 失败时回退直线移动
+  - 经 spec-reviewer 审查通过（修复 6 项问题：入口点矛盾、roadGrid 定义、建筑尺寸源等）
+  - Chrome DevTools 视觉验收通过：道路网络可见、路宽分级、角色沿路行走
+
 - **停车场系统 (Parking System)** — 2026-04-05
   - 产品规范 (`specs/product-specs/parking-system.md`)：10 个能力（CAP-PKG-01~10），26 个 WHEN/THEN 验收场景
   - 执行计划 (`specs/exec-plans/parking-system.md`)：5 阶段 10 任务

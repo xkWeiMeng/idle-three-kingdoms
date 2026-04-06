@@ -29,7 +29,8 @@ var TownManager = {
       seed_shop:        { level: 0, buildEndTime: null },
       parking_lot:      { level: 0, buildEndTime: null }
     },
-    placements: {}
+    placements: {},
+    roads: []
   },
 
   /** 资源产出累加器（秒级精度 → 每分钟产出） */
@@ -51,7 +52,19 @@ var TownManager = {
       this._state.buildings = this._getDefaultBuildings();
     }
     this._state.placements = (data && data.placements) ? data.placements : {};
+    // Load roads from save or initialize empty
+    if (data.roads && Array.isArray(data.roads)) {
+      this._state.roads = data.roads.filter(function (r) {
+        return r && typeof r.gx === 'number' && typeof r.gy === 'number'
+            && r.gx >= 0 && r.gx < 40 && r.gy >= 0 && r.gy < 40;
+      });
+    } else {
+      this._state.roads = [];
+    }
     this._productionAccum = { wood: 0, stone: 0, iron: 0, gold: 0 };
+    // Defer initial road calculation to after TownWorld is initialized
+    var self = this;
+    setTimeout(function () { self.recalcRoads(); }, 100);
   },
 
   _getDefaultBuildings: function () {
@@ -100,6 +113,8 @@ var TownManager = {
           type: 'success',
           message: BuildingData[id].emoji + ' ' + BuildingData[id].name + ' 升级到 Lv.' + b.level + '！'
         });
+        // Recalculate roads when a new building is constructed
+        this.recalcRoads();
       }
     }
 
@@ -474,6 +489,286 @@ var TownManager = {
       }
     }
     return cats;
+  },
+
+  // ---------- 道路系统 ----------
+
+  /** 获取建筑入口点（底部中心外侧格） */
+  _getBuildingEntrance: function (buildingId) {
+    if (typeof TownWorld === 'undefined') return null;
+    var placement = this._state.placements[buildingId] || TownWorld._defaultPositions[buildingId];
+    if (!placement) return null;
+    var size = TownWorld._buildingSizes[buildingId];
+    if (!size) return null;
+
+    var MAP_W = TownWorld.MAP_W;
+    var MAP_H = TownWorld.MAP_H;
+
+    // Try bottom center
+    var egx = placement.gx + Math.floor(size.w / 2);
+    var egy = placement.gy + size.h;
+    if (egy < MAP_H && egx >= 0 && egx < MAP_W && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    // Try right center
+    egx = placement.gx + size.w;
+    egy = placement.gy + Math.floor(size.h / 2);
+    if (egx < MAP_W && egy >= 0 && egy < MAP_H && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    // Try left center
+    egx = placement.gx - 1;
+    egy = placement.gy + Math.floor(size.h / 2);
+    if (egx >= 0 && egy >= 0 && egy < MAP_H && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    // Try top center
+    egx = placement.gx + Math.floor(size.w / 2);
+    egy = placement.gy - 1;
+    if (egy >= 0 && egx >= 0 && egx < MAP_W && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    return null; // All directions blocked
+  },
+
+  /** Check if a grid cell is occupied by any building other than excludeId */
+  _isBuildingAt: function (gx, gy, excludeId) {
+    if (typeof TownWorld === 'undefined') return false;
+    var buildingIds = Object.keys(TownWorld._buildingSizes);
+    for (var i = 0; i < buildingIds.length; i++) {
+      var id = buildingIds[i];
+      if (id === excludeId) continue;
+      var b = this._state.buildings[id];
+      if (!b || b.level <= 0) continue;
+      var p = this._state.placements[id] || TownWorld._defaultPositions[id];
+      var s = TownWorld._buildingSizes[id];
+      if (!p || !s) continue;
+      if (gx >= p.gx && gx < p.gx + s.w && gy >= p.gy && gy < p.gy + s.h) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  /** Check if a grid cell is occupied by any building */
+  _isAnyBuildingAt: function (gx, gy) {
+    return this._isBuildingAt(gx, gy, null);
+  },
+
+  /** Recalculate road network using MST */
+  recalcRoads: function () {
+    // 1. Collect entrance points for all built buildings
+    var entrances = [];
+    for (var id in this._state.buildings) {
+      if (!this._state.buildings.hasOwnProperty(id)) continue;
+      if (this._state.buildings[id].level <= 0) continue;
+      var entrance = this._getBuildingEntrance(id);
+      if (entrance) {
+        entrances.push({ id: id, gx: entrance.gx, gy: entrance.gy });
+      }
+    }
+
+    // 2. If < 2 buildings, no roads
+    if (entrances.length < 2) {
+      this._state.roads = [];
+      EventBus.emit('town:roads_updated', { count: 0 });
+      if (typeof TownWorld !== 'undefined' && TownWorld._buildRoadGrid) {
+        TownWorld._buildRoadGrid();
+      }
+      return;
+    }
+
+    // 3. Compute MST using Prim's algorithm
+    var n = entrances.length;
+    var inMST = new Array(n);
+    var minDist = new Array(n);
+    var minEdge = new Array(n);
+    for (var i = 0; i < n; i++) {
+      inMST[i] = false;
+      minDist[i] = Infinity;
+      minEdge[i] = -1;
+    }
+    minDist[0] = 0;
+    var mstEdges = [];
+
+    for (var iter = 0; iter < n; iter++) {
+      // Find minimum cost node not yet in MST
+      var u = -1;
+      for (var j = 0; j < n; j++) {
+        if (!inMST[j] && (u === -1 || minDist[j] < minDist[u])) {
+          u = j;
+        }
+      }
+      inMST[u] = true;
+      if (minEdge[u] !== -1) {
+        mstEdges.push([minEdge[u], u]);
+      }
+      // Update distances
+      for (var v = 0; v < n; v++) {
+        if (inMST[v]) continue;
+        var dist = Math.abs(entrances[u].gx - entrances[v].gx) + Math.abs(entrances[u].gy - entrances[v].gy);
+        if (dist < minDist[v]) {
+          minDist[v] = dist;
+          minEdge[v] = u;
+        }
+      }
+    }
+
+    // 4. Lay L-shaped paths for each MST edge
+    // Build a usage grid
+    var MAP_W = typeof TownWorld !== 'undefined' ? TownWorld.MAP_W : 40;
+    var MAP_H = typeof TownWorld !== 'undefined' ? TownWorld.MAP_H : 40;
+    var usageGrid = [];
+    for (var ry = 0; ry < MAP_H; ry++) {
+      usageGrid[ry] = [];
+      for (var rx = 0; rx < MAP_W; rx++) {
+        usageGrid[ry][rx] = 0;
+      }
+    }
+
+    var self = this;
+    for (var e = 0; e < mstEdges.length; e++) {
+      var a = entrances[mstEdges[e][0]];
+      var b = entrances[mstEdges[e][1]];
+      var path = self._layPath(a.gx, a.gy, b.gx, b.gy, usageGrid);
+      for (var p = 0; p < path.length; p++) {
+        usageGrid[path[p].gy][path[p].gx]++;
+      }
+    }
+
+    // 5. Convert usage grid to roads array
+    var roads = [];
+    for (var yy = 0; yy < MAP_H; yy++) {
+      for (var xx = 0; xx < MAP_W; xx++) {
+        if (usageGrid[yy][xx] > 0) {
+          roads.push({ gx: xx, gy: yy, usage: usageGrid[yy][xx] });
+        }
+      }
+    }
+    this._state.roads = roads;
+
+    EventBus.emit('town:roads_updated', { count: roads.length });
+    if (typeof TownWorld !== 'undefined' && TownWorld._buildRoadGrid) {
+      TownWorld._buildRoadGrid();
+    }
+  },
+
+  /** Lay an L-shaped Manhattan path between two points, prefer reusing existing road cells */
+  _layPath: function (x1, y1, x2, y2, usageGrid) {
+    // Try two L-shape variants: H-first and V-first
+    var pathH = this._traceLPath(x1, y1, x2, y2, true);
+    var pathV = this._traceLPath(x1, y1, x2, y2, false);
+
+    // If either path is blocked by buildings, try BFS
+    if (!pathH) pathH = [];
+    if (!pathV) pathV = [];
+
+    // Count reuse for each variant
+    var reuseH = 0, reuseV = 0;
+    for (var i = 0; i < pathH.length; i++) {
+      if (usageGrid[pathH[i].gy][pathH[i].gx] > 0) reuseH++;
+    }
+    for (var j = 0; j < pathV.length; j++) {
+      if (usageGrid[pathV[j].gy][pathV[j].gx] > 0) reuseV++;
+    }
+
+    // Choose variant with more reuse, or shorter if equal
+    var chosen;
+    if (pathH.length === 0 && pathV.length === 0) {
+      // Both blocked — use BFS
+      chosen = this._bfsPath(x1, y1, x2, y2);
+    } else if (pathH.length === 0) {
+      chosen = pathV;
+    } else if (pathV.length === 0) {
+      chosen = pathH;
+    } else if (reuseH > reuseV) {
+      chosen = pathH;
+    } else if (reuseV > reuseH) {
+      chosen = pathV;
+    } else {
+      chosen = pathH.length <= pathV.length ? pathH : pathV;
+    }
+    return chosen || [];
+  },
+
+  /** Trace an L-shaped path. hFirst=true means go horizontal first, then vertical. */
+  _traceLPath: function (x1, y1, x2, y2, hFirst) {
+    var path = [];
+    var cx = x1, cy = y1;
+
+    if (hFirst) {
+      // Horizontal segment
+      var dx = x2 > x1 ? 1 : -1;
+      while (cx !== x2) {
+        cx += dx;
+        if (this._isAnyBuildingAt(cx, cy)) return null; // Blocked
+        path.push({ gx: cx, gy: cy });
+      }
+      // Vertical segment
+      var dy = y2 > y1 ? 1 : -1;
+      while (cy !== y2) {
+        cy += dy;
+        if (this._isAnyBuildingAt(cx, cy)) return null; // Blocked
+        path.push({ gx: cx, gy: cy });
+      }
+    } else {
+      // Vertical segment
+      var dy2 = y2 > y1 ? 1 : -1;
+      while (cy !== y2) {
+        cy += dy2;
+        if (this._isAnyBuildingAt(cx, cy)) return null;
+        path.push({ gx: cx, gy: cy });
+      }
+      // Horizontal segment
+      var dx2 = x2 > x1 ? 1 : -1;
+      while (cx !== x2) {
+        cx += dx2;
+        if (this._isAnyBuildingAt(cx, cy)) return null;
+        path.push({ gx: cx, gy: cy });
+      }
+    }
+    return path;
+  },
+
+  /** BFS shortest path between two points avoiding buildings, max 50 nodes */
+  _bfsPath: function (x1, y1, x2, y2) {
+    var MAP_W = typeof TownWorld !== 'undefined' ? TownWorld.MAP_W : 40;
+    var MAP_H = typeof TownWorld !== 'undefined' ? TownWorld.MAP_H : 40;
+    var key = function (gx, gy) { return gy * MAP_W + gx; };
+    var queue = [{ gx: x1, gy: y1, path: [] }];
+    var visited = {};
+    visited[key(x1, y1)] = true;
+    var dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    var explored = 0;
+
+    while (queue.length > 0 && explored < 50) {
+      var cur = queue.shift();
+      explored++;
+      if (cur.gx === x2 && cur.gy === y2) {
+        return cur.path;
+      }
+      for (var d = 0; d < dirs.length; d++) {
+        var nx = cur.gx + dirs[d][0];
+        var ny = cur.gy + dirs[d][1];
+        if (nx < 0 || ny < 0 || nx >= MAP_W || ny >= MAP_H) continue;
+        var nk = key(nx, ny);
+        if (visited[nk]) continue;
+        if (this._isAnyBuildingAt(nx, ny)) continue;
+        visited[nk] = true;
+        var newPath = cur.path.slice();
+        newPath.push({ gx: nx, gy: ny });
+        if (nx === x2 && ny === y2) return newPath;
+        queue.push({ gx: nx, gy: ny, path: newPath });
+      }
+    }
+    return []; // No path found within limit
+  },
+
+  getCollisionGrid: function () {
+    if (typeof TownWorld !== 'undefined' && TownWorld.getCollisionGrid) {
+      return TownWorld.getCollisionGrid();
+    }
+    return null;
   },
 
   getState: function () {

@@ -218,6 +218,15 @@ const EquipMaxLevel = { 1: 5, 2: 10, 3: 15, 4: 20, 5: 25, 6: 30 };
 // Equipment sell price: quality × 50 (mythic unsellable)
 const EquipSellPrice = { 1: 50, 2: 100, 3: 150, 4: 200, 5: 250, 6: 0 };
 
+// Inventory expansion constants
+const INVENTORY_DEFAULTS = {
+  BASE_SLOTS: 100,            // 新存档默认背包容量
+  MAX_EXPAND: 90,             // 金币最大可扩展格数
+  EXPAND_STEP: 10,            // 每次扩展增加格数
+  EXPAND_BASE_COST: 1000,     // 首次扩展费用（金币）
+  EXPAND_COST_MULTIPLIER: 1.5 // 每次扩展费用递增系数
+};
+
 // Equipment type to stat mapping
 const EquipTypeToStat = {
   weapon: 'atk',

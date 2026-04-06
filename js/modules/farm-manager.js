@@ -351,21 +351,11 @@ var FarmManager = {
       }
     }
 
-    // Check resources
-    for (var r in cost) {
-      if (cost.hasOwnProperty(r)) {
-        if (!ResourceManager.has(r, cost[r])) {
-          return { ok: false, reason: '资源不足' };
-        }
-      }
+    // Check and deduct resources
+    if (!ResourceManager.canAffordMultiple(cost)) {
+      return { ok: false, reason: '资源不足' };
     }
-
-    // Deduct cost
-    for (var r2 in cost) {
-      if (cost.hasOwnProperty(r2)) {
-        ResourceManager.add(r2, -cost[r2]);
-      }
-    }
+    ResourceManager.spendMultiple(cost, 'farming', 'seed_shop', cropId);
 
     if (!this._state.seeds[cropId]) this._state.seeds[cropId] = 0;
     this._state.seeds[cropId]++;

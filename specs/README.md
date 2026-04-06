@@ -55,6 +55,10 @@ Agent 应像使用地图一样导航规范：
 |------|------|------|
 | [种菜系统](product-specs/farming-system.md) | Draft | 城镇农耕玩法，作物品级与料理 Buff |
 | [停车场系统](product-specs/parking-system.md) | Draft | QQ 抢车位玩法，载具停放被动产出金币 |
+| [城镇道路系统](product-specs/town-road-system.md) | Active | MST 自动道路网络、分级宽度渲染、A* 寻路偏好 |
+| [城防塔防系统](product-specs/tower-defense-system.md) | Active | 防御建筑、波次进攻、科技树、从中世纪到现代 |
+| [城防塔防系统](product-specs/tower-defense-system.md) | Draft | 波次制城防、4 时代科技树、地面/地下/空中敌人、武将联动 |
+| [装备栏逻辑优化](product-specs/equipment-inventory-optimization.md) | Active | 默认容量翻倍、金币扩容、一键排序/售卖、内联操作按钮 |
 
 ### 系统规范
 - [核心契约](system/core-contracts.md) — `Draft` — 资源枚举、品质等级、事件协议、存档格式、初始化顺序
