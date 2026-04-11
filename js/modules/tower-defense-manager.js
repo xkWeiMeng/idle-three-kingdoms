@@ -32,7 +32,12 @@ var TowerDefenseManager = {
       wave: { current: 1, highest: 0, townHallHp: 0, townHallMaxHp: 0 },
       assignedHeroes: [],
       stats: { totalWavesCleared: 0, totalKills: 0, totalGoldEarned: 0 },
-      tutorialSeen: false
+      tutorialSeen: false,
+      // 章节/关卡进度
+      chapter: { current: 1, highestCleared: 0 },
+      stageProgress: {},   // 'ch_st' → { cleared: true, stars: 0-3 }
+      // 每日挑战次数
+      dailyChallenges: { date: null, used: 0 }
     };
   },
 
@@ -51,7 +56,10 @@ var TowerDefenseManager = {
         wave: data.wave || { current: 1, highest: 0, townHallHp: 0, townHallMaxHp: 0 },
         assignedHeroes: data.assignedHeroes || [],
         stats: data.stats || { totalWavesCleared: 0, totalKills: 0, totalGoldEarned: 0 },
-        tutorialSeen: !!data.tutorialSeen
+        tutorialSeen: !!data.tutorialSeen,
+        chapter: data.chapter || { current: 1, highestCleared: 0 },
+        stageProgress: data.stageProgress || {},
+        dailyChallenges: data.dailyChallenges || { date: null, used: 0 }
       };
       // §11.2: 存档恢复 — 补全 research 字段
       if (!this._state.research.era_2) this._state.research.era_2 = { completed: false, startTime: null };
@@ -66,6 +74,7 @@ var TowerDefenseManager = {
     this._inDefenseMode = false;
     this._towerRuntime = {};
     this._heroSkillTimers = {};
+    this._currentStage = null;
 
     // 初始化城主府 HP
     this._initTownHallHp();
@@ -153,12 +162,14 @@ var TowerDefenseManager = {
       return { needConfirm: true };
     }
     this._inDefenseMode = false;
+    this._currentStage = null;
     this._stopBattleLoop();
     return { needConfirm: false };
   },
 
   forceExitDefenseMode: function () {
     this._inDefenseMode = false;
+    this._currentStage = null;
     this._stopBattleLoop();
     // 清除战斗状态
     this._battle = this._defaultBattle();
@@ -175,7 +186,11 @@ var TowerDefenseManager = {
     if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
       townHallLevel = TownManager.getBuildingLevel('town_hall');
     }
-    return 8 + townHallLevel * 3;
+    // 使用 TDTowerCapacity 查表，默认 8
+    if (typeof TDTowerCapacity !== 'undefined' && TDTowerCapacity[townHallLevel]) {
+      return TDTowerCapacity[townHallLevel];
+    }
+    return 8 + Math.max(0, townHallLevel - 3) * 3;
   },
 
   canBuildTower: function (typeId, gridX, gridY) {
@@ -199,16 +214,26 @@ var TowerDefenseManager = {
       return { ok: false, reason: '资源不足' };
     }
 
-    // 检查网格位置是否被占用
+    // 检查网格位置是否被占用（支持多格塔）
     var grid = this._getCollisionGrid();
-    if (grid && grid[gridY] && grid[gridY][gridX] !== 0) {
-      return { ok: false, reason: '无法放置：该位置已占用' };
+    var towerSize = TDGetTowerSize(typeId);
+    for (var sy = 0; sy < towerSize.h; sy++) {
+      for (var sx = 0; sx < towerSize.w; sx++) {
+        var cx = gridX + sx;
+        var cy = gridY + sy;
+        if (grid && grid[cy] && grid[cy][cx] !== 0) {
+          return { ok: false, reason: '无法放置：该位置已占用' };
+        }
+      }
     }
 
-    // 检查是否已有塔占用该位置
+    // 检查是否已有塔占用该位置（含多格塔）
     for (var i = 0; i < this._state.towers.length; i++) {
       var t = this._state.towers[i];
-      if (t.gridX === gridX && t.gridY === gridY) {
+      var tSize = TDGetTowerSize(t.type);
+      // 检查两个矩形是否重叠
+      if (gridX < t.gridX + tSize.w && gridX + towerSize.w > t.gridX &&
+          gridY < t.gridY + tSize.h && gridY + towerSize.h > t.gridY) {
         return { ok: false, reason: '无法放置：该位置已占用' };
       }
     }
@@ -217,12 +242,24 @@ var TowerDefenseManager = {
     var target = this._getTownHallGridPos();
     var spawnPoints = this._getSpawnPoints();
     if (target && spawnPoints.length > 0) {
-      // 在当前碰撞网格中先加入已有塔
       var testGrid = this._getFullCollisionGrid();
       if (testGrid) {
-        var canPass = Pathfinding.checkPathExists(testGrid, gridX, gridY, spawnPoints, target);
-        if (!canPass) {
-          return { ok: false, reason: '无法放置：不能完全封锁敌人路径' };
+        // 标记新塔要占用的所有格子
+        for (var ty = 0; ty < towerSize.h; ty++) {
+          for (var tx = 0; tx < towerSize.w; tx++) {
+            var bx = gridX + tx;
+            var by = gridY + ty;
+            if (by >= 0 && by < testGrid.length && bx >= 0 && bx < testGrid[0].length) {
+              testGrid[by][bx] = 1;
+            }
+          }
+        }
+        // 检查所有出生点是否还能到达城主府
+        for (var si = 0; si < spawnPoints.length; si++) {
+          var sp = spawnPoints[si];
+          if (Pathfinding.findPath(testGrid, sp, target) === null) {
+            return { ok: false, reason: '无法放置：不能完全封锁敌人路径' };
+          }
         }
       }
     }
@@ -775,7 +812,13 @@ var TowerDefenseManager = {
     var enemyData = TDEnemyData[enemyDef.type];
     if (!enemyData) return;
 
-    var waveData = TDWaveTable[this._state.wave.current];
+    // 获取波次数据（优先章节关卡）
+    var waveData;
+    if (this._currentStage) {
+      waveData = this._getStageWaveData();
+    } else {
+      waveData = TDWaveTable[this._state.wave.current];
+    }
     if (!waveData) return;
 
     // Calculate actual stats
@@ -900,7 +943,12 @@ var TowerDefenseManager = {
       enemy.summonTimer -= 5;
       enemy.summonCount++;
       // Summon infantry at boss position
-      var waveData = TDWaveTable[this._state.wave.current];
+      var waveData;
+      if (this._currentStage) {
+        waveData = this._getStageWaveData();
+      } else {
+        waveData = TDWaveTable[this._state.wave.current];
+      }
       if (!waveData) return;
       var infantryData = TDEnemyData['td_infantry'];
       if (!infantryData) return;
@@ -1182,8 +1230,9 @@ var TowerDefenseManager = {
 
       if (towerData.special === 'detect' || towerData.special === 'detect_atk_buff_20') {
         var stats = this.getTowerStats(tower.uid);
-        var towerCenterX = tower.gridX * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
-        var towerCenterY = tower.gridY * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
+        var tc = this._getTowerCenter(tower);
+        var towerCenterX = tc.x;
+        var towerCenterY = tc.y;
         var rangePixels = stats.range * TD_CONSTANTS.TILE_SIZE;
 
         for (var e2 = 0; e2 < this._battle.enemies.length; e2++) {
@@ -1204,8 +1253,9 @@ var TowerDefenseManager = {
 
   _findTargets: function (tower, stats, maxTargets) {
     var towerData = TDTowerData[tower.type];
-    var towerCenterX = tower.gridX * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
-    var towerCenterY = tower.gridY * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
+    var tc = this._getTowerCenter(tower);
+    var towerCenterX = tc.x;
+    var towerCenterY = tc.y;
     var rangePixels = stats.range * TD_CONSTANTS.TILE_SIZE;
 
     var candidates = [];
@@ -1310,8 +1360,9 @@ var TowerDefenseManager = {
 
   _handlePiercing: function (tower, stats, hitEnemy) {
     // Laser: damage all enemies in a line from tower to beyond hit enemy
-    var towerCenterX = tower.gridX * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
-    var towerCenterY = tower.gridY * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
+    var tc = this._getTowerCenter(tower);
+    var towerCenterX = tc.x;
+    var towerCenterY = tc.y;
 
     var dx = hitEnemy.x - towerCenterX;
     var dy = hitEnemy.y - towerCenterY;
@@ -1358,8 +1409,9 @@ var TowerDefenseManager = {
         this._towerRuntime[tower.uid] = runtime;
       }
 
-      var towerCenterX = tower.gridX * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
-      var towerCenterY = tower.gridY * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
+      var tc = this._getTowerCenter(tower);
+      var towerCenterX = tc.x;
+      var towerCenterY = tc.y;
 
       // Cooldown for reusable traps
       if (runtime.trapCooldown > 0) {
@@ -1428,8 +1480,9 @@ var TowerDefenseManager = {
       if (!towerData || towerData.special !== 'contact_damage') continue;
 
       var stats = this.getTowerStats(tower.uid);
-      var towerCenterX = tower.gridX * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
-      var towerCenterY = tower.gridY * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
+      var tc = this._getTowerCenter(tower);
+      var towerCenterX = tc.x;
+      var towerCenterY = tc.y;
 
       for (var e = 0; e < this._battle.enemies.length; e++) {
         var enemy = this._battle.enemies[e];
@@ -1521,8 +1574,11 @@ var TowerDefenseManager = {
       var otherData = TDTowerData[other.type];
       if (!otherData || otherData.special !== 'detect_atk_buff_20') continue;
 
-      var dx = (other.gridX - tower.gridX);
-      var dy = (other.gridY - tower.gridY);
+      // 用中心坐标算距离（支持多格塔）
+      var otherSize = TDGetTowerSize(other.type);
+      var towerSize = TDGetTowerSize(tower.type);
+      var dx = (other.gridX + otherSize.w / 2) - (tower.gridX + towerSize.w / 2);
+      var dy = (other.gridY + otherSize.h / 2) - (tower.gridY + towerSize.h / 2);
       var dist = Math.sqrt(dx * dx + dy * dy);
       var radarRange = otherData.range;
 
@@ -1540,7 +1596,16 @@ var TowerDefenseManager = {
   startWave: function () {
     if (!this._state.unlocked || !this._inDefenseMode) return false;
     if (this._battle.active) return false;
-    if (this._state.wave.current > TD_CONSTANTS.MAX_WAVE) return false;
+
+    // 检查每日挑战次数
+    this._checkDailyReset();
+    if (this._state.dailyChallenges.used >= TD_CONSTANTS.DAILY_CHALLENGE_LIMIT) {
+      EventBus.emit('toast:show', { type: 'warning', message: '今日挑战次数已用完' });
+      return false;
+    }
+
+    // 消耗一次每日挑战次数
+    this._state.dailyChallenges.used++;
 
     // Init town hall HP for this wave
     this._initTownHallHp();
@@ -1571,8 +1636,16 @@ var TowerDefenseManager = {
   _startActivePhase: function () {
     this._battle.phase = 'active';
 
-    var waveNum = this._state.wave.current;
-    var waveData = TDWaveTable[waveNum];
+    // 优先使用章节/关卡数据
+    var waveData;
+    var waveNum;
+    if (this._currentStage) {
+      waveData = this._getStageWaveData();
+      waveNum = this._currentStage.chapter * 100 + this._currentStage.stage;
+    } else {
+      waveNum = this._state.wave.current;
+      waveData = TDWaveTable[waveNum];
+    }
     if (!waveData) return;
 
     // Build spawn queue
@@ -1616,24 +1689,42 @@ var TowerDefenseManager = {
   },
 
   _onAllEnemiesCleared: function () {
-    var waveNum = this._state.wave.current;
     this._battle.phase = 'settlement';
 
-    // Calculate rewards (manual mode)
-    var rewards = this._calcRewards(waveNum, true);
+    var rewards;
+    var waveNum;
+
+    if (this._currentStage) {
+      // 章节/关卡模式
+      rewards = this._getStageRewards();
+      rewards.gold = Math.floor(rewards.gold * TD_CONSTANTS.MANUAL_GOLD_BONUS);
+      rewards.exp = Math.floor(rewards.exp * TD_CONSTANTS.MANUAL_EXP_BONUS);
+      waveNum = this._currentStage.chapter * 100 + this._currentStage.stage;
+      this._clearCurrentStage();
+    } else {
+      waveNum = this._state.wave.current;
+      rewards = this._calcRewards(waveNum, true);
+    }
 
     // Grant full rewards
     this._grantRewards(rewards, 1.0);
 
-    // Update wave state
+    // Update stats
     this._state.stats.totalWavesCleared++;
-    this._state.wave.highest = Math.max(this._state.wave.highest, waveNum);
-
-    if (waveNum < TD_CONSTANTS.MAX_WAVE) {
-      this._state.wave.current = waveNum + 1;
+    if (!this._currentStage) {
+      this._state.wave.highest = Math.max(this._state.wave.highest, waveNum);
+      if (waveNum < TD_CONSTANTS.MAX_WAVE) {
+        this._state.wave.current = waveNum + 1;
+      }
     }
 
-    EventBus.emit('td:wave_cleared', { wave: waveNum, rewards: rewards, auto: false });
+    EventBus.emit('td:wave_cleared', {
+      wave: waveNum,
+      rewards: rewards,
+      auto: false,
+      chapter: this._currentStage ? this._currentStage.chapter : null,
+      stage: this._currentStage ? this._currentStage.stage : null
+    });
 
     // Stop battle loop, return to idle
     this._battle.active = false;
@@ -1766,6 +1857,9 @@ var TowerDefenseManager = {
   onTick: function (dt) {
     if (!this._state) return;
 
+    // 每日挑战次数重置检查
+    this._checkDailyReset();
+
     // 科技研究 tick
     if (this._state.unlocked) {
       this._tickResearch(dt);
@@ -1775,6 +1869,202 @@ var TowerDefenseManager = {
     if (!this._inDefenseMode && this._state.unlocked && this._state.towers.length > 0) {
       this._autoDefend(dt);
     }
+  },
+
+  // ========== 章节/关卡系统 ==========
+
+  // 获取当前可用章节列表
+  getChapters: function () {
+    var result = [];
+    for (var ch = 1; ch <= 5; ch++) {
+      var data = TDChapterData[ch];
+      if (!data) continue;
+      var unlocked = this._isChapterUnlocked(ch);
+      var cleared = this._isChapterCleared(ch);
+      result.push({
+        id: ch,
+        name: data.name,
+        era: data.era,
+        description: data.description,
+        unlocked: unlocked,
+        cleared: cleared,
+        stages: this._getChapterStages(ch)
+      });
+    }
+    return result;
+  },
+
+  _isChapterUnlocked: function (ch) {
+    if (ch === 1) return this._state.unlocked;
+    var data = TDChapterData[ch];
+    if (!data || !data.unlockCondition) return false;
+    // 前置章节需通关
+    if (data.unlockCondition.chapter && !this._isChapterCleared(data.unlockCondition.chapter)) return false;
+    // 科技时代要求
+    if (data.unlockCondition.era && this._state.era < data.unlockCondition.era) return false;
+    return true;
+  },
+
+  _isChapterCleared: function (ch) {
+    var data = TDChapterData[ch];
+    if (!data) return false;
+    for (var s = 0; s < data.stages.length; s++) {
+      var key = ch + '_' + data.stages[s].stage;
+      if (!this._state.stageProgress[key] || !this._state.stageProgress[key].cleared) return false;
+    }
+    return true;
+  },
+
+  _getChapterStages: function (ch) {
+    var data = TDChapterData[ch];
+    if (!data) return [];
+    var stages = [];
+    for (var s = 0; s < data.stages.length; s++) {
+      var sd = data.stages[s];
+      var key = ch + '_' + sd.stage;
+      var progress = this._state.stageProgress[key];
+      stages.push({
+        stage: sd.stage,
+        name: sd.name,
+        difficulty: sd.difficulty,
+        isBoss: !!sd.isBoss,
+        cleared: !!(progress && progress.cleared),
+        stars: progress ? progress.stars : 0,
+        // 前一关通过才能挑战（第1关直接可挑战）
+        unlocked: sd.stage === 1 || !!(this._state.stageProgress[ch + '_' + (sd.stage - 1)] && this._state.stageProgress[ch + '_' + (sd.stage - 1)].cleared)
+      });
+    }
+    return stages;
+  },
+
+  // 选择关卡并准备战斗
+  selectStage: function (chapterId, stageNum) {
+    if (!this._state.unlocked) return { ok: false, reason: '城防系统未解锁' };
+    if (!this._isChapterUnlocked(chapterId)) return { ok: false, reason: '章节未解锁' };
+
+    var chData = TDChapterData[chapterId];
+    if (!chData) return { ok: false, reason: '章节不存在' };
+
+    var stageData = null;
+    for (var i = 0; i < chData.stages.length; i++) {
+      if (chData.stages[i].stage === stageNum) { stageData = chData.stages[i]; break; }
+    }
+    if (!stageData) return { ok: false, reason: '关卡不存在' };
+
+    // 检查前置关卡
+    if (stageNum > 1) {
+      var prevKey = chapterId + '_' + (stageNum - 1);
+      if (!this._state.stageProgress[prevKey] || !this._state.stageProgress[prevKey].cleared) {
+        return { ok: false, reason: '需要先通关前一关' };
+      }
+    }
+
+    // 检查每日挑战次数
+    this._checkDailyReset();
+    if (this._state.dailyChallenges.used >= TD_CONSTANTS.DAILY_CHALLENGE_LIMIT) {
+      return { ok: false, reason: '今日挑战次数已用完（' + TD_CONSTANTS.DAILY_CHALLENGE_LIMIT + '/' + TD_CONSTANTS.DAILY_CHALLENGE_LIMIT + '）' };
+    }
+
+    // 设置当前关卡（用于后续 startWave）
+    this._currentStage = { chapter: chapterId, stage: stageNum, data: stageData };
+    return { ok: true, stage: stageData };
+  },
+
+  // 当前关卡的波次数据（根据 difficulty 缩放）
+  _getStageWaveData: function () {
+    if (!this._currentStage) return null;
+    var stageData = this._currentStage.data;
+    var waveIndices = stageData.waves;
+    var diffMul = stageData.difficulty;
+
+    // 合并多个波次的敌人
+    var allEnemies = [];
+    for (var w = 0; w < waveIndices.length; w++) {
+      var waveData = TDWaveTable[waveIndices[w]];
+      if (!waveData) continue;
+      for (var e = 0; e < waveData.enemies.length; e++) {
+        allEnemies.push({ type: waveData.enemies[e].type, count: waveData.enemies[e].count });
+      }
+    }
+
+    // 用第一个波次的基础属性 × difficulty 系数
+    var baseWave = TDWaveTable[waveIndices[0]];
+    if (!baseWave) return null;
+
+    return {
+      wave: 1,
+      baseHp: Math.floor(baseWave.baseHp * diffMul),
+      baseAtk: Math.floor(baseWave.baseAtk * diffMul),
+      baseDef: Math.floor(baseWave.baseDef * diffMul),
+      enemies: allEnemies,
+      isBoss: !!stageData.isBoss
+    };
+  },
+
+  // 获取关卡奖励（基于 difficulty）
+  _getStageRewards: function () {
+    if (!this._currentStage) return { gold: 0, exp: 0 };
+    var diff = this._currentStage.data.difficulty;
+    var ch = this._currentStage.chapter;
+
+    var gold = Math.floor(100 * diff);
+    var exp = Math.floor(30 * diff);
+    var result = { gold: gold, exp: exp };
+
+    // Boss 关卡额外奖励
+    if (this._currentStage.data.isBoss) {
+      result.gold = Math.floor(result.gold * 2);
+      result.exp = Math.floor(result.exp * 1.5);
+      result.jade = ch;
+      result.equipChance = 0.3 + ch * 0.1;
+      result.equipMinQuality = Math.min(5, 2 + ch);
+    } else if (diff >= 10) {
+      result.jadeChance = 0.1;
+      result.jadeAmount = 1;
+    }
+
+    return result;
+  },
+
+  // 通关当前关卡
+  _clearCurrentStage: function () {
+    if (!this._currentStage) return;
+    var key = this._currentStage.chapter + '_' + this._currentStage.stage;
+
+    // 计算星级：按城主府剩余HP百分比
+    var hpRatio = this._state.wave.townHallHp / this._state.wave.townHallMaxHp;
+    var stars = hpRatio >= 0.8 ? 3 : (hpRatio >= 0.4 ? 2 : 1);
+
+    var prev = this._state.stageProgress[key];
+    this._state.stageProgress[key] = {
+      cleared: true,
+      stars: Math.max(stars, prev ? prev.stars : 0)
+    };
+
+    // 更新章节进度
+    if (this._currentStage.chapter > this._state.chapter.highestCleared) {
+      if (this._isChapterCleared(this._currentStage.chapter)) {
+        this._state.chapter.highestCleared = this._currentStage.chapter;
+      }
+    }
+  },
+
+  // 每日次数检查与重置
+  _checkDailyReset: function () {
+    var today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    if (this._state.dailyChallenges.date !== today) {
+      this._state.dailyChallenges.date = today;
+      this._state.dailyChallenges.used = 0;
+    }
+  },
+
+  getDailyChallengeInfo: function () {
+    this._checkDailyReset();
+    return {
+      used: this._state.dailyChallenges.used,
+      limit: TD_CONSTANTS.DAILY_CHALLENGE_LIMIT,
+      remaining: TD_CONSTANTS.DAILY_CHALLENGE_LIMIT - this._state.dailyChallenges.used
+    };
   },
 
   // ========== Helper Methods ==========
@@ -1827,6 +2117,16 @@ var TowerDefenseManager = {
     return null;
   },
 
+  // 获取塔中心像素位置（支持多格塔）
+  _getTowerCenter: function (tower) {
+    var size = TDGetTowerSize(tower.type);
+    var TILE = TD_CONSTANTS.TILE_SIZE;
+    return {
+      x: tower.gridX * TILE + size.w * TILE / 2,
+      y: tower.gridY * TILE + size.h * TILE / 2
+    };
+  },
+
   _getFullCollisionGrid: function () {
     var baseGrid = this._getCollisionGrid();
     if (!baseGrid) return null;
@@ -1852,8 +2152,15 @@ var TowerDefenseManager = {
       var td = TDTowerData[t.type];
       // Walls and ground-occupying buildings block ground movement
       if (td && (td.category === 'wall' || td.category === 'attack' || td.category === 'support')) {
-        if (t.gridY >= 0 && t.gridY < grid.length && t.gridX >= 0 && t.gridX < grid[0].length) {
-          grid[t.gridY][t.gridX] = 1;
+        var tSize = TDGetTowerSize(t.type);
+        for (var sy = 0; sy < tSize.h; sy++) {
+          for (var sx = 0; sx < tSize.w; sx++) {
+            var cx = t.gridX + sx;
+            var cy = t.gridY + sy;
+            if (cy >= 0 && cy < grid.length && cx >= 0 && cx < grid[0].length) {
+              grid[cy][cx] = 1;
+            }
+          }
         }
       }
     }

@@ -16,6 +16,7 @@ var BottomNav = {
     { id: 'equipment', icon: '🛡️', label: '装备' },
     { id: 'merchant',  icon: '🏪', label: '商人' },
     { id: 'forge',     icon: '🔨', label: '锻造' },
+    { id: 'td',        icon: '🏰', label: '城防' },
     { id: 'abyss',     icon: '🔥', label: '深渊' },
     { id: 'farm',      icon: '🥬', label: '菜园' },
     { id: 'parking',   icon: '🅿️', label: '停车' },
@@ -113,6 +114,9 @@ var BottomNav = {
     }
     if (panelId === 'parking' && typeof ParkingPanel !== 'undefined') {
       ParkingPanel.show(); return;
+    }
+    if (panelId === 'td' && typeof TowerDefensePanel !== 'undefined') {
+      TowerDefensePanel.showChapterSelect(); return;
     }
 
     var titles = {

@@ -46,15 +46,12 @@ var TowerDefensePanel = {
   init: function () {
     var self = this;
 
-    // 创建城防入口按钮
-    this._createDefenseButton();
-
     // 创建状态栏和工具栏（初始隐藏）
     this._createStatusBar();
     this._createToolbar();
 
     // 监听 TD 事件
-    EventBus.on('td:unlocked', function () { self._updateDefenseButton(); });
+    EventBus.on('td:unlocked', function () { });
     EventBus.on('td:wave_started', function () { self._updateStatusBar(); self._updateToolbar(); });
     EventBus.on('td:wave_cleared', function (data) { self._onWaveCleared(data); });
     EventBus.on('td:wave_failed', function (data) { self._onWaveFailed(data); });
@@ -70,63 +67,163 @@ var TowerDefensePanel = {
     EventBus.on('overlay:closed', function () {
       if (self._inDefenseMode) self._updateToolbar();
     });
-
-    // 初始更新按钮状态
-    this._updateDefenseButton();
   },
 
-  // ========== T13a: 防守入口按钮 ==========
+  // ========== 章节选择入口（更多菜单） ==========
 
-  _createDefenseButton: function () {
-    var container = document.getElementById('town-world-container');
-    if (!container) return;
-
-    var btn = document.createElement('button');
-    btn.id = 'btn-td-defense';
-    btn.className = 'btn-fab';
-    btn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:100;font-size:20px;width:44px;height:44px;border-radius:50%;border:2px solid var(--color-gold);background:var(--color-surface);color:var(--color-gold);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.5);';
-    btn.textContent = '🛡';
-    btn.onclick = this._onDefenseBtnClick.bind(this);
-    container.appendChild(btn);
-    this._defenseBtn = btn;
-  },
-
-  _updateDefenseButton: function () {
-    if (!this._defenseBtn) return;
-    var unlocked = typeof TowerDefenseManager !== 'undefined' && TowerDefenseManager.isUnlocked();
-
-    if (this._inDefenseMode) {
-      this._defenseBtn.style.display = 'none';
-      return;
-    }
-
-    this._defenseBtn.style.display = 'flex';
-
-    if (!unlocked) {
-      this._defenseBtn.style.opacity = '0.4';
-      this._defenseBtn.style.borderColor = '#666';
-      this._defenseBtn.style.color = '#666';
-      this._defenseBtn.textContent = '🔒';
-    } else {
-      this._defenseBtn.style.opacity = '1';
-      this._defenseBtn.style.borderColor = 'var(--color-gold)';
-      this._defenseBtn.style.color = 'var(--color-gold)';
-      this._defenseBtn.textContent = '🛡';
-    }
-  },
-
-  _onDefenseBtnClick: function () {
+  showChapterSelect: function () {
     var unlocked = typeof TowerDefenseManager !== 'undefined' && TowerDefenseManager.isUnlocked();
     if (!unlocked) {
       var thLevel = 0;
       if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
         thLevel = TownManager.getBuildingLevel('town_hall');
       }
-      var msg = '城防解锁条件：\n• 通关 第二章第10关\n• 城主府等级 ≥ 3（当前 Lv.' + thLevel + '）';
-      EventBus.emit('toast:show', { type: 'info', message: msg });
+      EventBus.emit('toast:show', { type: 'info', message: '城防解锁条件：通关 第二章第10关 + 城主府 ≥ 3（当前 Lv.' + thLevel + '）' });
       return;
     }
 
+    var chapters = TowerDefenseManager.getChapters();
+    var dailyInfo = TowerDefenseManager.getDailyChallengeInfo();
+    var html = '<div style="padding:8px;">';
+
+    // 每日挑战次数
+    html += '<div style="text-align:center;margin-bottom:12px;padding:8px;background:rgba(22,33,62,0.6);border-radius:8px;">';
+    html += '<span style="color:var(--color-gold);">⚔ 今日挑战次数</span>　';
+    html += '<span style="font-size:18px;font-weight:bold;color:' + (dailyInfo.remaining > 0 ? 'var(--color-success)' : 'var(--color-danger)') + ';">';
+    html += dailyInfo.remaining + '</span>';
+    html += '<span style="color:var(--color-text-dim);"> / ' + dailyInfo.limit + '</span>';
+    html += '</div>';
+
+    // 塔防管理按钮行
+    html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTowerManagement()">🏗 防御塔管理</button>';
+    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTechPanel()">🔬 科技研究</button>';
+    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showHeroPanel()">⚔ 武将派驻</button>';
+    html += '</div>';
+
+    // 章节列表
+    for (var c = 0; c < chapters.length; c++) {
+      var ch = chapters[c];
+      var eraNames = { 1: '中世纪', 2: '火药时代', 3: '工业时代', 4: '现代科技' };
+      var starsTotal = 0;
+      var starsMax = ch.stages.length * 3;
+      for (var s = 0; s < ch.stages.length; s++) {
+        starsTotal += ch.stages[s].stars;
+      }
+
+      html += '<div class="card" style="margin:8px 0;padding:12px;' + (!ch.unlocked ? 'opacity:0.5;' : '') + '">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+      html += '<div>';
+      html += '<b style="color:var(--color-gold);font-size:14px;">第' + ch.id + '章: ' + ch.name + '</b>';
+      html += '<span style="font-size:11px;color:var(--color-text-dim);margin-left:6px;">(' + eraNames[ch.era] + ')</span>';
+      html += '</div>';
+      html += '<div style="font-size:12px;">';
+      if (ch.cleared) {
+        html += '<span style="color:var(--color-success);">✅ 已通关</span> ';
+      }
+      html += '⭐ ' + starsTotal + '/' + starsMax;
+      html += '</div>';
+      html += '</div>';
+      html += '<div style="font-size:12px;color:var(--color-text-dim);margin-bottom:8px;">' + ch.description + '</div>';
+
+      // 关卡列表
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+      for (var si = 0; si < ch.stages.length; si++) {
+        var stage = ch.stages[si];
+        var stageKey = ch.id + '_' + stage.stage;
+        var canClick = ch.unlocked && stage.unlocked;
+        var bgColor = stage.cleared ? 'rgba(76,175,80,0.3)' : (canClick ? 'rgba(22,33,62,0.8)' : 'rgba(30,30,30,0.6)');
+        var borderColor = stage.isBoss ? 'var(--color-primary)' : (stage.cleared ? 'var(--color-success)' : '#4a3728');
+        var cursor = canClick ? 'cursor:pointer;' : '';
+
+        html += '<div style="text-align:center;min-width:54px;padding:6px 4px;border-radius:6px;border:1px solid ' + borderColor + ';background:' + bgColor + ';' + cursor + '" ';
+        if (canClick) {
+          html += 'onclick="TowerDefensePanel._onStageClick(' + ch.id + ',' + stage.stage + ')"';
+        }
+        html += '>';
+        html += '<div style="font-size:13px;font-weight:bold;color:' + (stage.isBoss ? 'var(--color-primary)' : '#eee') + ';">' + (stage.isBoss ? '👑' : '') + stage.stage + '</div>';
+        html += '<div style="font-size:9px;color:var(--color-text-dim);white-space:nowrap;overflow:hidden;max-width:54px;">' + stage.name + '</div>';
+        if (stage.cleared) {
+          var starStr = '';
+          for (var st = 0; st < 3; st++) starStr += st < stage.stars ? '⭐' : '☆';
+          html += '<div style="font-size:9px;">' + starStr + '</div>';
+        } else if (!ch.unlocked || !stage.unlocked) {
+          html += '<div style="font-size:12px;">🔒</div>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+
+      html += '</div>';
+    }
+
+    html += '</div>';
+
+    OverlayPanel.show({
+      title: '🏰 城防作战',
+      content: html,
+      panelId: 'td-chapters',
+      height: 'full'
+    });
+  },
+
+  // 点击关卡
+  _onStageClick: function (chapterId, stageNum) {
+    var result = TowerDefenseManager.selectStage(chapterId, stageNum);
+    if (!result.ok) {
+      EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+      return;
+    }
+
+    // 关卡详情/确认战斗弹窗
+    var chData = TDChapterData[chapterId];
+    var stageName = result.stage.name;
+    var diff = result.stage.difficulty;
+    var isBoss = result.stage.isBoss;
+
+    // 显示该关卡的敌人预览
+    var waveIndices = result.stage.waves;
+    var enemyPreview = [];
+    for (var w = 0; w < waveIndices.length; w++) {
+      var wd = TDWaveTable[waveIndices[w]];
+      if (!wd) continue;
+      for (var e = 0; e < wd.enemies.length; e++) {
+        var en = wd.enemies[e];
+        var ed = TDEnemyData[en.type];
+        var emoji = this._enemyEmoji[en.type] || '👤';
+        enemyPreview.push(en.count + '×' + emoji + (ed ? ed.name : en.type));
+      }
+    }
+
+    var html = '<div style="text-align:center;line-height:1.8;">';
+    html += '<p style="font-size:16px;font-weight:bold;color:var(--color-gold);">';
+    html += (isBoss ? '👑 ' : '') + '第' + chapterId + '章-' + stageNum + ' ' + stageName + '</p>';
+    html += '<p style="color:var(--color-text-dim);font-size:12px;">难度系数: ×' + diff.toFixed(1) + '</p>';
+    html += '<p style="font-size:13px;margin-top:8px;">敌人: ' + enemyPreview.join(' ') + '</p>';
+    html += '<p style="font-size:11px;color:var(--color-text-dim);margin-top:4px;">你的防御塔将保持当前布阵</p>';
+    html += '</div>';
+
+    var self = this;
+    Modal.show({
+      title: '⚔ 出击确认',
+      content: html,
+      confirmText: '开始战斗',
+      cancelText: '取消',
+      showCancel: true,
+      onConfirm: function () {
+        OverlayPanel.close();
+        self._enterDefenseMode();
+        // 短延迟后自动开始波次
+        setTimeout(function () {
+          self._onStartWave();
+        }, 500);
+      }
+    });
+  },
+
+  // 防御塔管理面板（非战斗时管理塔布阵）
+  _showTowerManagement: function () {
+    OverlayPanel.close();
     this._enterDefenseMode();
   },
 
@@ -145,7 +242,6 @@ var TowerDefensePanel = {
 
     // 隐藏正常 UI 元素
     this._setNormalUIVisible(false);
-    this._updateDefenseButton();
 
     // 显示 TD UI
     this._showStatusBar();
@@ -203,7 +299,6 @@ var TowerDefensePanel = {
 
     // 恢复正常 UI
     this._setNormalUIVisible(true);
-    this._updateDefenseButton();
   },
 
   _setNormalUIVisible: function (visible) {
@@ -279,7 +374,12 @@ var TowerDefensePanel = {
     var towers = TowerDefenseManager.getState().towers;
     var towerPositions = {};
     for (var t = 0; t < towers.length; t++) {
-      towerPositions[towers[t].gridX + ',' + towers[t].gridY] = true;
+      var tSize = TDGetTowerSize(towers[t].type);
+      for (var sy = 0; sy < tSize.h; sy++) {
+        for (var sx = 0; sx < tSize.w; sx++) {
+          towerPositions[(towers[t].gridX + sx) + ',' + (towers[t].gridY + sy)] = true;
+        }
+      }
     }
 
     ctx.globalAlpha = 0.15;
@@ -304,8 +404,11 @@ var TowerDefensePanel = {
       var data = TDTowerData[t.type];
       if (!data) continue;
 
+      var tSize = TDGetTowerSize(t.type);
       var x = t.gridX * TILE;
       var y = t.gridY * TILE;
+      var tw = tSize.w * TILE;
+      var th = tSize.h * TILE;
 
       // 背景
       var bgColor = 'rgba(22,33,62,0.7)';
@@ -314,21 +417,22 @@ var TowerDefensePanel = {
       else if (data.category === 'support') bgColor = 'rgba(40,60,100,0.7)';
 
       ctx.fillStyle = bgColor;
-      ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      ctx.fillRect(x + 2, y + 2, tw - 4, th - 4);
 
       // 边框
       var borderColor = '#666';
       if (this._selectedTowerUid === t.uid) borderColor = '#f5c518';
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = this._selectedTowerUid === t.uid ? 2 : 1;
-      ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE - 4);
+      ctx.strokeRect(x + 2, y + 2, tw - 4, th - 4);
 
       // Emoji
       var emoji = this._towerEmoji[t.type] || '🔷';
-      ctx.font = '20px sans-serif';
+      var emojiSize = tSize.w > 1 ? 28 : 20;
+      ctx.font = emojiSize + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(emoji, x + TILE / 2, y + TILE / 2 - 4);
+      ctx.fillText(emoji, x + tw / 2, y + th / 2 - 4);
 
       // 等级标识
       if (t.level > 1) {
@@ -336,7 +440,7 @@ var TowerDefensePanel = {
         ctx.fillStyle = '#f5c518';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
-        ctx.fillText('Lv' + t.level, x + TILE - 4, y + TILE - 2);
+        ctx.fillText('Lv' + t.level, x + tw - 4, y + th - 2);
       }
     }
   },
@@ -384,8 +488,9 @@ var TowerDefensePanel = {
     if (!stats || stats.range <= 0) return;
 
     var TILE = TD_CONSTANTS.TILE_SIZE;
-    var cx = tower.gridX * TILE + TILE / 2;
-    var cy = tower.gridY * TILE + TILE / 2;
+    var tSize = TDGetTowerSize(tower.type);
+    var cx = tower.gridX * TILE + tSize.w * TILE / 2;
+    var cy = tower.gridY * TILE + tSize.h * TILE / 2;
     var rangePixels = stats.range * TILE;
 
     ctx.beginPath();
@@ -484,11 +589,13 @@ var TowerDefensePanel = {
       return;
     }
 
-    // 非放置模式：检查是否点击了已建塔
+    // 非放置模式：检查是否点击了已建塔（含多格塔）
     var towers = TowerDefenseManager.getState().towers;
     for (var i = 0; i < towers.length; i++) {
       var t = towers[i];
-      if (t.gridX === gx && t.gridY === gy) {
+      var tSize = TDGetTowerSize(t.type);
+      if (gx >= t.gridX && gx < t.gridX + tSize.w &&
+          gy >= t.gridY && gy < t.gridY + tSize.h) {
         this._selectedTowerUid = t.uid;
         this._showTowerInfo(t.uid);
         return;
@@ -528,7 +635,10 @@ var TowerDefensePanel = {
 
     var state = TowerDefenseManager.getState();
     var battle = TowerDefenseManager._battle;
-    var waveText = '波次 ' + state.wave.current + '/' + TD_CONSTANTS.MAX_WAVE;
+    var currentStage = TowerDefenseManager._currentStage;
+    var waveText = currentStage
+      ? '第' + currentStage.chapter + '章-' + currentStage.stage + ' ' + currentStage.data.name
+      : '防御塔布阵';
     var gold = 0;
     if (typeof ResourceManager !== 'undefined' && ResourceManager.get) {
       gold = ResourceManager.get('gold');
@@ -543,12 +653,19 @@ var TowerDefensePanel = {
       }
     }
 
+    // 每日挑战次数
+    var dailyInfo = TowerDefenseManager.getDailyChallengeInfo();
+    var dailyText = '🎫' + dailyInfo.remaining + '/' + dailyInfo.limit;
+
     this._statusBar.innerHTML =
       '<div style="display:flex;align-items:center;gap:6px;">' +
         '<span onclick="TowerDefensePanel._exitDefenseMode()" style="cursor:pointer;font-size:16px;">←</span>' +
-        '<span>🛡 城防 ' + waveText + phaseText + '</span>' +
+        '<span>🛡 ' + waveText + phaseText + '</span>' +
       '</div>' +
-      '<div>💰 ' + Utils.formatNumber(gold) + '</div>';
+      '<div style="display:flex;gap:8px;">' +
+        '<span>' + dailyText + '</span>' +
+        '<span>💰 ' + Utils.formatNumber(gold) + '</span>' +
+      '</div>';
 
     // 持续刷新状态栏（准备倒计时等）
     if (!this._refreshTimer && this._inDefenseMode) {
@@ -594,6 +711,7 @@ var TowerDefensePanel = {
     var state = TowerDefenseManager.getState();
     var battle = TowerDefenseManager._battle;
     var isActive = battle && battle.active;
+    var currentStage = TowerDefenseManager._currentStage;
     var html = '';
 
     // 功能按钮行
@@ -602,10 +720,10 @@ var TowerDefensePanel = {
     html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showHeroPanel()">⚔ 武将</button>';
 
     if (!isActive) {
-      if (state.wave.current <= TD_CONSTANTS.MAX_WAVE) {
-        html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;background:linear-gradient(180deg,#d4392b,#a02820);border-color:rgba(232,81,58,0.4);" onclick="TowerDefensePanel._onStartWave()">⚔ 开始波次 ' + state.wave.current + '</button>';
+      if (currentStage) {
+        html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;background:linear-gradient(180deg,#d4392b,#a02820);border-color:rgba(232,81,58,0.4);" onclick="TowerDefensePanel._onStartWave()">⚔ 开始战斗</button>';
       } else {
-        html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;opacity:0.5;" disabled>🎉 已通关全部波次</button>';
+        html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._exitDefenseMode()">✓ 完成布阵</button>';
       }
     } else if (battle.phase === 'prep') {
       html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;background:linear-gradient(180deg,#d4a849,#a08030);border-color:rgba(212,168,73,0.4);" onclick="TowerDefensePanel._onSkipPrep()">⏩ 跳过准备</button>';
@@ -1087,21 +1205,20 @@ var TowerDefensePanel = {
     this._updateToolbar();
 
     var rewards = data.rewards || {};
-    var waveNum = data.wave;
 
-    // 下一波预览
-    var preview = TowerDefenseManager.getCurrentWavePreview();
-    var previewHtml = '';
-    if (preview) {
-      var enemyParts = [];
-      for (var i = 0; i < preview.enemies.length; i++) {
-        var e = preview.enemies[i];
-        var eEmoji = this._enemyEmoji[e.type] || '👤';
-        enemyParts.push(e.count + '×' + eEmoji + e.name);
+    // 关卡通关信息
+    var titleText = '🎉 战斗胜利！';
+    var stageInfo = '';
+    if (data.chapter && data.stage) {
+      titleText = '🎉 第' + data.chapter + '章-' + data.stage + ' 通关！';
+      // 查找星级
+      var key = data.chapter + '_' + data.stage;
+      var progress = TowerDefenseManager.getState().stageProgress[key];
+      if (progress) {
+        var starStr = '';
+        for (var i = 0; i < 3; i++) starStr += i < progress.stars ? '⭐' : '☆';
+        stageInfo = '<p style="font-size:16px;margin:4px 0;">' + starStr + '</p>';
       }
-      previewHtml = '<p style="font-size:12px;color:var(--color-text-dim);margin-top:8px;">下一波预览: ' + enemyParts.join(' ') + '</p>';
-    } else {
-      previewHtml = '<p style="font-size:12px;color:var(--color-gold);margin-top:8px;">🎉 已通关全部波次！</p>';
     }
 
     var self = this;
@@ -1109,28 +1226,23 @@ var TowerDefensePanel = {
     var bonusText = isManual ? '<p style="font-size:11px;color:var(--color-success);">手动加成: +30%金币 +20%经验</p>' : '';
 
     Modal.show({
-      title: '🎉 波次 ' + waveNum + ' 通关！',
+      title: titleText,
       content:
         '<div style="text-align:center;line-height:1.8;">' +
+          stageInfo +
           '<p>💰 ' + Utils.formatNumber(rewards.gold || 0) + ' 金币　⭐ ' + Utils.formatNumber(rewards.exp || 0) + ' 经验</p>' +
           (rewards.jade ? '<p>💎 ' + rewards.jade + ' 玉璧</p>' : '') +
           (rewards.equipDrop ? '<p style="color:var(--color-primary);">🎁 获得装备掉落！</p>' : '') +
           bonusText +
-          previewHtml +
         '</div>',
-      confirmText: preview ? '继续' : '完成',
-      cancelText: '退出防守',
-      showCancel: true,
+      confirmText: '返回',
+      showCancel: false,
       onConfirm: function () {
-        if (preview) {
-          self._updateStatusBar();
-          self._updateToolbar();
-        } else {
-          self._exitDefenseMode();
-        }
-      },
-      onCancel: function () {
         self._exitDefenseMode();
+        // 重新打开章节选择
+        setTimeout(function () {
+          self.showChapterSelect();
+        }, 300);
       }
     });
   },
@@ -1141,23 +1253,22 @@ var TowerDefensePanel = {
     this._updateStatusBar();
     this._updateToolbar();
 
+    var self = this;
     Modal.show({
-      title: '💀 波次 ' + data.wave + ' 失败',
+      title: '💀 防守失败',
       content:
         '<div style="text-align:center;line-height:1.8;">' +
           '<p>城主府被攻破！</p>' +
           '<p style="font-size:12px;color:var(--color-text-dim);">城主府 HP 已恢复，可重新挑战</p>' +
-          '<p style="font-size:12px;color:var(--color-text-dim);">提示：增加防御塔或升级塔提升防御力</p>' +
+          '<p style="font-size:12px;color:var(--color-text-dim);">提示：升级防御塔或增加新塔提升防御力</p>' +
         '</div>',
-      confirmText: '重新挑战',
-      cancelText: '退出防守',
-      showCancel: true,
+      confirmText: '返回',
+      showCancel: false,
       onConfirm: function () {
-        TowerDefensePanel._updateStatusBar();
-        TowerDefensePanel._updateToolbar();
-      },
-      onCancel: function () {
-        TowerDefensePanel._exitDefenseMode();
+        self._exitDefenseMode();
+        setTimeout(function () {
+          self.showChapterSelect();
+        }, 300);
       }
     });
   },
