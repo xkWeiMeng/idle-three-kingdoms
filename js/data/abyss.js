@@ -15,7 +15,7 @@ var AbyssData = {
     bossFrameColor: '#ff2222',
     unlockCondition: { stage: 'stage_4_10' },
     ticketCost: { jade: 30, gold: 5000, iron: 200 },
-    cooldown: 86400,
+    cooldown: 0,
     floors: [
       {
         floor: 1,
@@ -87,7 +87,7 @@ var AbyssData = {
     bossFrameColor: '#ff6600',
     unlockCondition: { stage: 'stage_5_5' },
     ticketCost: { jade: 50, gold: 8000, iron: 300 },
-    cooldown: 86400,
+    cooldown: 0,
     floors: [
       {
         floor: 1,
@@ -158,7 +158,7 @@ var AbyssData = {
     bossFrameColor: '#ffaa00',
     unlockCondition: { stage: 'stage_5_10' },
     ticketCost: { jade: 80, gold: 12000, iron: 500 },
-    cooldown: 86400,
+    cooldown: 0,
     floors: [
       {
         floor: 1,

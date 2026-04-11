@@ -58,19 +58,13 @@ var AbyssManager = {
     return cleared.indexOf(abyss.unlockCondition.stage) !== -1;
   },
 
-  /** Check if abyss is on cooldown */
+  /** Check if abyss is on cooldown — cooldown removed, always false */
   isOnCooldown: function (abyssId) {
-    var inst = this._state.instances[abyssId];
-    if (!inst || inst.lastAttempt === 0) return false;
-    var now = Math.floor(Date.now() / 1000);
-    return (now - inst.lastAttempt) < AbyssData[abyssId].cooldown;
+    return false;
   },
 
   getCooldownRemaining: function (abyssId) {
-    var inst = this._state.instances[abyssId];
-    if (!inst || inst.lastAttempt === 0) return 0;
-    var now = Math.floor(Date.now() / 1000);
-    return Math.max(0, AbyssData[abyssId].cooldown - (now - inst.lastAttempt));
+    return 0;
   },
 
   /** Enter an abyss */
@@ -85,14 +79,6 @@ var AbyssManager = {
 
     if (!this.isAbyssUnlocked(abyssId)) {
       EventBus.emit('toast:show', { type: 'warning', message: '深渊尚未解锁' });
-      return false;
-    }
-
-    if (this.isOnCooldown(abyssId)) {
-      var remaining = this.getCooldownRemaining(abyssId);
-      var hours = Math.floor(remaining / 3600);
-      var mins = Math.floor((remaining % 3600) / 60);
-      EventBus.emit('toast:show', { type: 'warning', message: '冷却中，剩余 ' + hours + '时' + mins + '分' });
       return false;
     }
 
