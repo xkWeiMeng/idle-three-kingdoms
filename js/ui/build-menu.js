@@ -73,7 +73,7 @@ var BuildMenu = {
   },
 
   _build: function (buildingId) {
-    var result = TownManager.startUpgrade(buildingId);
+    var result = TownManager.enqueueUpgrade(buildingId);
     if (result.ok) {
       OverlayPanel.close();
       EventBus.emit('toast:show', { type: 'success', message: '🔨 开始建造！' });

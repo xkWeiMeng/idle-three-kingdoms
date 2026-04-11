@@ -159,6 +159,21 @@ const ResourceManager = {
     return true;
   },
 
+  /**
+   * 批量增加资源
+   * @param {Object} amounts 例如 { gold: 500, wood: 100 }
+   * @param {string} [category]
+   * @param {string} [source]
+   * @param {string} [detail]
+   */
+  addMultiple(amounts, category, source, detail) {
+    for (var type in amounts) {
+      if (amounts.hasOwnProperty(type) && amounts[type] > 0) {
+        this.add(type, amounts[type], category, source, detail);
+      }
+    }
+  },
+
   canAfford(type, amount) {
     return (this._state[type] || 0) >= amount;
   },

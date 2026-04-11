@@ -275,7 +275,7 @@ var TownPanel = {
     this._el.querySelectorAll('.town-upgrade-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = this.dataset.upgrade;
-        var result = TownManager.startUpgrade(id);
+        var result = TownManager.enqueueUpgrade(id);
         if (result.ok) {
           self._render();
         } else {

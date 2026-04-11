@@ -14,6 +14,9 @@ var TownCharacters = {
   _dragPickupAnim: 0,   // 拿起动画进度 0→1
   _dragDropAnim: null,  // {char, fromY, progress} 放下动画
 
+  // ── 战时状态 ──
+  _warMode: false,      // 是否处于战争状态（城防战斗中）
+
   // ── 常量 ──
   NPC_SPAWN_COUNT: 6,
   CHAR_W: 36,       // 绘制宽
@@ -27,6 +30,7 @@ var TownCharacters = {
 
   NPC_SPEED: 22,
   HERO_SPEED: 16,
+  FLEE_SPEED: 55,       // 逃跑时移动速度
   NPC_WANDER_RADIUS: 3,   // 格
   HERO_WANDER_RADIUS: 2,
   CHAR_MIN_DIST: 20,       // 角色间最小距离（像素）
@@ -37,6 +41,12 @@ var TownCharacters = {
     this._spawnNPCs();
     this._syncHeroes();
     EventBus.on('hero:added', this._syncHeroes.bind(this));
+
+    // 城防战斗：居民逃跑
+    var self = this;
+    EventBus.on('td:wave_started', function () { self._enterWarMode(); });
+    EventBus.on('td:wave_cleared', function () { self._exitWarMode(); });
+    EventBus.on('td:wave_failed', function () { self._exitWarMode(); });
   },
 
   _preloadImages: function () {
@@ -220,6 +230,8 @@ var TownCharacters = {
 
     switch (c.state) {
       case 'idle':
+        // 战时：已隐藏的角色不更新
+        if (this._warMode) return;
         c.stateTimer -= dt;
         if (c.stateTimer <= 0) {
           // 决定下一步行为
@@ -235,12 +247,42 @@ var TownCharacters = {
         this._moveToward(c, dt);
         break;
 
+      case 'fleeing':
+        this._moveToward(c, dt);
+        // 到达目的地后隐藏（已被 _goIdle 切成 idle）
+        if (c.state === 'idle' && this._warMode) {
+          c.hidden = true;
+        }
+        break;
+
       case 'talking':
         c.stateTimer -= dt;
         if (c.stateTimer <= 0) {
           c.bubble = null;
-          this._goIdle(c);
+          // 战时状态下说完话继续跑或继续战斗
+          if (this._warMode) {
+            if (c.state === 'talking' && (c.sprite === 'npc_guard' || c.type === 'hero')) {
+              c.state = 'fighting';
+            } else {
+              var CELL = TownWorld.CELL;
+              var thPos = this._getTownHallCenter();
+              var offsetX = (Math.random() - 0.5) * CELL * 3;
+              var offsetY = (Math.random() - 0.5) * CELL * 3;
+              c.targetX = Math.max(CELL, Math.min(TownWorld.MAP_W * CELL - CELL, thPos.x + offsetX));
+              c.targetY = Math.max(CELL, Math.min(TownWorld.MAP_H * CELL - CELL, thPos.y + offsetY));
+              c.path = null;
+              c.pathIndex = 0;
+              c.state = 'fleeing';
+            }
+          } else {
+            this._goIdle(c);
+          }
         }
+        break;
+
+      case 'fighting':
+        // 战斗状态：移到阵位后原地战斗
+        this._tickFighting(c, dt);
         break;
     }
   },
@@ -488,6 +530,177 @@ var TownCharacters = {
     return null; // No path found within limit
   },
 
+  // ── 战时逃跑 ──
+  _enterWarMode: function () {
+    if (this._warMode) return;
+    this._warMode = true;
+
+    var CELL = TownWorld.CELL;
+    // 找到城主府位置作为逃跑目标
+    var thPos = this._getTownHallCenter();
+
+    // 收集派驻武将 UID（他们上阵杀敌）
+    var fightingUids = [];
+    if (typeof TowerDefenseManager !== 'undefined' && TowerDefenseManager._state) {
+      fightingUids = TowerDefenseManager._state.assignedHeroes || [];
+    }
+
+    for (var i = 0; i < this._chars.length; i++) {
+      var c = this._chars[i];
+      if (c.state === 'dragging') continue;
+
+      // 判断是否为战斗角色（派驻武将 或 守卫NPC）
+      var isFighter = false;
+      if (c.type === 'hero' && c.heroUid && fightingUids.indexOf(c.heroUid) !== -1) {
+        isFighter = true;
+      }
+      if (c.sprite === 'npc_guard') {
+        isFighter = true;
+      }
+
+      if (isFighter) {
+        // 战斗角色：进入战斗状态，移向城墙前沿
+        var combatLines = ['护城！', '杀敌！', '保卫家园！', '列阵迎敌！', '随我冲！'];
+        c.bubble = { text: combatLines[Utils.randInt(0, combatLines.length - 1)], timer: 3, isClick: false };
+        c.state = 'fighting';
+        c.speed = this.HERO_SPEED + 5;
+        // 战斗位置：城主府前方（靠近敌人来路方向）
+        var fightOffsetX = (Math.random() - 0.5) * CELL * 5;
+        var fightOffsetY = -CELL * (3 + Math.random() * 3); // 城主府前方（上方）
+        c.targetX = Math.max(CELL, Math.min(TownWorld.MAP_W * CELL - CELL, thPos.x + fightOffsetX));
+        c.targetY = Math.max(CELL, Math.min(TownWorld.MAP_H * CELL - CELL, thPos.y + fightOffsetY));
+        c.path = null;
+        c.pathIndex = 0;
+        c._fightTimer = 0; // 攻击动画计时
+        c._fightFlash = 0; // 攻击闪白效果
+        c.direction = 1;
+        continue;
+      }
+
+      // 平民：逃跑
+      if (typeof TDWarDialogues !== 'undefined' && TDWarDialogues.length > 0) {
+        var text = TDWarDialogues[Utils.randInt(0, TDWarDialogues.length - 1)];
+        c.bubble = { text: text, timer: 3 + Math.random() * 2, isClick: false };
+      }
+
+      // 设定逃跑目标到城主府附近（加随机偏移防止挤一块）
+      var offsetX = (Math.random() - 0.5) * CELL * 3;
+      var offsetY = (Math.random() - 0.5) * CELL * 3;
+      c.targetX = Math.max(CELL, Math.min(TownWorld.MAP_W * CELL - CELL, thPos.x + offsetX));
+      c.targetY = Math.max(CELL, Math.min(TownWorld.MAP_H * CELL - CELL, thPos.y + offsetY));
+
+      // 用 A* 寻路
+      var fromGX = Math.floor(c.x / CELL);
+      var fromGY = Math.floor(c.y / CELL);
+      var toGX = Math.floor(c.targetX / CELL);
+      var toGY = Math.floor(c.targetY / CELL);
+      var path = this._findPath(fromGX, fromGY, toGX, toGY);
+      if (path && path.length > 0) {
+        c.path = path;
+        c.pathIndex = 0;
+        c.targetX = path[0].gx * CELL + CELL / 2;
+        c.targetY = path[0].gy * CELL + CELL / 2;
+      } else {
+        c.path = null;
+        c.pathIndex = 0;
+      }
+
+      c.state = 'fleeing';
+      c.speed = this.FLEE_SPEED;
+      c.direction = c.targetX >= c.x ? 1 : -1;
+    }
+  },
+
+  _exitWarMode: function () {
+    if (!this._warMode) return;
+    this._warMode = false;
+
+    for (var i = 0; i < this._chars.length; i++) {
+      var c = this._chars[i];
+      if (c.state === 'dragging') continue;
+      c.speed = c.type === 'hero' ? this.HERO_SPEED : this.NPC_SPEED;
+      c.bubble = null;
+      c.hidden = false;
+      c._fightTimer = 0;
+      c._fightFlash = 0;
+      c.path = null;
+      c.pathIndex = 0;
+      this._goIdle(c);
+    }
+  },
+
+  // ── 战斗行为 ──
+  _tickFighting: function (c, dt) {
+    // 先移动到战斗位置
+    var dx = c.targetX - c.x;
+    var dy = c.targetY - c.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 4) {
+      var step = c.speed * dt;
+      c.x += (dx / dist) * step;
+      c.y += (dy / dist) * step;
+      c.direction = dx > 0 ? 1 : -1;
+      c.bobPhase += dt * 8;
+      return;
+    }
+
+    // 到达阵位 → 攻击动画
+    if (!c._fightTimer) c._fightTimer = 0;
+    c._fightTimer += dt;
+    c._fightFlash = Math.max(0, (c._fightFlash || 0) - dt * 3);
+
+    // 每 2~3 秒执行一次攻击动画
+    if (c._fightTimer >= 2.5) {
+      c._fightTimer -= 2.5;
+      c._fightFlash = 1.0; // 触发攻击闪光
+
+      // 面朝最近敌人
+      if (typeof TowerDefenseManager !== 'undefined' && TowerDefenseManager._battle &&
+          TowerDefenseManager._battle.enemies) {
+        var enemies = TowerDefenseManager._battle.enemies;
+        var nearest = null;
+        var nearDist = Infinity;
+        for (var i = 0; i < enemies.length; i++) {
+          var e = enemies[i];
+          if (e.status === 'dead') continue;
+          var edx = e.x - c.x;
+          var edy = e.y - c.y;
+          var ed = edx * edx + edy * edy;
+          if (ed < nearDist) { nearDist = ed; nearest = e; }
+        }
+        if (nearest) {
+          c.direction = nearest.x > c.x ? 1 : -1;
+        }
+      }
+
+      // 偶尔喊战斗台词
+      if (!c.bubble && Math.random() < 0.2) {
+        var shouts = ['看我一招！', '受死吧！', '哈！', '休想靠近！', '保护城主府！'];
+        c.bubble = { text: shouts[Utils.randInt(0, shouts.length - 1)], timer: 1.5, isClick: false };
+      }
+    }
+  },
+
+  _getTownHallCenter: function () {
+    var CELL = TownWorld.CELL;
+    // 尝试从 TownManager 获取城主府位置
+    if (typeof TownManager !== 'undefined' && TownManager._state && TownManager._state.placements) {
+      var placement = TownManager._state.placements['town_hall'];
+      var defaultPos = TownWorld._defaultPositions ? TownWorld._defaultPositions['town_hall'] : null;
+      var pos = placement || defaultPos;
+      if (pos) {
+        var size = TownWorld._buildingSizes ? TownWorld._buildingSizes['town_hall'] : { w: 4, h: 4 };
+        return {
+          x: (pos.gx + size.w / 2) * CELL,
+          y: (pos.gy + size.h / 2) * CELL
+        };
+      }
+    }
+    // 默认中心
+    return { x: TownWorld.MAP_W * CELL / 2, y: TownWorld.MAP_H * CELL / 2 };
+  },
+
   _startTalking: function (c) {
     var text = null;
     if (c.type === 'hero') {
@@ -619,6 +832,9 @@ var TownCharacters = {
   },
 
   _drawCharacter: function (ctx, c) {
+    // 隐藏的角色不绘制（战时躲在主城里）
+    if (c.hidden) return;
+
     var img = this._images[c.sprite];
     var W = this.CHAR_W;
     var H = this.CHAR_H;
@@ -648,8 +864,11 @@ var TownCharacters = {
 
     // 行走弹跳（拖拽时不弹跳）
     var bobY = 0;
-    if (c.state === 'walking') {
+    if (c.state === 'walking' || c.state === 'fleeing') {
       bobY = Math.sin(c.bobPhase) * 1.5;
+    } else if (c.state === 'fighting') {
+      bobY = Math.sin(c.bobPhase) * 1;
+      c.bobPhase += 0; // fighting bob driven by _tickFighting
     }
 
     // 阴影
@@ -685,6 +904,13 @@ var TownCharacters = {
         ctx.translate(0, -H);
       }
       ctx.drawImage(img, -W / 2, 0, W, H);
+      // 战斗攻击闪光
+      if (c.state === 'fighting' && c._fightFlash > 0) {
+        ctx.globalAlpha = c._fightFlash * 0.5;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-W / 2, 0, W, H);
+        ctx.globalAlpha = 1;
+      }
       ctx.restore();
     } else {
       // 降级：彩色圆点

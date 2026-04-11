@@ -16,10 +16,10 @@ const BuildingData = {
     unlockOrder: 0,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(500 * Math.pow(1.8, lv - 1)),
-        wood:  Math.floor(100 * Math.pow(1.8, lv - 1)),
-        stone: Math.floor(100 * Math.pow(1.8, lv - 1)),
-        iron:  lv >= 3 ? Math.floor(50 * Math.pow(1.8, lv - 3)) : 0
+        gold:  Math.floor(500 * Math.pow(1.5, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.5, lv - 1)),
+        stone: Math.floor(100 * Math.pow(1.5, lv - 1)),
+        iron:  lv >= 3 ? Math.floor(50 * Math.pow(1.5, lv - 3)) : 0
       };
     },
     effects: function (lv) {
@@ -41,9 +41,9 @@ const BuildingData = {
     unlockOrder: 1,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(200 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(50 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(30 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(200 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(50 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(30 * Math.pow(1.2, lv - 1))
       };
     },
     production: function (lv) {
@@ -62,9 +62,9 @@ const BuildingData = {
     unlockOrder: 2,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(200 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(50 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(30 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(200 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(50 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(30 * Math.pow(1.2, lv - 1))
       };
     },
     production: function (lv) {
@@ -83,9 +83,9 @@ const BuildingData = {
     unlockOrder: 3,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(300 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(80 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(80 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(300 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(80 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(80 * Math.pow(1.2, lv - 1))
       };
     },
     production: function (lv) {
@@ -103,17 +103,17 @@ const BuildingData = {
     unlockOrder: 4,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(200 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(60 * Math.pow(1.6, lv - 1)),
-        stone: lv >= 2 ? Math.floor(50 * Math.pow(1.6, lv - 2)) : 0
+        gold:  Math.floor(200 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(60 * Math.pow(1.2, lv - 1)),
+        stone: lv >= 2 ? Math.floor(50 * Math.pow(1.2, lv - 2)) : 0
       };
     },
     effects: function (lv) {
       var capBonuses = [0, 30, 60, 100, 150, 200];
       var regenIntervals = [30, 25, 22, 18, 15, 12];
       return {
-        foodCapBonus: capBonuses[Math.min(lv, 5)] || Math.floor(30 * lv),
-        foodRegenInterval: regenIntervals[Math.min(lv, 5)] || Math.max(10, 30 - lv * 3)
+        foodCapBonus: lv <= 5 ? capBonuses[lv] : Math.floor(30 * lv),
+        foodRegenInterval: lv <= 5 ? regenIntervals[lv] : Math.max(10, 30 - lv * 3)
       };
     }
   },
@@ -130,15 +130,15 @@ const BuildingData = {
     unlockOrder: 5,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(300 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(80 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(50 * Math.pow(1.6, lv - 1)),
-        iron:  Math.floor(20 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(300 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(80 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(50 * Math.pow(1.2, lv - 1)),
+        iron:  Math.floor(20 * Math.pow(1.2, lv - 1))
       };
     },
     effects: function (lv) {
-      // ATK加成 = 3% × lv × (1 + 0.1 × lv)
-      return { atkBonus: 0.03 * lv * (1 + 0.1 * lv) };
+      // ATK加成 = 3% × lv × (1 + 0.1 × lv)，封顶150%
+      return { atkBonus: Math.min(1.5, 0.03 * lv * (1 + 0.1 * lv)) };
     }
   },
 
@@ -153,14 +153,14 @@ const BuildingData = {
     unlockOrder: 6,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(250 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(60 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(40 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(250 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(60 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(40 * Math.pow(1.2, lv - 1))
       };
     },
     effects: function (lv) {
-      // EXP加成 = 10% × lv × (1 + 0.12 × lv)
-      return { expBonus: 0.10 * lv * (1 + 0.12 * lv) };
+      // EXP加成 = 10% × lv × (1 + 0.08 × lv)，封顶300%
+      return { expBonus: Math.min(3.0, 0.10 * lv * (1 + 0.08 * lv)) };
     }
   },
 
@@ -175,15 +175,15 @@ const BuildingData = {
     unlockOrder: 7,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(400 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(100 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(100 * Math.pow(1.6, lv - 1)),
-        iron:  Math.floor(50 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(400 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(100 * Math.pow(1.2, lv - 1)),
+        iron:  Math.floor(50 * Math.pow(1.2, lv - 1))
       };
     },
     effects: function (lv) {
       return {
-        enhanceSuccessBonus: 0.05 * lv,
+        enhanceSuccessBonus: Math.min(0.5, 0.03 * lv),
         equipStatBonus: 0.02 * lv + 0.01 * lv * (lv - 1) / 2
       };
     }
@@ -200,15 +200,15 @@ const BuildingData = {
     unlockOrder: 8,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(300 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(100 * Math.pow(1.6, lv - 1)),
-        iron:  Math.floor(30 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(300 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(100 * Math.pow(1.2, lv - 1)),
+        iron:  Math.floor(30 * Math.pow(1.2, lv - 1))
       };
     },
     effects: function (lv) {
       return {
-        defBonus: 0.03 * lv * (1 + 0.1 * lv),
-        hpBonus: 0.03 * lv * (1 + 0.1 * lv)
+        defBonus: Math.min(1.5, 0.03 * lv * (1 + 0.1 * lv)),
+        hpBonus: Math.min(1.5, 0.03 * lv * (1 + 0.1 * lv))
       };
     }
   },
@@ -225,14 +225,14 @@ const BuildingData = {
     unlockOrder: 9,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(500 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(150 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(100 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(500 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(150 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(100 * Math.pow(1.2, lv - 1))
       };
     },
     effects: function (lv) {
       return {
-        offlineEfficiency: 0.50 + 0.05 * lv,
+        offlineEfficiency: Math.min(0.95, 0.50 + 0.05 * lv),
         dropRateBonus: 0.05 * lv
       };
     }
@@ -249,14 +249,14 @@ const BuildingData = {
     unlockOrder: 10,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(400 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(100 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(80 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(400 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(80 * Math.pow(1.2, lv - 1))
       };
     },
     effects: function (lv) {
       return {
-        recruitDiscount: 0.05 * lv,
+        recruitDiscount: Math.min(0.5, 0.05 * lv),
         freeRecruitInterval: Math.max(3600, 14400 - lv * 2400)
       };
     }
@@ -273,15 +273,15 @@ const BuildingData = {
     unlockOrder: 11,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(300 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(80 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(60 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(300 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(80 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(60 * Math.pow(1.2, lv - 1))
       };
     },
     effects: function (lv) {
       var capBonuses = [0, 0.25, 0.50, 0.80, 1.20, 1.60];
       return {
-        resourceCapBonus: capBonuses[Math.min(lv, 5)] || 0.25 * lv,
+        resourceCapBonus: lv <= 5 ? capBonuses[lv] : 0.35 * lv,
         inventoryCap: 50 + 10 * lv
       };
     }
@@ -331,9 +331,9 @@ const BuildingData = {
     unlockOrder: 13,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(300 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(80 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(60 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(300 * Math.pow(1.2, lv - 1)),
+        wood:  Math.floor(80 * Math.pow(1.2, lv - 1)),
+        stone: Math.floor(60 * Math.pow(1.2, lv - 1))
       };
     },
     production: function (lv) {
@@ -353,9 +353,9 @@ const BuildingData = {
     unlockOrder: 14,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(500 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(120 * Math.pow(1.6, lv - 1)),
-        iron:  Math.floor(80 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(500 * Math.pow(1.35, lv - 1)),
+        wood:  Math.floor(120 * Math.pow(1.35, lv - 1)),
+        iron:  Math.floor(80 * Math.pow(1.35, lv - 1))
       };
     },
     effects: function (lv) {
@@ -377,9 +377,9 @@ const BuildingData = {
     unlockOrder: 15,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(400 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(150 * Math.pow(1.6, lv - 1)),
-        iron:  Math.floor(40 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(400 * Math.pow(1.35, lv - 1)),
+        wood:  Math.floor(150 * Math.pow(1.35, lv - 1)),
+        iron:  Math.floor(40 * Math.pow(1.35, lv - 1))
       };
     },
     effects: function (lv) {
@@ -402,9 +402,9 @@ const BuildingData = {
     unlockOrder: 16,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(600 * Math.pow(1.6, lv - 1)),
-        wood:  Math.floor(100 * Math.pow(1.6, lv - 1)),
-        stone: Math.floor(80 * Math.pow(1.6, lv - 1))
+        gold:  Math.floor(600 * Math.pow(1.35, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.35, lv - 1)),
+        stone: Math.floor(80 * Math.pow(1.35, lv - 1))
       };
     },
     effects: function (lv) {
@@ -494,9 +494,9 @@ const BuildingData = {
     unlockOrder: 20,
     costFormula: function (lv) {
       return {
-        gold:  Math.floor(300 * Math.pow(1.7, lv - 1)),
-        wood:  Math.floor(100 * Math.pow(1.7, lv - 1)),
-        stone: Math.floor(60 * Math.pow(1.7, lv - 1))
+        gold:  Math.floor(300 * Math.pow(1.4, lv - 1)),
+        wood:  Math.floor(100 * Math.pow(1.4, lv - 1)),
+        stone: Math.floor(60 * Math.pow(1.4, lv - 1))
       };
     },
     effects: function (lv) {
@@ -591,10 +591,11 @@ const BuildingData = {
 };
 
 /**
- * 施工时间公式：build_time_sec(lv) = 30 × 2^(lv-1)
+ * 施工时间公式：build_time_sec(lv) = 30 × lv × 1.3^(lv-1)
+ * Lv5≈7min, Lv10≈53min, Lv15≈4.6h, Lv20≈21h, Lv25≈3.7d
  */
 BuildingData._getBuildTime = function (targetLevel) {
-  return Math.floor(30 * Math.pow(2, targetLevel - 1));
+  return Math.floor(30 * targetLevel * Math.pow(1.3, targetLevel - 1));
 };
 
 /**
@@ -623,3 +624,18 @@ BuildingData._townHallUnlocks = [
   { slots: 19, levelCap: 20, unlockStage: 'stage_5_10' },
   { slots: 19, levelCap: 25, unlockStage: null }
 ];
+
+/**
+ * 建造工人配置
+ */
+var WORKER_CONFIG = {
+  MAX_WORKERS: 5,
+  MAX_QUEUE_SIZE: 6,
+  WORKER_UNLOCKS: [
+    { trigger: 'initial',           requirement: null,  workerCount: 1 },
+    { trigger: 'first_building',    requirement: null,  workerCount: 2 },
+    { trigger: 'town_hall_level',   requirement: 3,     workerCount: 3 },
+    { trigger: 'town_hall_level',   requirement: 5,     workerCount: 4 },
+    { trigger: 'town_hall_level',   requirement: 7,     workerCount: 5 }
+  ]
+};
