@@ -90,7 +90,7 @@ const EquipmentPanel = {
 
     var html = '<div class="card" style="padding:8px;">';
     html += '<div style="font-size:0.8rem;color:var(--color-text-dim);margin-bottom:6px;">👤 选择武将</div>';
-    html += '<div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;">';
+    html += '<div style="display:flex;gap:4px;flex-wrap:wrap;padding-bottom:4px;">';
 
     for (var i = 0; i < heroes.length; i++) {
       var hero = heroes[i];

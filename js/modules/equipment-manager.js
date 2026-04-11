@@ -37,9 +37,10 @@ const EquipmentManager = {
     const types = ['weapon', 'armor', 'accessory', 'mount'];
     const type = types[Utils.randInt(0, 3)];
 
-    // 3. Find matching template
-    const template = EquipmentData.find(e => e.type === type && e.quality === quality);
-    if (!template) return null;
+    // 3. Find matching templates and pick one randomly
+    const candidates = EquipmentData.filter(e => e.type === type && e.quality === quality);
+    if (candidates.length === 0) return null;
+    const template = candidates[Utils.randInt(0, candidates.length - 1)];
 
     // 4. Roll random stat within range
     const statValue = Utils.randInt(template.statRange[0], template.statRange[1]);
