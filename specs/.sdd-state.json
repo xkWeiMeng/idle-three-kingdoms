@@ -271,6 +271,26 @@
         { "stage": "VERIFY", "result": "3_drifts_fixed", "timestamp": "2026-04-06", "note": "0严重/2中/1低漂移，全部已修复：轰炸者特效、core-contracts、参考表取整" },
         { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-06", "note": "changelog条目+core-contracts同步更新" }
       ]
+    },
+    "abyss-loot-explosion": {
+      "name": "深渊战利品爆落与连续刷本",
+      "stage": "COMPLETE",
+      "spec": "specs/product-specs/abyss-loot-explosion.md",
+      "execPlan": "specs/exec-plans/abyss-loot-explosion.md",
+      "testFiles": [],
+      "changelog": "specs/changelog.md",
+      "adr": null,
+      "currentTask": null,
+      "history": [
+        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "4个能力：粒子爆落、装备特效、连续刷本、结算重制" },
+        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-06", "note": "4个核心问题：时间线矛盾、品质6缺失、clearRun调用、品质≤3行为" },
+        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "修复全部问题，统一时间线、补充clearRun流程、品质≤3行为定义" },
+        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-06", "note": "提升为Active" },
+        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-06", "note": "4阶段11任务" },
+        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-06", "note": "4文件修改，21/21测试通过" },
+        { "stage": "VERIFY", "result": "3_drifts_fixed", "timestamp": "2026-04-06", "note": "修复：shimmer→pulse-glow-orange规范更新、retry按钮可点击、prefers-reduced-motion JS检测" },
+        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-06" }
+      ]
     }
   }
 }

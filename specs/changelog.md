@@ -8,6 +8,38 @@
 
 ### Added
 
+- **深渊战利品爆落与连续刷本 (Abyss Loot Explosion)** — 2026-04-06
+  - 产品规范 (`specs/product-specs/abyss-loot-explosion.md`)：4 个能力 (CAP-LOOT-01~04)
+  - 执行计划 (`specs/exec-plans/abyss-loot-explosion.md`)：4 阶段 11 任务
+  - **CAP-LOOT-01 粒子爆落**：击败 Boss 后满屏粒子散射（💰📖⛏️💎），rAF 驱动，2000ms 时长，上限 60 粒子
+  - **CAP-LOOT-02 装备特效**：品质 4 紫色脉冲光晕、品质 5 金色光柱 + 闪光、品质 6 全屏红金闪烁 + 画面震动 + 延迟翻牌
+  - **CAP-LOOT-03 连续刷本**：移除 24 小时冷却限制，纯资源消耗制；结算界面「再次挑战」「离开」按钮
+  - **CAP-LOOT-04 结算重制**：5 阶段分步展示（标题→粒子→countUp→翻牌→总结），含跳过机制和 prefers-reduced-motion 适配
+  - 新增 CSS 动画：`@keyframes shake/lightPillar/mythicFlash/countUpGlow/pulse-glow-red`
+  - 新增装备揭示卡片组件：3D 翻转、品质光效分级
+  - 新增事件：`abyss:loot_explosion_start/end`、`abyss:equip_reveal`、`abyss:settlement_skip`、`abyss:retry`
+
+### Changed
+
+- `AbyssData` 三个深渊 `cooldown: 86400 → 0`
+- `AbyssManager.isOnCooldown()` 始终返回 `false`
+- `AbyssManager.getCooldownRemaining()` 始终返回 `0`
+- `AbyssManager.enterAbyss()` 移除冷却检查分支
+- `AbyssPanel` 大幅重写：粒子系统、装备揭示、结算状态机、连续刷本 UI
+
+- **装备数据扩展 (Equipment Data Expansion)** — 2026-04-06
+  - 装备模板从 20 件扩展至 **352 件**普通装备（+ 12 件神话 = 364 件总计）
+  - 金字塔品质分布：Q1(120) > Q2(96) > Q3(64) > Q4(40) > Q5(32) > Q6(12)
+  - 武器包含历史名兵器：青龙偃月刀、丈八蛇矛、干将莫邪、越王勾践剑等
+  - 坐骑包含周穆王八骏、昭陵六骏等历史名马
+  - 饰品包含和氏璧、随侯珠、传国玉玺等历史宝物
+  - 新增 `tools/gen_equipment_data.js` 装备数据生成器
+  - 新增 `ai-docs/19-equipment-catalog.md` 装备系统完整文档
+
+### Changed
+
+- **装备掉落随机选择** — `generateDrop()` 从 `EquipmentData.find()` 改为 `filter()` + 随机选择，支持同品质多模板
+
 - **城防塔防系统 (Tower Defense System)** — 2026-04-06
   - 产品规范 (`specs/product-specs/tower-defense-system.md`)：12 个能力（CAP-TD-01~12），58 个 WHEN/THEN 验收场景
   - 执行计划 (`specs/exec-plans/tower-defense-system.md`)：6 阶段 20 任务

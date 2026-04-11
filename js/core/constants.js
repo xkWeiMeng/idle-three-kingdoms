@@ -31,10 +31,10 @@ const CONSTANTS = {
 
   // 基础资源上限
   RESOURCE_BASE_CAP: {
-    gold: 10000,
-    wood: 500,
-    stone: 500,
-    iron: 300,
+    gold: 50000,
+    wood: 2000,
+    stone: 2000,
+    iron: 1000,
     food: 200,
   },
 
