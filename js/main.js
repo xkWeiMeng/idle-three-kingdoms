@@ -8,7 +8,8 @@
   window.QualityColors = { 1:'#b0a898', 2:'#5d8a48', 3:'#4a7fb5', 4:'#8b5ea8', 5:'#d4a849', 6:'#ff2222' };
   window.QualityNames  = { 1:'白·普通', 2:'绿·精良', 3:'蓝·稀有', 4:'紫·史诗', 5:'橙·传说', 6:'红·神话' };
 
-  function getFullState() {
+  // Expose globally so settings-panel (and any module) can get the complete state
+  window.getFullState = function getFullState() {
     return {
       version: CONSTANTS.VERSION,
       timestamp: Date.now(),
@@ -32,7 +33,7 @@
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
-  }
+  };
 
   function initGame() {
     const saved = SaveManager.load();
@@ -119,7 +120,7 @@
 
     // 启动
     GameLoop.start();
-    SaveManager.startAutoSave(getFullState);
+    SaveManager.startAutoSave(window.getFullState);
 
     console.log(`${CONSTANTS.GAME_TITLE} v${CONSTANTS.VERSION} 启动完成`);
   }
@@ -197,7 +198,14 @@
 
   // 页面关闭前保存
   window.addEventListener('beforeunload', () => {
-    SaveManager.save(getFullState());
+    SaveManager.save(window.getFullState());
+  });
+
+  // 移动端切后台时保存（beforeunload 在移动端不可靠）
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      SaveManager.save(window.getFullState());
+    }
   });
 
   // DOM 就绪后启动

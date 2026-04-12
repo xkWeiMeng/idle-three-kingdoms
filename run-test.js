@@ -27,6 +27,7 @@ loadFile('js/core/constants.js');
 loadFile('js/core/event-bus.js');
 loadFile('js/core/utils.js');
 loadFile('js/data/heroes.js');
+loadFile('js/data/hero-skills.js');
 
 // Setup mocks BEFORE loading HeroManager
 var _emitted = [];

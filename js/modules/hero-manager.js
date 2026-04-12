@@ -21,10 +21,16 @@ const HeroManager = {
     this._heroes = data.heroes || [];
     this._team = data.team || [];
 
-    // 兼容旧存档：补充 stars 字段
+    // 兼容旧存档：补充 stars 和技能字段
     for (var i = 0; i < this._heroes.length; i++) {
       if (this._heroes[i].stars === undefined) {
         this._heroes[i].stars = 0;
+      }
+      if (this._heroes[i].skillLevels === undefined) {
+        this._heroes[i].skillLevels = [0, 0, 0];
+      }
+      if (this._heroes[i].skillPointsEarned === undefined) {
+        this._heroes[i].skillPointsEarned = Math.floor(this._heroes[i].level / ((typeof SKILL_POINTS_INTERVAL !== 'undefined') ? SKILL_POINTS_INTERVAL : 5));
       }
     }
 
@@ -68,7 +74,9 @@ const HeroManager = {
       level: 1,
       exp: 0,
       stars: 0,
-      equipment: { weapon: null, armor: null, accessory: null, mount: null }
+      equipment: { weapon: null, armor: null, accessory: null, mount: null },
+      skillLevels: [0, 0, 0],
+      skillPointsEarned: 0
     };
     this._heroes.push(hero);
     EventBus.emit('hero:added', hero);
@@ -129,6 +137,12 @@ const HeroManager = {
 
     ResourceManager.spend('exp', cost);
     hero.level++;
+    // 每 N 级获得 1 技能点
+    var interval = (typeof SKILL_POINTS_INTERVAL !== 'undefined') ? SKILL_POINTS_INTERVAL : 5;
+    if (hero.level % interval === 0) {
+      hero.skillPointsEarned = (hero.skillPointsEarned || 0) + 1;
+      EventBus.emit('toast:show', { type: 'info', message: '获得 1 技能点！' });
+    }
     EventBus.emit('hero:levelup', { hero: hero, newLevel: hero.level });
     return true;
   },
@@ -264,6 +278,147 @@ const HeroManager = {
   /** 按 uid 查找武将实例 */
   getHeroByUid(uid) {
     return this._heroes.find(function (h) { return h.uid === uid; });
+  },
+
+  /** 分配 1 技能点到指定技能 */
+  allocateSkillPoint: function (uid, skillIndex) {
+    var hero = this._heroes.find(function (h) { return h.uid === uid; });
+    if (!hero) return false;
+
+    var skillDefs = (typeof HeroSkillData !== 'undefined') ? HeroSkillData[hero.id] : null;
+    if (!skillDefs || skillIndex < 0 || skillIndex >= skillDefs.length) return false;
+
+    var levels = hero.skillLevels || [0, 0, 0];
+    var maxLvl = skillDefs[skillIndex].maxLevel || SKILL_MAX_LEVEL;
+    if (levels[skillIndex] >= maxLvl) {
+      EventBus.emit('toast:show', { type: 'warning', message: '该技能已达满级！' });
+      return false;
+    }
+
+    var totalEarned = hero.skillPointsEarned || 0;
+    var totalSpent = 0;
+    for (var i = 0; i < levels.length; i++) totalSpent += levels[i];
+    if (totalSpent >= totalEarned) {
+      EventBus.emit('toast:show', { type: 'warning', message: '技能点不足！' });
+      return false;
+    }
+
+    levels[skillIndex]++;
+    hero.skillLevels = levels;
+
+    var def = skillDefs[skillIndex];
+    EventBus.emit('toast:show', {
+      type: 'success',
+      message: def.name + ' 升至 Lv.' + levels[skillIndex] + '！'
+    });
+    EventBus.emit('hero:skill_changed', { hero: hero, skillIndex: skillIndex });
+    return true;
+  },
+
+  /** 重置技能点（花费金币） */
+  resetSkillPoints: function (uid) {
+    var hero = this._heroes.find(function (h) { return h.uid === uid; });
+    if (!hero) return false;
+
+    var levels = hero.skillLevels || [0, 0, 0];
+    var totalSpent = 0;
+    for (var i = 0; i < levels.length; i++) totalSpent += levels[i];
+    if (totalSpent === 0) {
+      EventBus.emit('toast:show', { type: 'info', message: '没有需要重置的技能点' });
+      return false;
+    }
+
+    var resetCost = Math.max(100, Math.floor(hero.level * 100));
+    if (!ResourceManager.canAfford('gold', resetCost)) {
+      EventBus.emit('toast:show', { type: 'warning', message: '金币不足！需要💰×' + Utils.formatNumber(resetCost) });
+      return false;
+    }
+
+    ResourceManager.spend('gold', resetCost);
+    hero.skillLevels = [0, 0, 0];
+
+    var template = this.getTemplate(hero.id);
+    EventBus.emit('toast:show', {
+      type: 'success',
+      message: (template ? template.name : '武将') + ' 技能点已重置！'
+    });
+    EventBus.emit('hero:skill_changed', { hero: hero });
+    return true;
+  },
+
+  /** 获取未使用的技能点数 */
+  getAvailableSkillPoints: function (uid) {
+    var hero = this._heroes.find(function (h) { return h.uid === uid; });
+    if (!hero) return 0;
+    var totalEarned = hero.skillPointsEarned || 0;
+    var levels = hero.skillLevels || [0, 0, 0];
+    var totalSpent = 0;
+    for (var i = 0; i < levels.length; i++) totalSpent += levels[i];
+    return Math.max(0, totalEarned - totalSpent);
+  },
+
+  /**
+   * 构建战斗用技能数组（根据技能等级计算实际数值）
+   * 技能 1 始终可用（即使等级 0）；技能 2、3 需等级 >= 1
+   */
+  getCombatSkills: function (uid) {
+    var hero = this._heroes.find(function (h) { return h.uid === uid; });
+    if (!hero) return [];
+
+    var skillDefs = (typeof HeroSkillData !== 'undefined') ? HeroSkillData[hero.id] : null;
+    if (!skillDefs) {
+      // 兼容：无技能数据时回退到模板技能
+      var tpl = this.getTemplate(hero.id);
+      if (tpl && tpl.skill) return [Utils.deepClone(tpl.skill)];
+      return [];
+    }
+
+    var levels = hero.skillLevels || [0, 0, 0];
+    var result = [];
+
+    for (var i = 0; i < skillDefs.length; i++) {
+      var lv = levels[i] || 0;
+      // 技能 1 始终可用；技能 2、3 需投点
+      if (i > 0 && lv <= 0) continue;
+
+      var def = skillDefs[i];
+      var skill = {
+        id: def.id,
+        name: def.name,
+        type: def.type,
+        target: def.target
+      };
+
+      // 倍率计算
+      if (def.type === 'damage' || def.type === 'heal') {
+        skill.multiplier = def.baseMult + lv * (def.growthMult || 0);
+      }
+
+      // 冷却计算
+      var cd = def.baseCd || 3;
+      if (def.cdLevels) {
+        for (var c = 0; c < def.cdLevels.length; c++) {
+          if (lv >= def.cdLevels[c]) cd--;
+        }
+      }
+      skill.cooldown = Math.max(1, cd);
+
+      // Buff / Debuff 效果
+      if (def.type === 'buff' || def.type === 'debuff') {
+        var ratio = (def.baseRatio || 0) + lv * (def.growthRatio || 0);
+        if (def.type === 'debuff') ratio = -Math.abs(ratio);
+        skill.effect = {
+          stat: def.effectStat || 'atk',
+          ratio: ratio,
+          duration: def.duration || 2
+        };
+        skill.multiplier = Math.abs(ratio);
+      }
+
+      result.push(skill);
+    }
+
+    return result;
   },
 
   getState() {

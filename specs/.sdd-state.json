@@ -10,8 +10,18 @@
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-15", "note": "全量审查15个Manager服务规范：修复4×P0(服务表+事件表+存档+写操作)+2×P1(equip:inventory_changed+init依赖)+1×P2(导航)，规范提升为Active" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-15" }
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-15",
+          "note": "全量审查15个Manager服务规范：修复4×P0(服务表+事件表+存档+写操作)+2×P1(equip:inventory_changed+init依赖)+1×P2(导航)，规范提升为Active"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-15"
+        }
       ]
     },
     "town-manager": {
@@ -19,19 +29,61 @@
       "stage": "COMPLETE",
       "spec": "specs/services/town-manager.md",
       "execPlan": "specs/exec-plans/town-manager.md",
-      "testFiles": ["tests/town-manager.test.html"],
+      "testFiles": [
+        "tests/town-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "started", "timestamp": "2026-04-14", "note": "逆向从现有实现生成规范" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-14", "note": "12个能力、70+个WHEN/THEN场景，覆盖全部公开API" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-14", "note": "修复7项：1×P0(8→9项检查)+4×P1(已解锁语义/引用语义/core-contracts交叉引用×2)+2×P2(预留接口标注/服务表链接)，提升为Active" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-14", "note": "9个任务4个阶段：T1审计→T2修复→T3-T7测试→T8验证→T9变更" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-14", "note": "T1审计79/79场景PASS，T2零修复" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-14", "note": "87个测试覆盖12能力，Node.js验证87/87通过" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-14", "note": "零行为级漂移，2处core-contracts交叉引用已修复" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-14" }
+        {
+          "stage": "DESIGN",
+          "result": "started",
+          "timestamp": "2026-04-14",
+          "note": "逆向从现有实现生成规范"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "12个能力、70+个WHEN/THEN场景，覆盖全部公开API"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-14",
+          "note": "修复7项：1×P0(8→9项检查)+4×P1(已解锁语义/引用语义/core-contracts交叉引用×2)+2×P2(预留接口标注/服务表链接)，提升为Active"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "9个任务4个阶段：T1审计→T2修复→T3-T7测试→T8验证→T9变更"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "T1审计79/79场景PASS，T2零修复"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "87个测试覆盖12能力，Node.js验证87/87通过"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-14",
+          "note": "零行为级漂移，2处core-contracts交叉引用已修复"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-14"
+        }
       ]
     },
     "resource-manager": {
@@ -39,18 +91,55 @@
       "stage": "COMPLETE",
       "spec": "specs/services/resource-manager.md",
       "execPlan": "specs/exec-plans/resource-manager.md",
-      "testFiles": ["tests/resource-manager.test.html"],
+      "testFiles": [
+        "tests/resource-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-04", "note": "逆向从现有实现生成规范" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-10", "note": "修复9处问题：资源上限数值、默认值、参数格式、缺失API(addMultiple)、highestStage类型、core-contracts同步" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-10", "note": "4个任务：T1代码修复、T2审计、T3测试、T4验证" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-10", "note": "1处修复：setHighestStage回退守卫；35/35场景审计全通过" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-10", "note": "50个测试，7个测试组，100%覆盖率" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-10", "note": "38/38场景PASS，零行为级漂移" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-10" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "逆向从现有实现生成规范"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-10",
+          "note": "修复9处问题：资源上限数值、默认值、参数格式、缺失API(addMultiple)、highestStage类型、core-contracts同步"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-10",
+          "note": "4个任务：T1代码修复、T2审计、T3测试、T4验证"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-10",
+          "note": "1处修复：setHighestStage回退守卫；35/35场景审计全通过"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-10",
+          "note": "50个测试，7个测试组，100%覆盖率"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-10",
+          "note": "38/38场景PASS，零行为级漂移"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-10"
+        }
       ]
     },
     "story-manager": {
@@ -58,18 +147,54 @@
       "stage": "COMPLETE",
       "spec": "specs/services/story-manager.md",
       "execPlan": "specs/exec-plans/story-manager.md",
-      "testFiles": ["tests/story-manager.test.html"],
+      "testFiles": [
+        "tests/story-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-04", "note": "逆向从现有实现生成规范" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-04", "note": "修复4个问题：变量命名、hero:added消费者、init参数格式、monologue载荷" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-04" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-04", "note": "1处修复：getDialogue空数组守卫(D7)" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-04", "note": "42个测试，39个规范场景，100%覆盖率" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-04", "note": "10/10能力PASS，无漂移" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-04" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "逆向从现有实现生成规范"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-04",
+          "note": "修复4个问题：变量命名、hero:added消费者、init参数格式、monologue载荷"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-04"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "1处修复：getDialogue空数组守卫(D7)"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "42个测试，39个规范场景，100%覆盖率"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-04",
+          "note": "10/10能力PASS，无漂移"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-04"
+        }
       ]
     },
     "battle-manager": {
@@ -200,19 +325,66 @@
       "stage": "COMPLETE",
       "spec": "specs/services/equipment-manager.md",
       "execPlan": "specs/exec-plans/equipment-manager.md",
-      "testFiles": ["tests/equipment-manager.test.html"],
+      "testFiles": [
+        "tests/equipment-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-09", "note": "逆向从现有实现生成规范，25个WHEN/THEN场景" },
-        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-09", "note": "发现5处问题：generateDrop描述不符、claimOverflow缺失场景、equip断言不全、reinforce注释歧义、sell副作用缺失" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-09", "note": "修复5处问题，补充2个场景，规范升至27个场景" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-09" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-09", "note": "3个任务：T1审计、T2套装消费、T3测试生成" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-09", "note": "27/27场景审计全通过，零代码修改，BattleManager完整消费11种套装效果" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-09", "note": "27个场景100%覆盖" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-09", "note": "零行为级漂移，deathImmunityMax为装饰字段（极低严重度）" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-09" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-09",
+          "note": "逆向从现有实现生成规范，25个WHEN/THEN场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "fail",
+          "attempt": 1,
+          "timestamp": "2026-04-09",
+          "note": "发现5处问题：generateDrop描述不符、claimOverflow缺失场景、equip断言不全、reinforce注释歧义、sell副作用缺失"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-09",
+          "note": "修复5处问题，补充2个场景，规范升至27个场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-09"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-09",
+          "note": "3个任务：T1审计、T2套装消费、T3测试生成"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-09",
+          "note": "27/27场景审计全通过，零代码修改，BattleManager完整消费11种套装效果"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-09",
+          "note": "27个场景100%覆盖"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-09",
+          "note": "零行为级漂移，deathImmunityMax为装饰字段（极低严重度）"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-09"
+        }
       ],
       "currentTask": null
     },
@@ -250,18 +422,53 @@
       "stage": "COMPLETE",
       "spec": "specs/product-specs/parking-system.md",
       "execPlan": "specs/exec-plans/parking-system.md",
-      "testFiles": ["tests/parking-manager.test.html"],
+      "testFiles": [
+        "tests/parking-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-05", "note": "修复5个P0+4个P1问题" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-05" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-05", "note": "26/26场景实现，12文件创建/修改" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-05", "note": "45个测试，45通过，10/10能力覆盖" },
-        { "stage": "VERIFY", "result": "low_drift", "timestamp": "2026-04-05", "note": "3项漂移已修复：离线收入调用、3-tab UI对齐、出售Toast" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-05" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-05",
+          "note": "修复5个P0+4个P1问题"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-05",
+          "note": "26/26场景实现，12文件创建/修改"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-05",
+          "note": "45个测试，45通过，10/10能力覆盖"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "low_drift",
+          "timestamp": "2026-04-05",
+          "note": "3项漂移已修复：离线收入调用、3-tab UI对齐、出售Toast"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-05"
+        }
       ]
     },
     "town-road-system": {
@@ -274,12 +481,42 @@
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "6个能力：MST道路生成、分级宽度、淡入动画、A*寻路、持久化、装饰回避" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-06", "note": "修复6项：入口点矛盾、roadGrid定义、建筑尺寸源、移动场景、绕行逻辑、开放问题" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-06", "note": "3阶段12任务" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-06", "note": "3文件修改：town-manager.js、town-world.js、town-characters.js" },
-        { "stage": "VERIFY", "result": "visual_qa_pass", "timestamp": "2026-04-06", "note": "Chrome DevTools视觉验收：道路渲染正确、角色沿路行走、分级宽度可见" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-06" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "6个能力：MST道路生成、分级宽度、淡入动画、A*寻路、持久化、装饰回避"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-06",
+          "note": "修复6项：入口点矛盾、roadGrid定义、建筑尺寸源、移动场景、绕行逻辑、开放问题"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "3阶段12任务"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "3文件修改：town-manager.js、town-world.js、town-characters.js"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "visual_qa_pass",
+          "timestamp": "2026-04-06",
+          "note": "Chrome DevTools视觉验收：道路渲染正确、角色沿路行走、分级宽度可见"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-06"
+        }
       ]
     },
     "equipment-inventory-optimization": {
@@ -292,14 +529,55 @@
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "5个能力：默认容量翻倍、金币扩容、一键排序、按品级售卖、内联操作按钮" },
-        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-06", "note": "6个P1：事件契约、getExpandCost无场景、MerchantManager遗漏、batchSell输入验证、UI刷新事件、核心契约授权" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "修复全部P1：新事件equip:inventory_changed、补充getExpandCost场景、增加MerchantManager引用、输入验证前置条件" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-06", "note": "提升为Active" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-06", "note": "3阶段10任务" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-06", "note": "5文件修改，9/9测试通过，全部5能力实现" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-06", "note": "33/33场景PASS，零漂移" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-06" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "5个能力：默认容量翻倍、金币扩容、一键排序、按品级售卖、内联操作按钮"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "fail",
+          "attempt": 1,
+          "timestamp": "2026-04-06",
+          "note": "6个P1：事件契约、getExpandCost无场景、MerchantManager遗漏、batchSell输入验证、UI刷新事件、核心契约授权"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "修复全部P1：新事件equip:inventory_changed、补充getExpandCost场景、增加MerchantManager引用、输入验证前置条件"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-06",
+          "note": "提升为Active"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "3阶段10任务"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "5文件修改，9/9测试通过，全部5能力实现"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-06",
+          "note": "33/33场景PASS，零漂移"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-06"
+        }
       ]
     },
     "tower-defense-system": {
@@ -307,22 +585,82 @@
       "stage": "COMPLETE",
       "spec": "specs/product-specs/tower-defense-system.md",
       "execPlan": "specs/exec-plans/tower-defense-system.md",
-      "testFiles": ["tests/tower-defense-manager.test.html"],
+      "testFiles": [
+        "tests/tower-defense-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "12个能力，16种防御建筑，8种敌人，20波数值表" },
-        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-06", "note": "6个P0+6个P1：tick架构、数值表、Boss倍率、城主府费用、API引用" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "修复全部P0：双频率tick架构、重算数值表、Boss倍率规则、API修正、集成清单、引导/存档恢复场景" },
-        { "stage": "REVIEW", "result": "fail", "attempt": 2, "timestamp": "2026-04-06", "note": "数值表仍与公式不一致，城主府漏铁矿，UI层依赖，引导条件不精确" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "用node脚本验算重生成数值表零差异，修复全部P1" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 3, "timestamp": "2026-04-06", "note": "提升为Active" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-06", "note": "6阶段20任务" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-06", "note": "T1-T19完成，4个新文件+4个修改文件，58/58场景" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-06", "note": "40+测试覆盖12能力，100%场景覆盖" },
-        { "stage": "VERIFY", "result": "3_drifts_fixed", "timestamp": "2026-04-06", "note": "0严重/2中/1低漂移，全部已修复：轰炸者特效、core-contracts、参考表取整" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-06", "note": "changelog条目+core-contracts同步更新" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "12个能力，16种防御建筑，8种敌人，20波数值表"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "fail",
+          "attempt": 1,
+          "timestamp": "2026-04-06",
+          "note": "6个P0+6个P1：tick架构、数值表、Boss倍率、城主府费用、API引用"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "修复全部P0：双频率tick架构、重算数值表、Boss倍率规则、API修正、集成清单、引导/存档恢复场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "fail",
+          "attempt": 2,
+          "timestamp": "2026-04-06",
+          "note": "数值表仍与公式不一致，城主府漏铁矿，UI层依赖，引导条件不精确"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "用node脚本验算重生成数值表零差异，修复全部P1"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 3,
+          "timestamp": "2026-04-06",
+          "note": "提升为Active"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "6阶段20任务"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "T1-T19完成，4个新文件+4个修改文件，58/58场景"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "40+测试覆盖12能力，100%场景覆盖"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "3_drifts_fixed",
+          "timestamp": "2026-04-06",
+          "note": "0严重/2中/1低漂移，全部已修复：轰炸者特效、core-contracts、参考表取整"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "changelog条目+core-contracts同步更新"
+        }
       ]
     },
     "abyss-loot-explosion": {
@@ -335,14 +673,55 @@
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "4个能力：粒子爆落、装备特效、连续刷本、结算重制" },
-        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-06", "note": "4个核心问题：时间线矛盾、品质6缺失、clearRun调用、品质≤3行为" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-06", "note": "修复全部问题，统一时间线、补充clearRun流程、品质≤3行为定义" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-06", "note": "提升为Active" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-06", "note": "4阶段11任务" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-06", "note": "4文件修改，21/21测试通过" },
-        { "stage": "VERIFY", "result": "3_drifts_fixed", "timestamp": "2026-04-06", "note": "修复：shimmer→pulse-glow-orange规范更新、retry按钮可点击、prefers-reduced-motion JS检测" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-06" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "4个能力：粒子爆落、装备特效、连续刷本、结算重制"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "fail",
+          "attempt": 1,
+          "timestamp": "2026-04-06",
+          "note": "4个核心问题：时间线矛盾、品质6缺失、clearRun调用、品质≤3行为"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "修复全部问题，统一时间线、补充clearRun流程、品质≤3行为定义"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-06",
+          "note": "提升为Active"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "4阶段11任务"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-06",
+          "note": "4文件修改，21/21测试通过"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "3_drifts_fixed",
+          "timestamp": "2026-04-06",
+          "note": "修复：shimmer→pulse-glow-orange规范更新、retry按钮可点击、prefers-reduced-motion JS检测"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-06"
+        }
       ]
     },
     "hero-manager": {
@@ -350,18 +729,55 @@
       "stage": "COMPLETE",
       "spec": "specs/services/hero-manager.md",
       "execPlan": "specs/exec-plans/hero-manager.md",
-      "testFiles": ["tests/hero-manager.test.html"],
+      "testFiles": [
+        "tests/hero-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-04", "note": "逆向从现有实现生成规范" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-13", "note": "修复8项：getAllHeroes→getAll、深拷贝→引用、init参数、变量名、addToTeam守卫场景、装备公式、getBattlePower floor、baseAtk数值" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-13", "note": "4个任务：T1审计、T2测试、T3漂移检测、T4变更记录" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-13", "note": "23/23场景审计，1处修复：removeFromTeam返回值+事件守卫" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-13", "note": "25个测试覆盖6个能力25个场景，100%覆盖率" },
-        { "stage": "VERIFY", "result": "4_drifts_fixed", "timestamp": "2026-04-13", "note": "修复：C5-S2 baseAtk数值、core-contracts写操作授权、补充2个边界场景+测试" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-13" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-04",
+          "note": "逆向从现有实现生成规范"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-13",
+          "note": "修复8项：getAllHeroes→getAll、深拷贝→引用、init参数、变量名、addToTeam守卫场景、装备公式、getBattlePower floor、baseAtk数值"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-13",
+          "note": "4个任务：T1审计、T2测试、T3漂移检测、T4变更记录"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-13",
+          "note": "23/23场景审计，1处修复：removeFromTeam返回值+事件守卫"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-13",
+          "note": "25个测试覆盖6个能力25个场景，100%覆盖率"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "4_drifts_fixed",
+          "timestamp": "2026-04-13",
+          "note": "修复：C5-S2 baseAtk数值、core-contracts写操作授权、补充2个边界场景+测试"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-13"
+        }
       ]
     },
     "merchant-manager": {
@@ -369,20 +785,68 @@
       "stage": "COMPLETE",
       "spec": "specs/services/merchant-manager.md",
       "execPlan": "specs/exec-plans/merchant-manager.md",
-      "testFiles": ["tests/merchant-manager.test.html"],
+      "testFiles": [
+        "tests/merchant-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-14", "note": "逆向从现有实现生成规范，7个能力，25个WHEN/THEN场景" },
-        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-14", "note": "12个问题(2P0+5P1+5P2)：core-contracts缺失注册、buyPermanent金币泄漏Bug、装备实例结构、toast格式、依赖表、状态转换表" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-14", "note": "修复全部12项：补充core-contracts注册声明、Bug标注、装备实例结构、permanentStock结构、toast格式、依赖表、状态转换表、onTick说明" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-14", "note": "修复P2状态转换表矛盾，同步更新core-contracts(服务表+事件+存档+初始化/Tick顺序+写操作授权)，提升为Active" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-14", "note": "5个任务：T1审计26场景、T2代码修复(2项Bug)、T3测试26场景、T4漂移检测、T5变更记录" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-14", "note": "26/26场景审计通过，3处代码修复(_inventory.push→addToInventory×2, buyPermanent模板检查前置)" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-14", "note": "26个测试覆盖7个能力26个场景，26/26通过，100%覆盖率" },
-        { "stage": "VERIFY", "result": "3_low_drifts_fixed", "timestamp": "2026-04-14", "note": "3处低严重度漂移已修复：core-contracts初始化顺序、Tick顺序与main.js对齐，补充只读查询声明" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-14" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "逆向从现有实现生成规范，7个能力，25个WHEN/THEN场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "fail",
+          "attempt": 1,
+          "timestamp": "2026-04-14",
+          "note": "12个问题(2P0+5P1+5P2)：core-contracts缺失注册、buyPermanent金币泄漏Bug、装备实例结构、toast格式、依赖表、状态转换表"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "修复全部12项：补充core-contracts注册声明、Bug标注、装备实例结构、permanentStock结构、toast格式、依赖表、状态转换表、onTick说明"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-14",
+          "note": "修复P2状态转换表矛盾，同步更新core-contracts(服务表+事件+存档+初始化/Tick顺序+写操作授权)，提升为Active"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "5个任务：T1审计26场景、T2代码修复(2项Bug)、T3测试26场景、T4漂移检测、T5变更记录"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "26/26场景审计通过，3处代码修复(_inventory.push→addToInventory×2, buyPermanent模板检查前置)"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "26个测试覆盖7个能力26个场景，26/26通过，100%覆盖率"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "3_low_drifts_fixed",
+          "timestamp": "2026-04-14",
+          "note": "3处低严重度漂移已修复：core-contracts初始化顺序、Tick顺序与main.js对齐，补充只读查询声明"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-14"
+        }
       ]
     },
     "abyss-manager": {
@@ -390,18 +854,55 @@
       "stage": "COMPLETE",
       "spec": "specs/services/abyss-manager.md",
       "execPlan": "specs/exec-plans/abyss-manager.md",
-      "testFiles": ["tests/abyss-manager.test.html"],
+      "testFiles": [
+        "tests/abyss-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-14", "note": "逆向从现有实现生成服务规范，18个能力，76个场景" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-14", "note": "修复5个P1+6个P2：死亡免疫范围、init/tick顺序、core-contracts前置声明、金币格式、并发战斗不变量、buff永不过期、日志上限、事件载荷语义" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-14", "note": "5阶段7任务：T1审计、T2修复_inventory.push、T3核心契约注册、T4测试骨架、T5漂移验证" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-14", "note": "76/76场景审计全PASS；1处修复：_inventory.push→addToInventory；core-contracts 7处更新" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-14", "note": "87个测试覆盖18个能力+2组集成测试，100%场景覆盖" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-14", "note": "13/13检查项全PASS，零漂移" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-14" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "逆向从现有实现生成服务规范，18个能力，76个场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-14",
+          "note": "修复5个P1+6个P2：死亡免疫范围、init/tick顺序、core-contracts前置声明、金币格式、并发战斗不变量、buff永不过期、日志上限、事件载荷语义"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "5阶段7任务：T1审计、T2修复_inventory.push、T3核心契约注册、T4测试骨架、T5漂移验证"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "76/76场景审计全PASS；1处修复：_inventory.push→addToInventory；core-contracts 7处更新"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "87个测试覆盖18个能力+2组集成测试，100%场景覆盖"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-14",
+          "note": "13/13检查项全PASS，零漂移"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-14"
+        }
       ]
     },
     "forge-manager": {
@@ -409,18 +910,55 @@
       "stage": "COMPLETE",
       "spec": "specs/services/forge-manager.md",
       "execPlan": "specs/exec-plans/forge-manager.md",
-      "testFiles": ["tests/forge-manager.test.html"],
+      "testFiles": [
+        "tests/forge-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-14", "note": "逆向从现有实现生成规范，6个能力，32个WHEN/THEN场景" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-14", "note": "修复5P0+7P1：已知Bug标注、core-contracts同步需求、模板缺失场景、精度差异说明、splice迭代约束、null防御、falsy存档处理" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-14", "note": "5个任务：T1审计18维度、T2修复6处Bug、T3 core-contracts同步、T4测试32场景、T5漂移检测" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-14", "note": "6处代码修复：getState判断+字段名、addToInventory模块边界、模板缺失splice、forge-panel事件名、blueprintId字段、isMythic残留清理" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-14", "note": "32个测试覆盖6个能力32个场景，100%覆盖率" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-14", "note": "0功能性漂移，8项文档漂移全部已修复" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-14" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "逆向从现有实现生成规范，6个能力，32个WHEN/THEN场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-14",
+          "note": "修复5P0+7P1：已知Bug标注、core-contracts同步需求、模板缺失场景、精度差异说明、splice迭代约束、null防御、falsy存档处理"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "5个任务：T1审计18维度、T2修复6处Bug、T3 core-contracts同步、T4测试32场景、T5漂移检测"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "6处代码修复：getState判断+字段名、addToInventory模块边界、模板缺失splice、forge-panel事件名、blueprintId字段、isMythic残留清理"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "32个测试覆盖6个能力32个场景，100%覆盖率"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-14",
+          "note": "0功能性漂移，8项文档漂移全部已修复"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-14"
+        }
       ]
     },
     "farm-manager": {
@@ -428,20 +966,67 @@
       "stage": "COMPLETE",
       "spec": "specs/services/farm-manager.md",
       "execPlan": "specs/exec-plans/farm-manager.md",
-      "testFiles": ["tests/farm-manager.test.html"],
+      "testFiles": [
+        "tests/farm-manager.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-14", "note": "逆向从现有实现生成服务规范，14个能力，62个WHEN/THEN场景" },
-        { "stage": "REVIEW", "result": "fail", "attempt": 1, "timestamp": "2026-04-14", "note": "4个P1+4个P2：sellCrop不可达场景、isReharvest遗漏(新BUG-03)、BUG-02描述不精确、core-contracts缺失" },
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-14", "note": "修复全部P1/P2，规范提升为Active" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 2, "timestamp": "2026-04-14" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-14", "note": "5个任务：T1代码审计62场景、T2 core-contracts同步、T3测试64个、T4漂移检测、T5变更记录" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-14", "note": "3处代码修复：BUG-01 has→canAfford、BUG-02 add(-cost)→spend、BUG-03 isReharvest重置(2处)；core-contracts 7处更新" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-14", "note": "64个测试覆盖14个能力，246个断言，100%场景覆盖率" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-14", "note": "0运行时漂移，5个文档漂移已修复" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-14" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "逆向从现有实现生成服务规范，14个能力，62个WHEN/THEN场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "fail",
+          "attempt": 1,
+          "timestamp": "2026-04-14",
+          "note": "4个P1+4个P2：sellCrop不可达场景、isReharvest遗漏(新BUG-03)、BUG-02描述不精确、core-contracts缺失"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "修复全部P1/P2，规范提升为Active"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 2,
+          "timestamp": "2026-04-14"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "5个任务：T1代码审计62场景、T2 core-contracts同步、T3测试64个、T4漂移检测、T5变更记录"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "3处代码修复：BUG-01 has→canAfford、BUG-02 add(-cost)→spend、BUG-03 isReharvest重置(2处)；core-contracts 7处更新"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-14",
+          "note": "64个测试覆盖14个能力，246个断言，100%场景覆盖率"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-14",
+          "note": "0运行时漂移，5个文档漂移已修复"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-14"
+        }
       ]
     },
     "construction-worker-system": {
@@ -451,7 +1036,9 @@
       "numericalSpec": null,
       "spec": "specs/product-specs/construction-worker-system.md",
       "execPlan": "specs/exec-plans/construction-worker-system.md",
-      "testFiles": ["tests/construction-worker.test.html"],
+      "testFiles": [
+        "tests/construction-worker.test.html"
+      ],
       "changelog": "specs/changelog.md",
       "adr": null,
       "acceptance": {
@@ -460,14 +1047,79 @@
       },
       "currentTask": null,
       "history": [
-        { "stage": "DESIGN", "result": "completed", "timestamp": "2026-04-11", "note": "产品规范由 spec-architect 创建，8 个能力（CAP-WORKER-01~08），30+ 个 WHEN/THEN 场景" },
-        { "stage": "REVIEW", "result": "pass", "attempt": 1, "timestamp": "2026-04-11", "note": "规范为 Active 状态" },
-        { "stage": "PLAN", "result": "completed", "timestamp": "2026-04-11", "note": "执行计划已存在于 specs/exec-plans/construction-worker-system.md" },
-        { "stage": "IMPLEMENT", "result": "completed", "timestamp": "2026-04-16", "note": "回溯闭环：commit 8fd4cae 实现了外围（UI widget、WORKER_CONFIG、addMultiple、UI调用迁移），但核心 TownManager 方法缺失。本次补全：13 个新方法（enqueueUpgrade/_processQueue/_checkWorkerUnlock/cancelQueueItem/cancelActiveBuilding/reorderQueue 等）+ getMaxBuildSlots 替换 + startUpgrade 队列冲突检查 + 存档迁移 + 离线推进 + town-world.js 修复" },
-        { "stage": "TEST", "result": "completed", "timestamp": "2026-04-16", "note": "57 个测试覆盖 8 个能力（CAP-WORKER-01~08），全部通过" },
-        { "stage": "VERIFY", "result": "no_drift", "timestamp": "2026-04-16", "note": "实现与规范场景全对齐，town-world.js startUpgrade→enqueueUpgrade 已修复" },
-        { "stage": "CHANGELOG", "result": "completed", "timestamp": "2026-04-16" }
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-11",
+          "note": "产品规范由 spec-architect 创建，8 个能力（CAP-WORKER-01~08），30+ 个 WHEN/THEN 场景"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "pass",
+          "attempt": 1,
+          "timestamp": "2026-04-11",
+          "note": "规范为 Active 状态"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-11",
+          "note": "执行计划已存在于 specs/exec-plans/construction-worker-system.md"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-16",
+          "note": "回溯闭环：commit 8fd4cae 实现了外围（UI widget、WORKER_CONFIG、addMultiple、UI调用迁移），但核心 TownManager 方法缺失。本次补全：13 个新方法（enqueueUpgrade/_processQueue/_checkWorkerUnlock/cancelQueueItem/cancelActiveBuilding/reorderQueue 等）+ getMaxBuildSlots 替换 + startUpgrade 队列冲突检查 + 存档迁移 + 离线推进 + town-world.js 修复"
+        },
+        {
+          "stage": "TEST",
+          "result": "completed",
+          "timestamp": "2026-04-16",
+          "note": "57 个测试覆盖 8 个能力（CAP-WORKER-01~08），全部通过"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "no_drift",
+          "timestamp": "2026-04-16",
+          "note": "实现与规范场景全对齐，town-world.js startUpgrade→enqueueUpgrade 已修复"
+        },
+        {
+          "stage": "CHANGELOG",
+          "result": "completed",
+          "timestamp": "2026-04-16"
+        }
       ]
+    },
+    "tower-defense-coc-redesign": {
+      "name": "城防塔防系统重制 — 部落冲突风格",
+      "stage": "IMPLEMENT",
+      "prd": "specs/product-specs/tower-defense-coc-redesign.md",
+      "numericalSpec": null,
+      "spec": "specs/product-specs/tower-defense-coc-redesign.md",
+      "execPlan": null,
+      "testFiles": [],
+      "changelog": null,
+      "adr": null,
+      "acceptance": {
+        "product": null,
+        "numerical": null
+      },
+      "history": [
+        {
+          "stage": "PRD",
+          "result": "completed",
+          "timestamp": "2026-04-12",
+          "note": "PRD by game-pm"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "started",
+          "timestamp": "2026-04-12",
+          "note": "Direct to implementation per user request"
+        }
+      ],
+      "currentTask": "Phase 1-2: td-data.js + td-renderer.js"
     }
   }
 }

@@ -151,10 +151,18 @@ const BattleManager = {
       var finalDef = Math.floor(stats.def * (1 + defBonus) * (1 + setDefPct + setAllPct + teamDefPctFromSets));
       var finalHp  = Math.floor(stats.hp * (1 + hpBonus) * (1 + setHpPct + setAllPct));
 
-      var skillData = template.skill ? Utils.deepClone(template.skill) : null;
-      if (skillData && setSkillCdRed > 0) {
-        var cd = skillData.cooldown !== undefined ? skillData.cooldown : (skillData.cd || 3);
-        skillData.cooldown = Math.max(1, cd - setSkillCdRed);
+      // 构建战斗技能（多技能系统）
+      var combatSkills = HeroManager.getCombatSkills(hero.uid);
+      var skillData = combatSkills.length > 0 ? combatSkills[0] : (template.skill ? Utils.deepClone(template.skill) : null);
+      if (setSkillCdRed > 0) {
+        for (var ski = 0; ski < combatSkills.length; ski++) {
+          var skCd = combatSkills[ski].cooldown !== undefined ? combatSkills[ski].cooldown : 3;
+          combatSkills[ski].cooldown = Math.max(1, skCd - setSkillCdRed);
+        }
+        if (skillData && combatSkills.length === 0 && setSkillCdRed > 0) {
+          var scd = skillData.cooldown !== undefined ? skillData.cooldown : (skillData.cd || 3);
+          skillData.cooldown = Math.max(1, scd - setSkillCdRed);
+        }
       }
 
       var cookSpdBonus = (cookBuff && cookBuff.effects.spdBonus) ? cookBuff.effects.spdBonus : 0;
@@ -175,6 +183,8 @@ const BattleManager = {
         baseSpd: finalSpd,
         skill: skillData,
         skillCd: 0,
+        skills: combatSkills,
+        skillCds: combatSkills.map(function () { return 0; }),
         buffs: [],
         isAlive: true,
         isAlly: true,
@@ -305,21 +315,41 @@ const BattleManager = {
     var hostiles = unit.isAlly ? allEnemies : allAllies;
 
     var useSkill = false;
-    var skill = unit.skill;
+    var skillToUse = null;
 
-    // 判断是否使用技能
-    if (skill) {
-      var cd = skill.cooldown !== undefined ? skill.cooldown : (skill.cd || 3);
+    // 多技能系统：按优先级（大招→副技能→主技能）检查
+    if (unit.skills && unit.skills.length > 0) {
+      var usedIndex = -1;
+      for (var si = unit.skills.length - 1; si >= 0; si--) {
+        var sk = unit.skills[si];
+        var skCd = sk.cooldown !== undefined ? sk.cooldown : (sk.cd || 3);
+        if (unit.skillCds[si] >= skCd) {
+          skillToUse = sk;
+          usedIndex = si;
+          useSkill = true;
+          break;
+        }
+      }
+      // 所有技能 CD 递增（使用的技能先置 0 再不递增）
+      if (usedIndex >= 0) unit.skillCds[usedIndex] = 0;
+      for (var sj = 0; sj < unit.skillCds.length; sj++) {
+        if (sj !== usedIndex) unit.skillCds[sj]++;
+      }
+    }
+    // 兼容：单技能系统（敌人等）
+    else if (unit.skill) {
+      var cd = unit.skill.cooldown !== undefined ? unit.skill.cooldown : (unit.skill.cd || 3);
       if (unit.skillCd >= cd) {
         useSkill = true;
+        skillToUse = unit.skill;
         unit.skillCd = 0;
       } else {
         unit.skillCd++;
       }
     }
 
-    if (useSkill) {
-      this._performSkill(unit, skill, friendlies, hostiles, state);
+    if (useSkill && skillToUse) {
+      this._performSkill(unit, skillToUse, friendlies, hostiles, state);
     } else {
       this._performNormalAttack(unit, hostiles, state);
     }

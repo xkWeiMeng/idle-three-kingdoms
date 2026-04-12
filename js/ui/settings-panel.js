@@ -388,34 +388,13 @@ var SettingsPanel = {
   },
 
   _onManualSave: function () {
-    var state = {
-      version: CONSTANTS.VERSION,
-      timestamp: Date.now(),
-      resources: ResourceManager.getState(),
-      heroes: HeroManager.getState(),
-      battle: BattleManager.getState(),
-      recruit: RecruitManager.getState(),
-      equipment: EquipmentManager.getState(),
-      story: StoryManager.getState(),
-      settings: this.getState()
-    };
-    SaveManager.save(state);
+    SaveManager.save(window.getFullState());
     EventBus.emit('toast:show', { type: 'success', message: '💾 存档保存成功!' });
     this._render();
   },
 
   _onExport: function () {
-    var state = {
-      version: CONSTANTS.VERSION,
-      timestamp: Date.now(),
-      resources: ResourceManager.getState(),
-      heroes: HeroManager.getState(),
-      battle: BattleManager.getState(),
-      recruit: RecruitManager.getState(),
-      equipment: EquipmentManager.getState(),
-      story: StoryManager.getState(),
-      settings: this.getState()
-    };
+    var state = window.getFullState();
     try {
       var json = JSON.stringify(state);
       var encoded = btoa(unescape(encodeURIComponent(json)));

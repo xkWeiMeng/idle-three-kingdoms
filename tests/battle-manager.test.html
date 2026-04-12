@@ -112,7 +112,17 @@ var HeroManager = {
   getTeam: function() { return this._team; },
   getTemplate: function(id) { return this._templates[id] || null; },
   getHeroStats: function(uid) { return this._stats[uid] || null; },
-  addHero: function(id) { this._addedHeroes = this._addedHeroes || []; this._addedHeroes.push(id); }
+  addHero: function(id) { this._addedHeroes = this._addedHeroes || []; this._addedHeroes.push(id); },
+  getCombatSkills: function(uid) {
+    // Return template skill as single-element array for backward compat
+    for (var i = 0; i < this._team.length; i++) {
+      if (this._team[i].uid === uid) {
+        var tpl = this._templates[this._team[i].id];
+        if (tpl && tpl.skill) return [JSON.parse(JSON.stringify(tpl.skill))];
+      }
+    }
+    return [];
+  }
 };
 
 // Mock ResourceManager

@@ -25,6 +25,7 @@ loadScript('js/core/constants.js');
 loadScript('js/core/event-bus.js');
 loadScript('js/core/utils.js');
 loadScript('js/data/heroes.js');
+loadScript('js/data/hero-skills.js');
 
 // Setup mock objects
 var _emitted = [];

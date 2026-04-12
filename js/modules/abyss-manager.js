@@ -125,6 +125,8 @@ var AbyssManager = {
       var stats = HeroManager.getHeroStats(hero.uid);
       if (!template || !stats) continue;
 
+      var abyssCombatSkills = (typeof HeroManager.getCombatSkills === 'function') ? HeroManager.getCombatSkills(hero.uid) : [];
+
       allies.push({
         uid: hero.uid,
         id: hero.id,
@@ -138,8 +140,10 @@ var AbyssManager = {
         baseAtk: Math.floor(stats.atk * (1 + atkBonus)),
         baseDef: Math.floor(stats.def * (1 + defBonus)),
         baseSpd: stats.spd,
-        skill: template.skill ? Utils.deepClone(template.skill) : null,
+        skill: abyssCombatSkills.length > 0 ? abyssCombatSkills[0] : (template.skill ? Utils.deepClone(template.skill) : null),
         skillCd: 0,
+        skills: abyssCombatSkills,
+        skillCds: abyssCombatSkills.map(function () { return 0; }),
         buffs: [],
         isAlive: true,
         isAlly: true,
@@ -234,19 +238,40 @@ var AbyssManager = {
       var friendlies = unit.isAlly ? run.allies : run.enemies;
 
       var useSkill = false;
-      var skill = unit.skill;
-      if (skill) {
-        var cd = skill.cooldown !== undefined ? skill.cooldown : 3;
+      var skillToUse = null;
+
+      // Multi-skill system
+      if (unit.skills && unit.skills.length > 0) {
+        var usedIdx = -1;
+        for (var si = unit.skills.length - 1; si >= 0; si--) {
+          var sk = unit.skills[si];
+          var skCd = sk.cooldown !== undefined ? sk.cooldown : 3;
+          if (unit.skillCds[si] >= skCd) {
+            skillToUse = sk;
+            usedIdx = si;
+            useSkill = true;
+            break;
+          }
+        }
+        if (usedIdx >= 0) unit.skillCds[usedIdx] = 0;
+        for (var sj = 0; sj < unit.skillCds.length; sj++) {
+          if (sj !== usedIdx) unit.skillCds[sj]++;
+        }
+      }
+      // Legacy single skill
+      else if (unit.skill) {
+        var cd = unit.skill.cooldown !== undefined ? unit.skill.cooldown : 3;
         if (unit.skillCd >= cd) {
           useSkill = true;
+          skillToUse = unit.skill;
           unit.skillCd = 0;
         } else {
           unit.skillCd++;
         }
       }
 
-      if (useSkill && skill) {
-        this._performSkill(unit, skill, hostiles, friendlies, run);
+      if (useSkill && skillToUse) {
+        this._performSkill(unit, skillToUse, hostiles, friendlies, run);
       } else {
         this._performAttack(unit, hostiles, run);
       }

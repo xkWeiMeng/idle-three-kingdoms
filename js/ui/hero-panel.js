@@ -18,6 +18,7 @@ const HeroPanel = {
     EventBus.on('hero:team_changed', function () { self._render(); });
     EventBus.on('equip:changed', function () { self._render(); });
     EventBus.on('resource:changed', function () { self._render(); });
+    EventBus.on('hero:skill_changed', function () { self._render(); });
   },
 
   _render: function () {
@@ -107,6 +108,9 @@ const HeroPanel = {
     var ascendInfo = HeroManager.getAscendInfo(hero.uid);
     var canLevel = hero.level < maxLevel && currentExp >= expCost;
     var isMaxLevel = hero.level >= maxLevel;
+    var skillDefs = (typeof HeroSkillData !== 'undefined') ? HeroSkillData[hero.id] : null;
+    var heroSkillLevels = hero.skillLevels || [0, 0, 0];
+    var availSP = HeroManager.getAvailableSkillPoints(hero.uid);
 
     // Quality glow for epic/legendary
     var glowStyle = '';
@@ -150,8 +154,21 @@ const HeroPanel = {
       html += '</div>';
     }
 
-    // Row 4: Skill info
-    if (template.skill) {
+    // Row 4: Skills info
+    if (skillDefs) {
+      html += '<div style="font-size:0.72rem;color:var(--color-text-dim);margin-bottom:6px;display:flex;align-items:center;flex-wrap:wrap;gap:3px;">';
+      html += '<span>✨</span>';
+      for (var si = 0; si < skillDefs.length; si++) {
+        var sklv = heroSkillLevels[si] || 0;
+        var skColor = (si === 0 || sklv > 0) ? 'var(--color-gold)' : 'var(--color-text-dim)';
+        html += '<span style="color:' + skColor + ';">' + (skillDefs[si].icon || '✨') + skillDefs[si].name + ' <small>Lv.' + sklv + '</small></span>';
+        if (si < skillDefs.length - 1) html += '<span style="color:var(--color-text-dim);">·</span>';
+      }
+      if (availSP > 0) {
+        html += '<span style="color:var(--color-primary);font-weight:bold;margin-left:4px;">SP:' + availSP + '</span>';
+      }
+      html += '</div>';
+    } else if (template.skill) {
       html += '<div style="font-size:0.72rem;color:var(--color-text-dim);margin-bottom:6px;">';
       html += '✨ ' + template.skill.name;
       if (template.skill.description) {
@@ -203,6 +220,15 @@ const HeroPanel = {
 
     // Row 7: Action buttons
     html += '<div style="display:flex;gap:6px;">';
+
+    // Skill button
+    if (skillDefs) {
+      html += '<button class="btn hero-btn-skills" data-uid="' + hero.uid + '" ';
+      html += 'style="font-size:0.78rem;background:var(--color-secondary);position:relative;">';
+      html += '✨技能';
+      if (availSP > 0) html += '<span style="position:absolute;top:-5px;right:-5px;background:var(--color-primary);color:#fff;font-size:0.55rem;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;border-radius:8px;">' + availSP + '</span>';
+      html += '</button>';
+    }
 
     // Team toggle
     if (inTeam) {
@@ -273,6 +299,15 @@ const HeroPanel = {
       ascBtns[m].addEventListener('click', function () {
         var uid = this.getAttribute('data-uid');
         if (uid) self._onAscend(uid);
+      });
+    }
+
+    // Skill buttons
+    var skillBtns = this._container.querySelectorAll('.hero-btn-skills');
+    for (var si = 0; si < skillBtns.length; si++) {
+      skillBtns[si].addEventListener('click', function () {
+        var uid = this.getAttribute('data-uid');
+        if (uid && typeof SkillPanel !== 'undefined') SkillPanel.show(uid);
       });
     }
   },
