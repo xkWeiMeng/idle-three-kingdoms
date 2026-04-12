@@ -1,8 +1,9 @@
 ---
-status: Draft
+status: Active
 created: 2026-04-04
-updated: 2026-04-04
+updated: 2026-04-15
 author: AI (spec-architect)
+reviewedBy: sdd-workflow (全量审查)
 ---
 
 # 系统规范：核心契约
@@ -21,11 +22,16 @@ author: AI (spec-architect)
 | BattleManager | 战斗流程、回合计算、结算 | [specs/services/battle-manager.md](../services/battle-manager.md) |
 | RecruitManager | 招募/抽卡、概率、保底 | [specs/services/recruit-manager.md](../services/recruit-manager.md) |
 | EquipmentManager | 装备管理、强化、穿戴 | [specs/services/equipment-manager.md](../services/equipment-manager.md) |
-| TownManager | 城镇建筑、资源上限覆盖 | _待创建_ |
+| TownManager | 城镇建筑、资源上限覆盖 | [specs/services/town-manager.md](../services/town-manager.md) |
 | AdventureManager | 冒险地图、离线收益 | [specs/services/adventure-manager.md](../services/adventure-manager.md) |
 | EconomyManager | 经济追踪、预警、统计 | [specs/services/economy-manager.md](../services/economy-manager.md) |
 | StoryManager | 剧情章节、对话、解锁 | [specs/services/story-manager.md](../services/story-manager.md) |
 | TowerDefenseManager | 塔防波次、防御塔管理、科技研究 | [specs/product-specs/tower-defense-system.md](../product-specs/tower-defense-system.md) |
+| ForgeManager | 锻造系统、普通/神话锻造、图纸管理 | [specs/services/forge-manager.md](../services/forge-manager.md) |
+| MerchantManager | 商铺库存、刷新、购买 | [specs/services/merchant-manager.md](../services/merchant-manager.md) |
+| FarmManager | 种植、生长、收获、料理 Buff | [specs/services/farm-manager.md](../services/farm-manager.md) |
+| AbyssManager | 深渊副本挑战、多层Boss战、掉落结算 | [specs/services/abyss-manager.md](../services/abyss-manager.md) |
+| ParkingManager | 停车场载具管理、被动收入、离线结算 | [specs/product-specs/parking-system.md](../product-specs/parking-system.md) |
 
 ## 服务边界
 
@@ -43,20 +49,30 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 
 **允许的跨模块只读查询**（仅在需要计算时）：
 - `HeroManager` → `EquipmentManager.getEquipment(uid)` — 计算装备加成
-- `ResourceManager` → `TownManager.getBuildingEffect(type)` — 查询资源上限覆盖
+- `ResourceManager` → `TownManager.getResourceCap(type)` — 查询资源上限覆盖
 - `BattleManager` → `HeroManager.getHeroStats(uid)` — 获取战斗属性
 - `BattleManager` → `HeroManager.getTeam()` — 获取队伍成员列表
 - `BattleManager` → `HeroManager.getTemplate(id)` — 获取武将模板（技能数据）
 - `BattleManager` → `TownManager.getAtkBonus()` / `getDefBonus()` / `getHpBonus()` / `getExpBonus()` / `getDropRateBonus()` — 建筑加成（可选依赖）
+- `AdventureManager` → `TownManager.getExpBonus()` / `getDropRateBonus()` / `getOfflineEfficiency()` — 冒险加成（可选依赖）
+- `EconomyManager` → `TownManager.getBuildingLevel()` / `getUpgradeCost()` — 经济分析（可选依赖）
+- `ParkingManager` → `TownManager.getOfflineEfficiency()` / `getBuildingLevel()` — 离线效率、停车场等级（可选依赖）
 - `BattleManager` → `FarmManager.getActiveBuff()` — 料理 buff 加成（可选依赖）
+- `FarmManager` → `TownManager.getState()` — 查询菜园/堆肥坑/种子铺建筑等级
+- `MerchantManager` → `EquipmentManager.getInventory()` / `EquipmentManager.getMaxCapacity()` — 购买前检查背包容量
+- `AbyssManager` → `BattleManager.getClearedStages()` — 系统解锁 / 单深渊解锁检查
+- `AbyssManager` → `HeroManager.getTeam()` / `getTemplate(id)` / `getHeroStats(uid)` / `getHeroByUid(uid)` — 队伍构建、属性计算、套装检查
+- `ForgeManager` → `TownManager.getState()` — 查询 weapon_workshop/blacksmith 建筑等级（可选依赖，typeof 守卫）
+- `AbyssManager` → `TownManager.getAtkBonus()` / `getDefBonus()` / `getHpBonus()` — 建筑百分比加成（可选依赖）
 
 > 这些查询仅用于**读取**，不得修改被查询方的状态。
 
 **允许的跨模块写操作**（资源消耗与实体创建）：
 - `RecruitManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 检查并扣除招募费用
 - `RecruitManager` → `HeroManager.addHero(heroId)` — 将招募结果添加到玩家收藏
+- `HeroManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` — 升级消耗 EXP、重复武将转换 EXP
 - `EquipmentManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 强化消耗
-- `TownManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 建筑建造消耗
+- `TownManager` → `ResourceManager.canAfford()` / `ResourceManager.canAffordMultiple()` / `ResourceManager.spend()` / `ResourceManager.spendMultiple()` / `ResourceManager.add()` — 建筑建造消耗、资源产出、集市交易
 - `BattleManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` — 食物消耗、奖励发放
 - `AdventureManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` / `ResourceManager.get()` — 挂机粮草消耗检查、挂机战斗资源结算、推荐区域资源需求分析
 - `TowerDefenseManager` → `ResourceManager.canAffordMultiple()` / `ResourceManager.spendMultiple()` / `ResourceManager.add()` — 建造/升级/研究消耗、波次奖励
@@ -66,6 +82,16 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 - `BattleManager` → `ResourceManager.addBattleCount()` / `ResourceManager.setHighestStage()` — 统计更新
 - `BattleManager` → `HeroManager.addHero(heroId)` — 首通武将奖励
 - `BattleManager` → `EquipmentManager.addToInventory(equip)` — 装备掉落加入背包
+- `FarmManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` / `ResourceManager.canAffordMultiple()` / `ResourceManager.spendMultiple()` — 除虫扣金、收获资源发放、购买种子、出售作物
+- `FarmManager` → `EconomyManager.logEvent()` — 可选经济日志记录（typeof 守卫）
+- `MerchantManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 购买扣金币（gold）、手动刷新扣玉璧（jade）
+- `MerchantManager` → `EquipmentManager.addToInventory()` — 购买装备添加背包
+- `ForgeManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` — 普通锻造一次性扣资源、神话锻造持续消耗
+- `ForgeManager` → `EquipmentManager.addToInventory(equip)` — 锻造完成装备入背包
+- `AbyssManager` → `ResourceManager.canAfford()` / `ResourceManager.spend()` / `ResourceManager.add()` — 入场费扣除、层通关/首通奖励发放
+- `AbyssManager` → `EquipmentManager.generateDrop()` / `EquipmentManager.addToInventory()` — 装备掉落生成、神话装备入库
+- `AbyssManager` → `ForgeManager.addBlueprint()` — 首通奖励发放图纸（可选依赖）
+- `ParkingManager` → `ResourceManager.canAffordMultiple()` / `ResourceManager.spendMultiple()` / `ResourceManager.add()` — 解锁车位/购买载具消耗、被动收入、载具出售退款
 
 > 写操作遵循「检查 → 扣除 → 执行」原则，调用方负责前置检查（`canAfford`）。
 
@@ -93,10 +119,10 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 
 | 资源 | 基础上限 | 可被覆盖 |
 |------|----------|----------|
-| `gold` | 10000 | 是（TownManager 建筑效果） |
-| `wood` | 500 | 是 |
-| `stone` | 500 | 是 |
-| `iron` | 300 | 是 |
+| `gold` | 50000 | 是（TownManager 建筑效果） |
+| `wood` | 2000 | 是 |
+| `stone` | 2000 | 是 |
+| `iron` | 1000 | 是 |
 | `food` | 200 | 是 |
 | `jade` | 无上限 | 否 |
 | `exp` | 无上限 | 否 |
@@ -164,9 +190,11 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 | `battle:ended` | BattleManager | ResourceManager, UI | `{...}` | 战斗结算 |
 | `recruit:result` | RecruitManager | UI | `{results, pity}` | 招募结果 |
 | `equip:changed` | EquipmentManager | UI, HeroManager | `{hero, equipment}` | 装备变更 |
+| `equip:inventory_changed` | EquipmentManager | UI | 无 | 背包容量/内容变化（增删排序） |
 | `town:building_upgraded` | TownManager | UI, ResourceManager | `{buildingId, newLevel}` | 建筑升级完成 |
 | `town:building_started` | TownManager | UI | `{buildingId, endTime}` | 建筑升级开始 |
 | `town:trade` | TownManager | ResourceManager, UI | `{from, to, amount}` | 资源交易 |
+| `town:roads_updated` | TownManager | UI (TownWorld) | `{ count: number }` | 道路网络重算完成 |
 | `adventure:region_changed` | AdventureManager | UI | `{regionId}` | 区域切换 |
 | `adventure:mode_changed` | AdventureManager | UI | `{mode}` | 模式切换 |
 | `adventure:session_update` | AdventureManager | UI | `{session}` | 冒险进度更新 |
@@ -190,6 +218,36 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 | `td:hero_assigned` | TowerDefenseManager | UI | `{heroUid,slot}` | 武将派驻 |
 | `td:research_started` | TowerDefenseManager | UI | `{era,endTime}` | 科技研究开始 |
 | `td:era_unlocked` | TowerDefenseManager | UI | `{era}` | 时代解锁 |
+| `forge:started` | ForgeManager | UI | `{recipeId, totalTime}` | 锻造任务开始（普通/神话） |
+| `forge:completed` | ForgeManager | UI | `{equipment}` | 锻造完成，装备生成 |
+| `forge:paused` | ForgeManager | UI | `{recipeId, reason}` | 神话锻造因资源不足暂停 |
+| `forge:progress` | ForgeManager | UI | `{recipeId, percent}` | 神话锻造进度更新 |
+| `farm:planted` | FarmManager | UI | `{plotIndex, cropId}` | 播种成功 |
+| `farm:crop_ready` | FarmManager | UI | `{plotIndex, cropId}` | 作物成熟 |
+| `farm:withered` | FarmManager | UI | `{plotIndex}` | 作物枯萎 |
+| `farm:harvested` | FarmManager | UI, EconomyManager | `{plotIndex, cropId, yields, isDouble}` | 收获成功 |
+| `farm:watered` | FarmManager | UI | `{plotIndex}` | 浇水成功 |
+| `farm:fertilized` | FarmManager | UI | `{plotIndex}` | 施肥成功 |
+| `farm:bug_alert` | FarmManager | UI | `{plotIndex, cropId}` | 虫害触发 |
+| `farm:bug_removed` | FarmManager | UI | `{plotIndex}` | 除虫成功 |
+| `farm:seed_bought` | FarmManager | UI | `{cropId, cost}` | 购买种子 |
+| `farm:seed_synthesized` | FarmManager | UI | `{recipeIndex, result}` | 种子合成 |
+| `farm:cooked` | FarmManager | UI | `{recipeId, overridden}` | 料理制作 |
+| `farm:buff_expired` | FarmManager | UI, BattleManager | `{}` | 料理 Buff 过期 |
+| `farm:auto_harvest_toggled` | FarmManager | UI | `{enabled}` | 自动收获切换 |
+| `farm:fertilizer_made` | FarmManager | UI | `{fertilizer}` | 肥料制作 |
+| `farm:crop_sold` | FarmManager | UI | `{cropId, count, gold}` | 作物出售 |
+| `merchant:refreshed` | MerchantManager | MerchantPanel (UI) | `{stock: normalStock[]}` | 普通货架刷新完成 |
+| `merchant:purchased` | MerchantManager | MerchantPanel (UI) | `{item: equipInstance, price: number}` | 商品购买成功 |
+| `abyss:entered` | AbyssManager | UI | `{abyssId}` | 成功进入深渊 |
+| `abyss:floor_cleared` | AbyssManager | UI | `{abyssId, floor, rewards}` | 单层通关 |
+| `abyss:completed` | AbyssManager | UI | `{abyssId, rewards, droppedEquipment}` | 深渊全通关 |
+| `abyss:failed` | AbyssManager | UI | `{abyssId, floor}` | 深渊挑战失败 |
+| `parking:slot_unlocked` | ParkingManager | UI | `{slotIndex, totalSlots}` | 停车位解锁 |
+| `parking:vehicle_acquired` | ParkingManager | UI | `{vehicleId}` | 载具获取 |
+| `parking:vehicle_parked` | ParkingManager | UI | `{vehicleId, slotIndex}` | 载具停放 |
+| `parking:vehicle_removed` | ParkingManager | UI | `{vehicleId, slotIndex}` | 载具移出 |
+| `parking:income_collected` | ParkingManager | UI | `{amount}` | 被动收入结算 |
 
 **事件规则**：
 - EventBus 仅支持 `on` / `off` / `emit`，无 `once`
@@ -212,6 +270,11 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
   "adventure": "AdventureManager.getState()",
   "economy": "EconomyManager.getState()",
   "settings": "SettingsPanel.getState()",
+  "merchant": "MerchantManager.getState()",
+  "forge": "ForgeManager.getState()",
+  "abyss": "AbyssManager.getState()",
+  "farm": "FarmManager.getState()",
+  "parking": "ParkingManager.getState()",
   "towerDefense": "TowerDefenseManager.getState()"
 }
 ```
@@ -227,15 +290,20 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 
 ```
 1. ResourceManager    ← 基础，无依赖
-2. EconomyManager     ← 必须在 ResourceManager 之后（监听 resource:changed）
-3. HeroManager        ← 依赖 ResourceManager（检查升级费用）
-4. EquipmentManager   ← 依赖 HeroManager（装备关联武将）
-5. RecruitManager     ← 依赖 HeroManager（添加武将）
-6. BattleManager      ← 依赖 HeroManager（读取属性）
+2. HeroManager        ← 依赖 ResourceManager（检查升级费用）
+3. BattleManager      ← 依赖 HeroManager（读取属性）
+4. RecruitManager     ← 依赖 HeroManager（添加武将）
+5. EquipmentManager   ← 依赖 HeroManager（装备关联武将）
+6. StoryManager       ← 依赖多个 Manager（解锁条件检查）
 7. TownManager        ← 依赖 ResourceManager（消耗资源建造）
 8. AdventureManager   ← 依赖 BattleManager, ResourceManager
-9. StoryManager       ← 依赖多个 Manager（解锁条件检查）
-10. TowerDefenseManager ← 依赖 ResourceManager, HeroManager, TownManager, EquipmentManager
+9. EconomyManager     ← 必须在 ResourceManager 之后（监听 resource:changed）
+10. MerchantManager    ← 依赖 ResourceManager（金币/玉璧扣除）, EquipmentManager（背包管理）
+11. ForgeManager       ← 依赖 TownManager（建筑等级查询）, ResourceManager（资源消耗）, EquipmentManager（装备入背包）
+12. AbyssManager       ← 依赖 BattleManager, HeroManager, ResourceManager, EquipmentManager, TownManager
+13. FarmManager        ← 依赖 TownManager（查询建筑等级）, ResourceManager（资源消耗/发放）
+14. ParkingManager     ← 依赖 ResourceManager, TownManager（停车场等级/离线效率查询）
+15. TowerDefenseManager ← 依赖 ResourceManager, HeroManager, TownManager, EquipmentManager
 ```
 
 **规则**：
@@ -252,6 +320,12 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 4. TownManager.onTick(dt)         ← 建筑建造倒计时
 5. AdventureManager.onTick(dt)    ← 冒险推进
 6. EconomyManager.onTick(dt)      ← 经济统计
+7. MerchantManager.onTick(dt)     ← 商铺定时刷新检查
+8. ForgeManager.onTick(dt)        ← 锻造队列推进（普通计时/神话资源消耗）
+9. AbyssManager.onTick(dt)        ← 深渊解锁检查 + 战斗推进
+10. FarmManager.onTick(dt)         ← 作物生长/枯萎/自动收获/Buff 过期
+11. ParkingManager.onTick(dt)      ← 停车场收益累积
+12. TowerDefenseManager.onTick(dt) ← 塔防波次推进
 ```
 
 ## 不变量
@@ -272,4 +346,16 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 服务级详情，请参见：
 - [specs/services/resource-manager.md](../services/resource-manager.md)
 - [specs/services/hero-manager.md](../services/hero-manager.md)
+- [specs/services/battle-manager.md](../services/battle-manager.md)
 - [specs/services/recruit-manager.md](../services/recruit-manager.md)
+- [specs/services/equipment-manager.md](../services/equipment-manager.md)
+- [specs/services/story-manager.md](../services/story-manager.md)
+- [specs/services/town-manager.md](../services/town-manager.md)
+- [specs/services/adventure-manager.md](../services/adventure-manager.md)
+- [specs/services/economy-manager.md](../services/economy-manager.md)
+- [specs/services/forge-manager.md](../services/forge-manager.md)
+- [specs/services/merchant-manager.md](../services/merchant-manager.md)
+- [specs/services/abyss-manager.md](../services/abyss-manager.md)
+- [specs/services/farm-manager.md](../services/farm-manager.md)
+- [specs/product-specs/parking-system.md](../product-specs/parking-system.md)
+- [specs/product-specs/tower-defense-system.md](../product-specs/tower-defense-system.md)

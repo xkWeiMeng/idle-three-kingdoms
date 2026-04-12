@@ -129,6 +129,7 @@ var FarmManager = {
       plot.hasBug = false;
       plot.bugTriggered = false;
       plot.remainHarvests = 0;
+      plot.isReharvest = false;
       EventBus.emit('farm:withered', { plotIndex: plotIndex });
     }
   },
@@ -166,6 +167,7 @@ var FarmManager = {
     plot.hasBug = false;
     plot.bugTriggered = false;
     plot.remainHarvests = crop.reharvestCount || 0;
+    plot.isReharvest = false;
 
     EventBus.emit('farm:planted', { plotIndex: plotIndex, cropId: cropId });
     return { ok: true };
@@ -316,11 +318,11 @@ var FarmManager = {
     if (!plot.hasBug) return { ok: false, reason: '没有虫害' };
 
     var cost = 50;
-    if (!ResourceManager.has('gold', cost)) {
+    if (!ResourceManager.canAfford('gold', cost)) {
       return { ok: false, reason: '金币不足（需要' + cost + '金）' };
     }
 
-    ResourceManager.add('gold', -cost);
+    ResourceManager.spend('gold', cost, 'farming', 'bug_removal');
     plot.hasBug = false;
     EventBus.emit('farm:bug_removed', { plotIndex: plotIndex });
 
@@ -331,7 +333,7 @@ var FarmManager = {
     return { ok: true };
   },
 
-  // ===== CAP-FARM-07: 种子购买 =====
+  // ===== CAP-FARM-10: 种子购买 =====
 
   buySeed: function (cropId) {
     var crop = CropData[cropId];
@@ -369,7 +371,7 @@ var FarmManager = {
     return { ok: true };
   },
 
-  // ===== CAP-FARM-10: 种子合成 =====
+  // ===== CAP-FARM-07: 种子合成 =====
 
   synthesizeSeed: function (recipeIndex) {
     var recipe = CropSynthesis[recipeIndex];

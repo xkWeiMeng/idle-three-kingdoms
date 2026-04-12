@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ForgeManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>ForgeManager 规范测试</h1>
+<pre>规范引用：specs/services/forge-manager.md
+执行计划：specs/exec-plans/forge-manager.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- ===== Mock 全局依赖：在模块加载前定义 ===== -->
+<script>
+// ===== Mock ResourceManager =====
+var ResourceManager = {
+  _resources: {},
+  _spent: [],
+  reset: function(r) {
+    this._resources = r || { gold: 99999, iron: 99999, wood: 99999, stone: 99999 };
+    this._spent = [];
+  },
+  canAfford: function(type, amount) {
+    return (this._resources[type] || 0) >= amount;
+  },
+  spend: function(type, amount) {
+    this._resources[type] = (this._resources[type] || 0) - amount;
+    this._spent.push({ type: type, amount: amount });
+  }
+};
+
+// ===== Mock TownManager =====
+var TownManager = {
+  _buildings: {},
+  reset: function(b) {
+    this._buildings = b || { weapon_workshop: 10, blacksmith: 10 };
+  },
+  getState: function() {
+    return { buildings: this._buildings };
+  }
+};
+
+// ===== Mock EquipmentManager =====
+var EquipmentManager = {
+  _inventory: [],
+  _overflow: [],
+  _maxSlots: 50,
+  _addCalled: false,
+  reset: function() {
+    this._inventory = [];
+    this._overflow = [];
+    this._maxSlots = 50;
+    this._addCalled = false;
+  },
+  addToInventory: function(equip) {
+    this._addCalled = true;
+    if (!equip) return false;
+    if (this._inventory.length < this._maxSlots) {
+      this._inventory.push(equip);
+      return true;
+    }
+    if (this._overflow.length < 10) {
+      this._overflow.push(equip);
+      return true;
+    }
+    return false;
+  }
+};
+
+// ===== Mock EquipmentData =====
+var EquipmentData = [
+  { id: 'eq_g1', name: '铁剑', type: 'weapon', quality: 2, statType: 'atk', statRange: [3, 8], emoji: '🗡️' },
+  { id: 'eq_g2', name: '铁甲', type: 'armor', quality: 2, statType: 'def', statRange: [2, 5], emoji: '🛡️' },
+  { id: 'eq_b1', name: '霜寒枪', type: 'weapon', quality: 3, statType: 'atk', statRange: [15, 25], emoji: '🔱' }
+];
+
+// ===== Mock BlueprintData =====
+var BlueprintData = {
+  'bp_001': { name: '青龙偃月刀·图纸', equipId: 'eq_m01', emoji: '⚔️', setId: 'set_01' },
+  'bp_002': { name: '方天画戟·图纸', equipId: 'eq_m02', emoji: '🔱', setId: 'set_02' }
+};
+
+// ===== Mock getMythicTemplate =====
+function getMythicTemplate(equipId) {
+  if (equipId === 'eq_m01') {
+    return { id: 'eq_m01', name: '青龙偃月刀', type: 'weapon', quality: 6, emoji: '⚔️',
+             statType: 'atk', statRange: [50, 80], setId: 'set_01', description: '神话武器' };
+  }
+  return null;  // eq_m02 deliberately returns null for testing
+}
+
+// ===== Mock EquipmentSets (UI dependency) =====
+var EquipmentSets = {
+  'set_01': { name: '关羽之魂' },
+  'set_02': { name: '吕布之怒' }
+};
+</script>
+
+<!-- 核心依赖 -->
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+
+<!-- 被测模块 -->
+<script src="../js/modules/forge-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/forge-manager.md
+ * 执行计划：specs/exec-plans/forge-manager.md
+ *
+ * 测试策略：
+ *   - Mock ResourceManager / TownManager / EquipmentManager（全局 var 覆盖）
+ *   - Mock EquipmentData / BlueprintData / getMythicTemplate（数据文件不加载）
+ *   - 拦截 EventBus.emit，记录所有事件调用
+ *   - 每个测试前执行 resetFM() 清空状态
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var el = document.createElement('div');
+  try {
+    fn();
+    el.className = 'pass';
+    el.textContent = '  ✅ ' + name;
+    _results.push({ name: name, pass: true });
+  } catch (e) {
+    el.className = 'fail';
+    el.textContent = '  ❌ ' + name + ' — ' + e.message;
+    _results.push({ name: name, pass: false, error: e.message });
+  }
+  _log.appendChild(el);
+}
+
+function assert(cond, msg) {
+  if (!cond) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(a, b, msg) {
+  if (a !== b) throw new Error((msg || '') + ' expected ' + JSON.stringify(b) + ' got ' + JSON.stringify(a));
+}
+
+// ===== EventBus 拦截 =====
+var _emitted = [];
+var _origEmit = EventBus.emit.bind(EventBus);
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, payload: args[0] });
+  _origEmit.apply(null, arguments);
+};
+
+function clearEmits() { _emitted.length = 0; }
+function getEmits(event) {
+  return _emitted.filter(function(e) { return e.event === event; });
+}
+
+// ===== ForgeManager 重置 =====
+function resetFM() {
+  ForgeManager._state = { queue: [], maxQueue: 1, blueprints: [] };
+  ResourceManager.reset();
+  TownManager.reset();
+  EquipmentManager.reset();
+  clearEmits();
+}
+
+// ===============================================================
+// 能力 1：普通锻造（5 个场景）
+// ===============================================================
+section('能力1 普通锻造 startNormalForge');
+
+test('C1-S1: 正常启动绿色锻造 — 扣资源，入队，emit，return true', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 1000, iron: 200, wood: 0, stone: 0 });
+  TownManager.reset({ weapon_workshop: 1, blacksmith: 1 });
+
+  var result = ForgeManager.startNormalForge(0);
+  assertEqual(result, true, 'return');
+  assertEqual(ForgeManager._state.queue.length, 1, 'queue length');
+  assertEqual(ForgeManager._state.queue[0].recipeId, 'normal_q2', 'recipeId');
+  assertEqual(ForgeManager._state.queue[0].quality, 2, 'quality');
+  assertEqual(ForgeManager._state.queue[0].totalTime, 600, 'totalTime');
+  assertEqual(ForgeManager._state.queue[0].elapsedTime, 0, 'elapsedTime');
+  // Check resource deduction
+  var goldSpent = ResourceManager._spent.filter(function(s) { return s.type === 'gold'; });
+  var ironSpent = ResourceManager._spent.filter(function(s) { return s.type === 'iron'; });
+  assertEqual(goldSpent[0].amount, 500, 'gold spent');
+  assertEqual(ironSpent[0].amount, 100, 'iron spent');
+  // Check events
+  assert(getEmits('forge:started').length === 1, 'forge:started emitted');
+  assertEqual(getEmits('forge:started')[0].payload.totalTime, 600, 'forge:started totalTime');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+  assertEqual(getEmits('toast:show')[0].payload.type, 'info', 'toast type');
+});
+
+test('C1-S2: 队列已满 → toast warning, return false', function() {
+  resetFM();
+  ForgeManager._state.queue.push({ recipeId: 'normal_q2', completed: false, elapsedTime: 0, totalTime: 600, quality: 2 });
+
+  var result = ForgeManager.startNormalForge(0);
+  assertEqual(result, false, 'return');
+  assertEqual(ForgeManager._state.queue.length, 1, 'queue unchanged');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+  assert(getEmits('toast:show')[0].payload.message.indexOf('队列已满') >= 0, 'toast message');
+  assertEqual(ResourceManager._spent.length, 0, 'no resource spent');
+});
+
+test('C1-S3: 建筑等级不足 → toast warning, return false', function() {
+  resetFM();
+  TownManager.reset({ weapon_workshop: 2, blacksmith: 2 });
+
+  var result = ForgeManager.startNormalForge(1); // 蓝色需要等级3
+  assertEqual(result, false, 'return');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+  assert(getEmits('toast:show')[0].payload.message.indexOf('等级') >= 0, 'toast mentions level');
+  assertEqual(ResourceManager._spent.length, 0, 'no resource spent');
+});
+
+test('C1-S4: 资源不足 → toast warning, return false', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 100, iron: 0, wood: 0, stone: 0 });  // gold=100 < 500
+  TownManager.reset({ weapon_workshop: 1, blacksmith: 1 });
+
+  var result = ForgeManager.startNormalForge(0);
+  assertEqual(result, false, 'return');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+  assert(getEmits('toast:show')[0].payload.message.indexOf('资源不足') >= 0, 'toast message');
+  assertEqual(ResourceManager._spent.length, 0, 'no resource spent');
+});
+
+test('C1-S5: qualityIndex=99 越界 → return false, 无 toast', function() {
+  resetFM();
+
+  var result = ForgeManager.startNormalForge(99);
+  assertEqual(result, false, 'return');
+  assertEqual(getEmits('toast:show').length, 0, 'no toast');
+  assertEqual(ForgeManager._state.queue.length, 0, 'queue empty');
+});
+
+// ===============================================================
+// 能力 2：神话锻造（5 个场景）
+// ===============================================================
+section('能力2 神话锻造 startMythicForge');
+
+test('C2-S1: 正常启动神话锻造 — 消耗图纸，入队，return true', function() {
+  resetFM();
+  ForgeManager._state.blueprints = ['bp_001'];
+  TownManager.reset({ weapon_workshop: 10, blacksmith: 10 });
+
+  var result = ForgeManager.startMythicForge('bp_001');
+  assertEqual(result, true, 'return');
+  assertEqual(ForgeManager._state.blueprints.length, 0, 'blueprint consumed');
+  assertEqual(ForgeManager._state.queue.length, 1, 'queue length');
+  assertEqual(ForgeManager._state.queue[0].quality, 6, 'quality=6');
+  assertEqual(ForgeManager._state.queue[0].recipeId, 'eq_m01', 'recipeId=equipId');
+  assertEqual(ForgeManager._state.queue[0].blueprintId, 'bp_001', 'blueprintId preserved');
+  assertEqual(ForgeManager._state.queue[0].totalTime, 86400, 'totalTime at lv10');
+  assertEqual(ForgeManager._state.queue[0].paused, false, 'not paused');
+  assert(getEmits('forge:started').length === 1, 'forge:started emitted');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+});
+
+test('C2-S2: 没有该图纸 → toast warning, return false', function() {
+  resetFM();
+  ForgeManager._state.blueprints = [];
+
+  var result = ForgeManager.startMythicForge('bp_001');
+  assertEqual(result, false, 'return');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+  assert(getEmits('toast:show')[0].payload.message.indexOf('图纸') >= 0, 'toast mentions blueprint');
+});
+
+test('C2-S3: 建筑等级不足（<10） → toast warning, return false', function() {
+  resetFM();
+  ForgeManager._state.blueprints = ['bp_001'];
+  TownManager.reset({ weapon_workshop: 8, blacksmith: 10 });
+
+  var result = ForgeManager.startMythicForge('bp_001');
+  assertEqual(result, false, 'return');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+  assert(getEmits('toast:show')[0].payload.message.indexOf('10') >= 0, 'toast mentions lv 10');
+  assertEqual(ForgeManager._state.blueprints.length, 1, 'blueprint not consumed');
+});
+
+test('C2-S4: BlueprintData 中不存在 → return false', function() {
+  resetFM();
+  ForgeManager._state.blueprints = ['bp_nonexist'];
+  TownManager.reset({ weapon_workshop: 10, blacksmith: 10 });
+
+  var result = ForgeManager.startMythicForge('bp_nonexist');
+  assertEqual(result, false, 'return');
+});
+
+test('C2-S5: workshopLv=15 → totalTime = floor(86400/1.5) = 57600', function() {
+  resetFM();
+  ForgeManager._state.blueprints = ['bp_001'];
+  TownManager.reset({ weapon_workshop: 15, blacksmith: 15 });
+
+  ForgeManager.startMythicForge('bp_001');
+  assertEqual(ForgeManager._state.queue[0].totalTime, 57600, 'totalTime');
+});
+
+// ===============================================================
+// 能力 3：锻造推进 onTick（11 个场景）
+// ===============================================================
+section('能力3 锻造推进 onTick');
+
+test('C3-S1: 队列为空 → 无操作', function() {
+  resetFM();
+  ForgeManager.onTick(1);
+  assertEqual(getEmits('forge:completed').length, 0, 'no events');
+});
+
+test('C3-S2: 普通锻造完成 — 生成装备，入背包，emit', function() {
+  resetFM();
+  ForgeManager._state.queue.push({
+    recipeId: 'normal_q2', quality: 2, label: '绿色装备',
+    totalTime: 600, elapsedTime: 599, completed: false
+  });
+
+  ForgeManager.onTick(1);
+
+  assertEqual(ForgeManager._state.queue.length, 0, 'queue emptied');
+  assert(EquipmentManager._addCalled, 'addToInventory called');
+  assertEqual(EquipmentManager._inventory.length, 1, 'equipment added');
+  var eq = EquipmentManager._inventory[0];
+  assertEqual(eq.quality, 2, 'equipment quality');
+  assertEqual(eq.level, 0, 'equipment level');
+  assertEqual(eq.equippedBy, null, 'equippedBy null');
+  assert(eq.uid, 'has uid');
+  assert(getEmits('forge:completed').length === 1, 'forge:completed emitted');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+});
+
+test('C3-S3: 普通锻造进行中 → elapsedTime 递增', function() {
+  resetFM();
+  ForgeManager._state.queue.push({
+    recipeId: 'normal_q3', quality: 3, label: '蓝色装备',
+    totalTime: 1800, elapsedTime: 100, completed: false
+  });
+
+  ForgeManager.onTick(5);
+
+  assertEqual(ForgeManager._state.queue[0].elapsedTime, 105, 'elapsedTime incremented');
+  assertEqual(ForgeManager._state.queue.length, 1, 'still in queue');
+  assertEqual(getEmits('forge:completed').length, 0, 'not completed');
+});
+
+test('C3-S4: 神话锻造，资源充足 → 扣资源，emit forge:progress', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 99999, iron: 99999, wood: 99999, stone: 99999 });
+  ForgeManager._state.queue.push({
+    recipeId: 'eq_m01', blueprintId: 'bp_001', quality: 6, label: '青龙偃月刀·图纸',
+    totalTime: 86400, elapsedTime: 0, paused: false, completed: false,
+    totalCost: { gold: 36000, iron: 7200, wood: 3600, stone: 2400 },
+    consumed: { gold: 0, iron: 0, wood: 0, stone: 0 }
+  });
+
+  ForgeManager.onTick(1);
+
+  var job = ForgeManager._state.queue[0];
+  assertEqual(job.elapsedTime, 1, 'elapsedTime incremented');
+  assert(job.consumed.gold > 0, 'gold consumed');
+  assert(ResourceManager._spent.length > 0, 'resources spent');
+  assert(getEmits('forge:progress').length === 1, 'forge:progress emitted');
+  assertEqual(getEmits('forge:progress')[0].payload.percent, 0, 'progress 0% at start');
+});
+
+test('C3-S5: 神话锻造，资源不足 → paused=true, emit forge:paused', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 0, iron: 0, wood: 0, stone: 0 });
+  ForgeManager._state.queue.push({
+    recipeId: 'eq_m01', blueprintId: 'bp_001', quality: 6, label: '青龙偃月刀·图纸',
+    totalTime: 86400, elapsedTime: 100, paused: false, completed: false,
+    totalCost: { gold: 36000, iron: 7200, wood: 3600, stone: 2400 },
+    consumed: { gold: 0, iron: 0, wood: 0, stone: 0 }
+  });
+
+  ForgeManager.onTick(1);
+
+  var job = ForgeManager._state.queue[0];
+  assertEqual(job.paused, true, 'job paused');
+  assertEqual(job.elapsedTime, 100, 'elapsedTime unchanged');
+  assert(getEmits('forge:paused').length === 1, 'forge:paused emitted');
+  assertEqual(getEmits('forge:paused')[0].payload.reason, '资源不足', 'pause reason');
+  assertEqual(ResourceManager._spent.length, 0, 'no resources spent');
+});
+
+test('C3-S6: 神话锻造已暂停，资源恢复 → paused=false，继续消耗', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 99999, iron: 99999, wood: 99999, stone: 99999 });
+  ForgeManager._state.queue.push({
+    recipeId: 'eq_m01', blueprintId: 'bp_001', quality: 6, label: '青龙偃月刀·图纸',
+    totalTime: 86400, elapsedTime: 100, paused: true, completed: false,
+    totalCost: { gold: 36000, iron: 7200, wood: 3600, stone: 2400 },
+    consumed: { gold: 0, iron: 0, wood: 0, stone: 0 }
+  });
+
+  ForgeManager.onTick(1);
+
+  var job = ForgeManager._state.queue[0];
+  assertEqual(job.paused, false, 'job resumed');
+  assertEqual(job.elapsedTime, 101, 'elapsedTime incremented');
+  assert(ResourceManager._spent.length > 0, 'resources spent after resume');
+});
+
+test('C3-S7: 神话锻造已暂停，资源仍不足 → 无操作', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 0, iron: 0, wood: 0, stone: 0 });
+  ForgeManager._state.queue.push({
+    recipeId: 'eq_m01', blueprintId: 'bp_001', quality: 6, label: '青龙偃月刀·图纸',
+    totalTime: 86400, elapsedTime: 100, paused: true, completed: false,
+    totalCost: { gold: 36000, iron: 7200, wood: 3600, stone: 2400 },
+    consumed: { gold: 0, iron: 0, wood: 0, stone: 0 }
+  });
+
+  ForgeManager.onTick(1);
+
+  var job = ForgeManager._state.queue[0];
+  assertEqual(job.paused, true, 'still paused');
+  assertEqual(job.elapsedTime, 100, 'elapsedTime unchanged');
+  assertEqual(ResourceManager._spent.length, 0, 'no resources spent');
+});
+
+test('C3-S8: 神话锻造完成 — 生成神话装备（setId, unsellable）', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 99999, iron: 99999, wood: 99999, stone: 99999 });
+  ForgeManager._state.queue.push({
+    recipeId: 'eq_m01', blueprintId: 'bp_001', quality: 6, label: '青龙偃月刀·图纸',
+    totalTime: 86400, elapsedTime: 86399, paused: false, completed: false,
+    totalCost: { gold: 36000, iron: 7200, wood: 3600, stone: 2400 },
+    consumed: { gold: 35000, iron: 7000, wood: 3500, stone: 2300 }
+  });
+
+  ForgeManager.onTick(1);
+
+  assertEqual(ForgeManager._state.queue.length, 0, 'queue emptied');
+  assertEqual(EquipmentManager._inventory.length, 1, 'mythic equipment added');
+  var eq = EquipmentManager._inventory[0];
+  assertEqual(eq.quality, 6, 'quality=6');
+  assertEqual(eq.setId, 'set_01', 'has setId');
+  assertEqual(eq.unsellable, true, 'unsellable');
+  assertEqual(eq.name, '青龙偃月刀', 'name');
+  assertEqual(eq.level, 0, 'level=0');
+  assert(eq.stats.atk >= 50 && eq.stats.atk <= 80, 'atk in range');
+  assert(getEmits('forge:completed').length === 1, 'forge:completed emitted');
+});
+
+test('C3-S9: 普通锻造完成，EquipmentData 无候选模板 → 静默失败，移除任务', function() {
+  resetFM();
+  // quality=5 has no entries in our mock EquipmentData
+  ForgeManager._state.queue.push({
+    recipeId: 'normal_q5', quality: 5, label: '橙色装备',
+    totalTime: 100, elapsedTime: 99, completed: false
+  });
+
+  ForgeManager.onTick(1);
+
+  assertEqual(ForgeManager._state.queue.length, 0, 'job removed from queue');
+  assertEqual(EquipmentManager._inventory.length, 0, 'no equipment generated');
+  assertEqual(getEmits('forge:completed').length, 0, 'no forge:completed event');
+});
+
+test('C3-S10: 神话锻造完成，getMythicTemplate 返回 null → 静默失败', function() {
+  resetFM();
+  ResourceManager.reset({ gold: 99999, iron: 99999, wood: 99999, stone: 99999 });
+  // eq_m02 → getMythicTemplate returns null
+  ForgeManager._state.queue.push({
+    recipeId: 'eq_m02', blueprintId: 'bp_002', quality: 6, label: '方天画戟·图纸',
+    totalTime: 100, elapsedTime: 99, paused: false, completed: false,
+    totalCost: { gold: 36000, iron: 7200, wood: 3600, stone: 2400 },
+    consumed: { gold: 0, iron: 0, wood: 0, stone: 0 }
+  });
+
+  ForgeManager.onTick(1);
+
+  assertEqual(ForgeManager._state.queue.length, 0, 'job removed from queue');
+  assertEqual(EquipmentManager._inventory.length, 0, 'no equipment generated');
+  assertEqual(getEmits('forge:completed').length, 0, 'no forge:completed event');
+});
+
+test('C3-S11: 锻造完成，背包已满 → 装备进入 overflow', function() {
+  resetFM();
+  EquipmentManager._maxSlots = 0; // Force inventory full
+  ForgeManager._state.queue.push({
+    recipeId: 'normal_q2', quality: 2, label: '绿色装备',
+    totalTime: 100, elapsedTime: 99, completed: false
+  });
+
+  ForgeManager.onTick(1);
+
+  assertEqual(ForgeManager._state.queue.length, 0, 'job removed');
+  assertEqual(EquipmentManager._inventory.length, 0, 'inventory still empty (full)');
+  assertEqual(EquipmentManager._overflow.length, 1, 'equipment in overflow');
+  assert(getEmits('forge:completed').length === 1, 'forge:completed still emitted');
+});
+
+// ===============================================================
+// 能力 4：图纸管理（3 个场景）
+// ===============================================================
+section('能力4 图纸管理 addBlueprint');
+
+test('C4-S1: 新图纸 → push 到 blueprints, emit toast', function() {
+  resetFM();
+
+  ForgeManager.addBlueprint('bp_001');
+
+  assertEqual(ForgeManager._state.blueprints.length, 1, 'blueprints length');
+  assertEqual(ForgeManager._state.blueprints[0], 'bp_001', 'blueprint id');
+  assert(getEmits('toast:show').length === 1, 'toast emitted');
+  assertEqual(getEmits('toast:show')[0].payload.type, 'success', 'toast type');
+  assert(getEmits('toast:show')[0].payload.message.indexOf('图纸') >= 0, 'toast mentions blueprint');
+});
+
+test('C4-S2: 已有图纸 → 不重复添加', function() {
+  resetFM();
+  ForgeManager._state.blueprints = ['bp_001'];
+
+  ForgeManager.addBlueprint('bp_001');
+
+  assertEqual(ForgeManager._state.blueprints.length, 1, 'still 1 blueprint');
+  assertEqual(getEmits('toast:show').length, 0, 'no toast for duplicate');
+});
+
+test('C4-S3: addBlueprint(null) → null 被 push（无防御）', function() {
+  resetFM();
+
+  ForgeManager.addBlueprint(null);
+
+  assertEqual(ForgeManager._state.blueprints.length, 1, 'null pushed');
+  assertEqual(ForgeManager._state.blueprints[0], null, 'value is null');
+});
+
+// ===============================================================
+// 能力 5：查询接口（4 个场景）
+// ===============================================================
+section('能力5 查询接口');
+
+test('C5-S1: getQueue() → 返回内部引用', function() {
+  resetFM();
+  ForgeManager._state.queue.push({ recipeId: 'test' });
+
+  var q = ForgeManager.getQueue();
+  assert(q === ForgeManager._state.queue, 'same reference');
+  assertEqual(q.length, 1, 'length 1');
+});
+
+test('C5-S2: getBlueprints() → 返回内部引用', function() {
+  resetFM();
+  ForgeManager._state.blueprints = ['bp_001', 'bp_002'];
+
+  var bp = ForgeManager.getBlueprints();
+  assert(bp === ForgeManager._state.blueprints, 'same reference');
+  assertEqual(bp.length, 2, 'length 2');
+});
+
+test('C5-S3: getNormalRecipes() → 返回 4 项配方', function() {
+  var recipes = ForgeManager.getNormalRecipes();
+  assertEqual(recipes.length, 4, '4 recipes');
+  assertEqual(recipes[0].quality, 2, 'first is green');
+  assertEqual(recipes[3].quality, 5, 'last is orange');
+});
+
+test('C5-S4: getMaxQueue() → 返回 maxQueue', function() {
+  resetFM();
+  ForgeManager._state.maxQueue = 3;
+
+  assertEqual(ForgeManager.getMaxQueue(), 3, 'maxQueue=3');
+});
+
+// ===============================================================
+// 能力 6：初始化与存档（4 个场景）
+// ===============================================================
+section('能力6 初始化与存档');
+
+test('C6-S1: init(undefined) → 默认空状态', function() {
+  ForgeManager.init(undefined);
+
+  assertEqual(ForgeManager._state.queue.length, 0, 'empty queue');
+  assertEqual(ForgeManager._state.maxQueue, 1, 'maxQueue=1');
+  assertEqual(ForgeManager._state.blueprints.length, 0, 'empty blueprints');
+});
+
+test('C6-S2: init 恢复存档', function() {
+  var saved = {
+    forge: {
+      queue: [{ recipeId: 'normal_q2', quality: 2, totalTime: 600, elapsedTime: 300, completed: false }],
+      maxQueue: 2,
+      blueprints: ['bp_001', 'bp_002']
+    }
+  };
+
+  ForgeManager.init(saved);
+
+  assertEqual(ForgeManager._state.queue.length, 1, 'queue restored');
+  assertEqual(ForgeManager._state.queue[0].recipeId, 'normal_q2', 'job restored');
+  assertEqual(ForgeManager._state.maxQueue, 2, 'maxQueue restored');
+  assertEqual(ForgeManager._state.blueprints.length, 2, 'blueprints restored');
+});
+
+test('C6-S3: getState() 含神话任务 → mythicForge 正确提取', function() {
+  resetFM();
+  ForgeManager._state.queue.push({
+    recipeId: 'eq_m01', blueprintId: 'bp_001', quality: 6, label: '青龙偃月刀·图纸',
+    totalTime: 86400, elapsedTime: 3600, paused: false, completed: false,
+    totalCost: { gold: 36000, iron: 7200, wood: 3600, stone: 2400 },
+    consumed: { gold: 1500, iron: 300, wood: 150, stone: 100 }
+  });
+
+  var state = ForgeManager.getState();
+
+  assert(state.mythicForge, 'mythicForge exists');
+  assertEqual(state.mythicForge.blueprintId, 'bp_001', 'blueprintId from blueprintId field');
+  assertEqual(state.mythicForge.progress, 3600, 'progress from elapsedTime');
+  assertEqual(state.mythicForge.requiredTime, 86400, 'requiredTime from totalTime');
+  assertEqual(state.mythicForge.paused, false, 'paused');
+  // Verify deep clone (queue)
+  assert(state.queue !== ForgeManager._state.queue, 'queue is deep clone');
+  assertEqual(state.queue.length, 1, 'queue length');
+  // Verify blueprints is a copy
+  assert(state.blueprints !== ForgeManager._state.blueprints, 'blueprints is copy');
+});
+
+test('C6-S4: getState() 无神话任务 → mythicForge = {}', function() {
+  resetFM();
+  ForgeManager._state.queue.push({
+    recipeId: 'normal_q2', quality: 2, totalTime: 600, elapsedTime: 100, completed: false
+  });
+
+  var state = ForgeManager.getState();
+
+  assertEqual(Object.keys(state.mythicForge).length, 0, 'mythicForge is empty');
+  assertEqual(state.queue.length, 1, 'queue has normal item');
+});
+
+// ===============================================================
+// 输出汇总
+// ===============================================================
+var passed = _results.filter(function(r) { return r.pass; }).length;
+var total = _results.length;
+var summaryEl = document.getElementById('summary');
+summaryEl.innerHTML = '<strong>结果：' + passed + '/' + total + ' PASS</strong>';
+if (passed === total) {
+  summaryEl.innerHTML += ' <span class="pass">✅ ALL PASS</span>';
+} else {
+  summaryEl.innerHTML += ' <span class="fail">❌ ' + (total - passed) + ' FAILED</span>';
+  var fails = _results.filter(function(r) { return !r.pass; });
+  for (var f = 0; f < fails.length; f++) {
+    summaryEl.innerHTML += '<br><span class="fail">  • ' + fails[f].name + ': ' + fails[f].error + '</span>';
+  }
+}
+</script>
+</body>
+</html>

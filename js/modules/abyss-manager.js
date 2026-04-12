@@ -425,7 +425,7 @@ var AbyssManager = {
           stats: {}, level: 0, equippedBy: null
         };
         mythicEquip.stats[mt.statType] = sv;
-        EquipmentManager._inventory.push(mythicEquip);
+        EquipmentManager.addToInventory(mythicEquip);
         run.droppedEquipment.push(mythicEquip);
         this._state.instances[run.abyssId].mythicDropCount++;
         EventBus.emit('toast:show', { type: 'success', message: '🔴 神话装备掉落：' + mt.name + '！' });

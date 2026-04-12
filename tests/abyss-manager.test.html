@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AbyssManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>AbyssManager 规范测试</h1>
+<pre>规范引用：specs/services/abyss-manager.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+<script src="../js/data/abyss.js"></script>
+<script src="../js/modules/abyss-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/abyss-manager.md
+ * 测试骨架：从 18 个能力的 WHEN/THEN 场景生成
+ *
+ * 测试策略：mock Math.random() 返回固定值/序列来验证概率相关场景
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function skip(name) {
+  _results.push({ section: _currentSection, name: name, status: 'skip', error: null });
+  var el = document.createElement('div');
+  el.className = 'skip';
+  el.textContent = '  ⊘ ' + name + ' (跳过)';
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+}
+
+// ===== Mock 依赖 =====
+
+var _emitted = [];
+var _originalRandom = Math.random;
+
+function mockRandom(value) {
+  Math.random = function() { return value; };
+}
+
+function mockRandomSeq(values) {
+  var idx = 0;
+  Math.random = function() {
+    var v = values[idx % values.length];
+    idx++;
+    return v;
+  };
+}
+
+function restoreRandom() {
+  Math.random = _originalRandom;
+}
+
+// Intercept EventBus.emit
+var _origEmit = EventBus.emit;
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+  if (_origEmit) _origEmit.apply(EventBus, arguments);
+};
+
+// Mock BattleManager
+var BattleManager = {
+  _cleared: [],
+  getClearedStages: function() { return this._cleared; }
+};
+
+// Mock HeroManager
+var HeroManager = {
+  _team: [],
+  _templates: {},
+  _stats: {},
+  _heroes: {},
+  getTeam: function() { return this._team; },
+  getTemplate: function(id) { return this._templates[id] || null; },
+  getHeroStats: function(uid) { return this._stats[uid] || null; },
+  getHeroByUid: function(uid) { return this._heroes[uid] || null; }
+};
+
+// Mock ResourceManager
+var ResourceManager = {
+  _resources: {},
+  canAfford: function(type, amount) { return (this._resources[type] || 0) >= amount; },
+  spend: function(type, amount) {
+    if (!this.canAfford(type, amount)) return false;
+    this._resources[type] -= amount;
+    return true;
+  },
+  add: function(type, amount) { this._resources[type] = (this._resources[type] || 0) + amount; },
+  reset: function() { this._resources = {}; }
+};
+
+// Mock TownManager
+var TownManager = {
+  getAtkBonus: function() { return 0; },
+  getDefBonus: function() { return 0; },
+  getHpBonus: function() { return 0; }
+};
+
+// Mock EquipmentManager
+var EquipmentManager = {
+  _inventory: [],
+  addToInventory: function(equip) { this._inventory.push(equip); return true; },
+  generateDrop: null
+};
+
+// Mock ForgeManager
+var ForgeManager = {
+  _blueprints: [],
+  addBlueprint: function(id) { this._blueprints.push(id); }
+};
+
+// Mock global functions
+var _getHeroSetBonusesReturn = [];
+function getHeroSetBonuses(equipment) { return _getHeroSetBonusesReturn; }
+
+var _getMythicTemplateReturn = null;
+function getMythicTemplate(id) { return _getMythicTemplateReturn; }
+
+// ===== 测试辅助 =====
+
+function resetAll() {
+  _emitted = [];
+  restoreRandom();
+
+  BattleManager._cleared = [];
+
+  HeroManager._team = [];
+  HeroManager._templates = {};
+  HeroManager._stats = {};
+  HeroManager._heroes = {};
+
+  ResourceManager.reset();
+
+  TownManager.getAtkBonus = function() { return 0; };
+  TownManager.getDefBonus = function() { return 0; };
+  TownManager.getHpBonus = function() { return 0; };
+
+  EquipmentManager._inventory = [];
+  EquipmentManager.generateDrop = null;
+
+  ForgeManager._blueprints = [];
+
+  _getHeroSetBonusesReturn = [];
+  _getMythicTemplateReturn = null;
+
+  AbyssManager.init({});
+}
+
+function setupTeam(count) {
+  count = count || 2;
+  HeroManager._team = [];
+  for (var i = 0; i < count; i++) {
+    var uid = 'hero_' + i;
+    var id = 'tmpl_' + i;
+    HeroManager._team.push({
+      uid: uid, id: id, level: 1, exp: 0,
+      equipment: { weapon: null, armor: null, accessory: null, mount: null }
+    });
+    HeroManager._templates[id] = {
+      name: '测试武将' + i, emoji: '⚔', skill: null
+    };
+    HeroManager._stats[uid] = { atk: 100, def: 50, hp: 500, spd: 30 };
+    HeroManager._heroes[uid] = {
+      uid: uid, id: id,
+      equipment: { weapon: null, armor: null, accessory: null, mount: null }
+    };
+  }
+}
+
+function setupAbyssUnlocked(abyssId) {
+  var stage = AbyssData[abyssId].unlockCondition.stage;
+  if (BattleManager._cleared.indexOf(stage) === -1) {
+    BattleManager._cleared.push(stage);
+  }
+}
+
+/** Enter an abyss with all preconditions met; clears _emitted after entry */
+function enterAbyssSetup(abyssId, teamCount) {
+  abyssId = abyssId || 'abyss_hulao';
+  teamCount = teamCount || 2;
+  setupAbyssUnlocked(abyssId);
+  setupTeam(teamCount);
+  var cost = AbyssData[abyssId].ticketCost;
+  ResourceManager._resources = {
+    jade: cost.jade + 100,
+    gold: cost.gold + 10000,
+    iron: cost.iron + 500
+  };
+  AbyssManager._state.unlocked = true;
+  var result = AbyssManager.enterAbyss(abyssId);
+  _emitted = [];
+  return result;
+}
+
+
+// ===== 能力 1：初始化与存档恢复 =====
+
+section('能力 1：初始化与存档恢复');
+
+test('WHEN saved=undefined THEN default state for all abysses', function() {
+  resetAll();
+  AbyssManager.init(undefined);
+  assertEqual(AbyssManager.isUnlocked(), false, 'unlocked=false');
+  var abyssIds = Object.keys(AbyssData);
+  for (var i = 0; i < abyssIds.length; i++) {
+    var inst = AbyssManager.getInstance(abyssIds[i]);
+    assert(inst, abyssIds[i] + ' instance exists');
+    assertEqual(inst.cleared, false, abyssIds[i] + ' cleared');
+    assertEqual(inst.lastAttempt, 0, abyssIds[i] + ' lastAttempt');
+    assertEqual(inst.bestFloor, 0, abyssIds[i] + ' bestFloor');
+    assertEqual(inst.totalAttempts, 0, abyssIds[i] + ' totalAttempts');
+    assertEqual(inst.mythicDropCount, 0, abyssIds[i] + ' mythicDropCount');
+  }
+  assertEqual(AbyssManager.getCurrentRun(), null, 'currentRun=null');
+});
+
+test('WHEN saved has partial data THEN restore + create missing', function() {
+  resetAll();
+  AbyssManager.init({
+    abyss: {
+      unlocked: true,
+      instances: {
+        abyss_hulao: { cleared: true, bestFloor: 5, totalAttempts: 3, mythicDropCount: 1, lastAttempt: 100 }
+      }
+    }
+  });
+  assertEqual(AbyssManager.isUnlocked(), true, 'unlocked restored');
+  var hulao = AbyssManager.getInstance('abyss_hulao');
+  assertEqual(hulao.cleared, true, 'hulao cleared');
+  assertEqual(hulao.bestFloor, 5, 'hulao bestFloor');
+  assertEqual(hulao.totalAttempts, 3, 'hulao totalAttempts');
+  assertEqual(hulao.mythicDropCount, 1, 'hulao mythicDropCount');
+  // Missing abysses auto-created
+  var chibi = AbyssManager.getInstance('abyss_chibi');
+  assert(chibi, 'chibi auto-created');
+  assertEqual(chibi.cleared, false, 'chibi default cleared');
+  var guandu = AbyssManager.getInstance('abyss_guandu');
+  assert(guandu, 'guandu auto-created');
+  assertEqual(guandu.cleared, false, 'guandu default cleared');
+});
+
+test('WHEN saved has currentRun data THEN currentRun=null (never restore)', function() {
+  resetAll();
+  AbyssManager.init({
+    abyss: {
+      unlocked: true,
+      instances: {},
+      currentRun: { abyssId: 'abyss_hulao', phase: 'fighting' }
+    }
+  });
+  assertEqual(AbyssManager.getCurrentRun(), null, 'currentRun always null');
+});
+
+
+// ===== 能力 2：系统解锁检查 =====
+
+section('能力 2：系统解锁检查');
+
+test('WHEN unlocked=false AND stage_4_10 cleared THEN unlock + toast', function() {
+  resetAll();
+  AbyssManager._state.unlocked = false;
+  BattleManager._cleared = ['stage_4_10'];
+  AbyssManager.onTick(1.0);
+  assertEqual(AbyssManager.isUnlocked(), true, 'unlocked');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].type === 'success'; });
+  assert(toast, 'success toast emitted');
+  assert(toast.args[0].message.indexOf('深渊挑战已解锁') >= 0, 'unlock message');
+});
+
+test('WHEN unlocked=false AND stage_4_10 NOT cleared THEN stays false', function() {
+  resetAll();
+  AbyssManager._state.unlocked = false;
+  BattleManager._cleared = ['stage_3_5'];
+  AbyssManager.onTick(1.0);
+  assertEqual(AbyssManager.isUnlocked(), false, 'still locked');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].type === 'success'; });
+  assert(!toast, 'no unlock toast');
+});
+
+test('WHEN unlocked=true THEN no check (short-circuit)', function() {
+  resetAll();
+  AbyssManager._state.unlocked = true;
+  BattleManager._cleared = [];
+  AbyssManager.onTick(1.0);
+  assertEqual(AbyssManager.isUnlocked(), true, 'remains true');
+});
+
+test('WHEN BattleManager undefined THEN no error, stays false', function() {
+  resetAll();
+  AbyssManager._state.unlocked = false;
+  var savedBM = BattleManager;
+  BattleManager = undefined;
+  AbyssManager.onTick(1.0);
+  assertEqual(AbyssManager.isUnlocked(), false, 'stays false');
+  BattleManager = savedBM;
+});
+
+
+// ===== 能力 3：单深渊解锁检查 =====
+
+section('能力 3：单深渊解锁检查');
+
+test('WHEN abyss_hulao AND stage_4_10 cleared THEN true', function() {
+  resetAll();
+  BattleManager._cleared = ['stage_4_10'];
+  assertEqual(AbyssManager.isAbyssUnlocked('abyss_hulao'), true);
+});
+
+test('WHEN abyss_chibi AND stage_5_5 NOT cleared THEN false', function() {
+  resetAll();
+  BattleManager._cleared = ['stage_4_10'];
+  assertEqual(AbyssManager.isAbyssUnlocked('abyss_chibi'), false);
+});
+
+test('WHEN nonexistent abyss THEN false', function() {
+  resetAll();
+  assertEqual(AbyssManager.isAbyssUnlocked('nonexistent_abyss'), false);
+});
+
+test('WHEN BattleManager undefined THEN false', function() {
+  resetAll();
+  var savedBM = BattleManager;
+  BattleManager = undefined;
+  var result = AbyssManager.isAbyssUnlocked('abyss_hulao');
+  assertEqual(result, false, 'false when BM undefined');
+  BattleManager = savedBM;
+});
+
+
+// ===== 能力 4：冷却检查（已禁用）=====
+
+section('能力 4：冷却检查（已禁用）');
+
+test('isOnCooldown always returns false for valid abyss', function() {
+  resetAll();
+  assertEqual(AbyssManager.isOnCooldown('abyss_hulao'), false);
+});
+
+test('isOnCooldown always returns false for any string', function() {
+  resetAll();
+  assertEqual(AbyssManager.isOnCooldown('任意字符串'), false);
+});
+
+test('getCooldownRemaining always returns 0', function() {
+  resetAll();
+  assertEqual(AbyssManager.getCooldownRemaining('abyss_hulao'), 0);
+});
+
+
+// ===== 能力 5：进入深渊 =====
+
+section('能力 5：进入深渊');
+
+test('WHEN currentRun not null THEN false + warning toast', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  // Now currentRun is not null; try to enter again
+  var result = AbyssManager.enterAbyss('abyss_hulao');
+  assertEqual(result, false, 'returns false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].message === '已有正在进行的深渊挑战'; });
+  assert(toast, 'warning toast for existing run');
+});
+
+test('WHEN abyssId invalid THEN false (no toast)', function() {
+  resetAll();
+  var result = AbyssManager.enterAbyss('invalid_id');
+  assertEqual(result, false, 'returns false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show'; });
+  assert(!toast, 'no toast for invalid id');
+});
+
+test('WHEN abyss not unlocked THEN false + toast', function() {
+  resetAll();
+  setupTeam(1);
+  BattleManager._cleared = []; // hulao needs stage_4_10
+  var result = AbyssManager.enterAbyss('abyss_hulao');
+  assertEqual(result, false, 'returns false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].message === '深渊尚未解锁'; });
+  assert(toast, 'unlock warning toast');
+});
+
+test('WHEN team empty THEN false + toast', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  HeroManager._team = [];
+  var result = AbyssManager.enterAbyss('abyss_hulao');
+  assertEqual(result, false, 'returns false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].message === '请先编入队伍！'; });
+  assert(toast, 'team warning toast');
+});
+
+test('WHEN jade insufficient THEN false + toast with amount', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(1);
+  ResourceManager._resources = { jade: 20, gold: 99999, iron: 99999 };
+  var result = AbyssManager.enterAbyss('abyss_hulao');
+  assertEqual(result, false, 'returns false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].message.indexOf('💎×30') >= 0; });
+  assert(toast, 'jade insufficient toast');
+});
+
+test('WHEN gold insufficient THEN false + toast', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(1);
+  ResourceManager._resources = { jade: 99999, gold: 3000, iron: 99999 };
+  var result = AbyssManager.enterAbyss('abyss_hulao');
+  assertEqual(result, false, 'returns false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].message.indexOf('金币不足') >= 0; });
+  assert(toast, 'gold insufficient toast');
+});
+
+test('WHEN iron insufficient THEN false + toast', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(1);
+  ResourceManager._resources = { jade: 99999, gold: 99999, iron: 100 };
+  var result = AbyssManager.enterAbyss('abyss_hulao');
+  assertEqual(result, false, 'returns false');
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].message.indexOf('⛏️×200') >= 0; });
+  assert(toast, 'iron insufficient toast');
+});
+
+test('WHEN all conditions met THEN enter success, deduct resources, init run', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(3);
+  ResourceManager._resources = { jade: 100, gold: 20000, iron: 500 };
+  var result = AbyssManager.enterAbyss('abyss_hulao');
+  assertEqual(result, true, 'returns true');
+  // Resources deducted
+  assertEqual(ResourceManager._resources.jade, 70, 'jade deducted 30');
+  assertEqual(ResourceManager._resources.gold, 15000, 'gold deducted 5000');
+  assertEqual(ResourceManager._resources.iron, 300, 'iron deducted 200');
+  // Instance updated
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  assertEqual(inst.totalAttempts, 1, 'totalAttempts incremented');
+  assert(inst.lastAttempt > 0, 'lastAttempt updated');
+  // Run initialized
+  var run = AbyssManager.getCurrentRun();
+  assert(run, 'currentRun exists');
+  assertEqual(run.abyssId, 'abyss_hulao', 'abyssId');
+  assertEqual(run.currentFloor, 1, 'floor 1');
+  assertEqual(run.phase, 'fighting', 'phase fighting');
+  assertEqual(run.allies.length, 3, '3 allies');
+  assertEqual(run.enemies.length, 1, '1 enemy (boss)');
+  assertEqual(run.rewards.gold, 0, 'rewards init 0');
+  assertEqual(run.rewards.exp, 0, 'rewards init 0');
+  assertEqual(run.droppedEquipment.length, 0, 'no drops yet');
+  // Event emitted
+  var entered = _emitted.find(function(e) { return e.event === 'abyss:entered'; });
+  assert(entered, 'abyss:entered emitted');
+  assertEqual(entered.args[0].abyssId, 'abyss_hulao', 'correct abyssId in event');
+});
+
+
+// ===== 能力 5a：构建队友单位 =====
+
+section('能力 5a：构建队友单位');
+
+test('WHEN TownManager bonuses applied THEN atk/def/hp affected, spd NOT', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 100, def: 80, hp: 500, spd: 30 };
+  TownManager.getAtkBonus = function() { return 0.1; };
+  TownManager.getDefBonus = function() { return 0.2; };
+  TownManager.getHpBonus = function() { return 0.15; };
+  ResourceManager._resources = { jade: 999, gold: 99999, iron: 999 };
+  AbyssManager._state.unlocked = true;
+  AbyssManager.enterAbyss('abyss_hulao');
+  var run = AbyssManager.getCurrentRun();
+  var ally = run.allies[0];
+  assertEqual(ally.atk, Math.floor(100 * 1.1), 'atk=110');
+  assertEqual(ally.def, Math.floor(80 * 1.2), 'def=96');
+  assertEqual(ally.maxHp, Math.floor(500 * 1.15), 'maxHp=575');
+  assertEqual(ally.currentHp, Math.floor(500 * 1.15), 'currentHp=maxHp=575');
+  assertEqual(ally.spd, 30, 'spd NOT affected by TownManager');
+  assertEqual(ally.baseAtk, Math.floor(100 * 1.1), 'baseAtk=110');
+  assertEqual(ally.baseDef, Math.floor(80 * 1.2), 'baseDef=96');
+  assertEqual(ally.baseSpd, 30, 'baseSpd=30');
+});
+
+test('WHEN TownManager undefined THEN bonuses are 0', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(1);
+  HeroManager._stats['hero_0'] = { atk: 100, def: 80, hp: 500, spd: 30 };
+  ResourceManager._resources = { jade: 999, gold: 99999, iron: 999 };
+  var savedTM = TownManager;
+  TownManager = undefined;
+  AbyssManager._state.unlocked = true;
+  AbyssManager.enterAbyss('abyss_hulao');
+  var run = AbyssManager.getCurrentRun();
+  var ally = run.allies[0];
+  assertEqual(ally.atk, 100, 'atk=100 no bonus');
+  assertEqual(ally.def, 80, 'def=80 no bonus');
+  assertEqual(ally.maxHp, 500, 'hp=500 no bonus');
+  TownManager = savedTM;
+});
+
+test('WHEN template has skill THEN ally skill is deepClone', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(1);
+  var origSkill = { name: '斩', type: 'damage', multiplier: 2.0, cooldown: 3 };
+  HeroManager._templates['tmpl_0'].skill = origSkill;
+  ResourceManager._resources = { jade: 999, gold: 99999, iron: 999 };
+  AbyssManager._state.unlocked = true;
+  AbyssManager.enterAbyss('abyss_hulao');
+  var run = AbyssManager.getCurrentRun();
+  var ally = run.allies[0];
+  assert(ally.skill, 'skill exists');
+  assertEqual(ally.skill.name, '斩', 'skill name');
+  assert(ally.skill !== origSkill, 'skill is deepClone, not reference');
+  assertEqual(ally.skillCd, 0, 'skillCd starts at 0');
+});
+
+test('WHEN getTemplate returns undefined THEN hero skipped', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_hulao');
+  setupTeam(2);
+  // Remove template for hero_1
+  delete HeroManager._templates['tmpl_1'];
+  ResourceManager._resources = { jade: 999, gold: 99999, iron: 999 };
+  AbyssManager._state.unlocked = true;
+  AbyssManager.enterAbyss('abyss_hulao');
+  var run = AbyssManager.getCurrentRun();
+  assertEqual(run.allies.length, 1, 'only 1 ally (hero_1 skipped)');
+  assertEqual(run.allies[0].uid, 'hero_0', 'hero_0 present');
+});
+
+
+// ===== 能力 6：层设置 =====
+
+section('能力 6：层设置');
+
+test('WHEN floor 1 hulao THEN boss is 华雄 with correct stats', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  assertEqual(run.enemies.length, 1, '1 boss');
+  assertEqual(run.enemies[0].name, '华雄', 'boss name');
+  assertEqual(run.enemies[0].atk, 120, 'boss atk');
+  assertEqual(run.enemies[0].def, 60, 'boss def');
+  assertEqual(run.enemies[0].maxHp, 2500, 'boss maxHp');
+  assertEqual(run.enemies[0].spd, 25, 'boss spd');
+  assert(run.enemies[0].uid.indexOf('abyss_enemy_') === 0, 'uid prefix');
+  assertEqual(run.enemies[0].isAlly, false, 'isAlly=false');
+  assertEqual(run.enemies[0].emoji, '', 'enemy emoji empty');
+  assertEqual(run.round, 0, 'round=0');
+  assertEqual(run.phase, 'fighting', 'phase=fighting');
+  assertEqual(run.battleTimer, 0, 'battleTimer=0');
+});
+
+test('WHEN floor 5 hulao THEN boss is 吕布 with skill', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.currentFloor = 5;
+  AbyssManager._setupFloor();
+  assertEqual(run.enemies[0].name, '吕布', 'boss 吕布');
+  assertEqual(run.enemies[0].atk, 180, 'atk');
+  assertEqual(run.enemies[0].def, 100, 'def');
+  assertEqual(run.enemies[0].maxHp, 8000, 'maxHp');
+  assertEqual(run.enemies[0].spd, 35, 'spd');
+  assertEqual(run.enemies[0].skill.name, '天下无双', 'skill name');
+});
+
+
+// ===== 能力 7：战斗推进 =====
+
+section('能力 7：战斗推进');
+
+test('WHEN phase=fighting AND onTick(1.0) THEN 1 round', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 2);
+  // Make heroes tanky so battle doesn't end
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].currentHp = 9999; run.allies[0].maxHp = 9999; run.allies[0].def = 9999;
+  run.allies[1].currentHp = 9999; run.allies[1].maxHp = 9999; run.allies[1].def = 9999;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999; run.enemies[0].def = 9999;
+  AbyssManager.onTick(1.0);
+  assert(run.round >= 1, 'at least 1 round');
+});
+
+test('WHEN onTick(2.5) THEN 2 rounds, battleTimer has remainder', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 2);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].currentHp = 99999; run.allies[0].maxHp = 99999; run.allies[0].def = 99999;
+  run.allies[1].currentHp = 99999; run.allies[1].maxHp = 99999; run.allies[1].def = 99999;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999; run.enemies[0].def = 99999;
+  AbyssManager.onTick(2.5);
+  assert(run.round >= 2, 'at least 2 rounds');
+  // battleTimer remainder should be ~0.5 (might vary if battle ended)
+  if (run.phase === 'fighting') {
+    assert(run.battleTimer >= 0.4 && run.battleTimer <= 0.6, 'timer remainder ~0.5');
+  }
+});
+
+test('WHEN currentRun=null AND onTick(1.0) THEN no-op', function() {
+  resetAll();
+  AbyssManager._state.currentRun = null;
+  AbyssManager.onTick(1.0); // Should not throw
+  assertEqual(AbyssManager.getCurrentRun(), null, 'still null');
+});
+
+test('WHEN phase=complete AND onTick(1.0) THEN no-op', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.phase = 'complete';
+  var roundBefore = run.round;
+  AbyssManager.onTick(1.0);
+  assertEqual(run.round, roundBefore, 'round unchanged');
+});
+
+
+// ===== 能力 8：回合执行 =====
+
+section('能力 8：回合执行');
+
+test('WHEN units have different SPD THEN ordered by SPD desc', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 2);
+  var run = AbyssManager.getCurrentRun();
+  // ally0: spd=80, ally1: spd=60, enemy: spd=70
+  run.allies[0].spd = 80; run.allies[0].name = 'AllyA';
+  run.allies[0].currentHp = 9999; run.allies[0].maxHp = 9999;
+  run.allies[1].spd = 60; run.allies[1].name = 'AllyC';
+  run.allies[1].currentHp = 9999; run.allies[1].maxHp = 9999;
+  run.enemies[0].spd = 70; run.enemies[0].name = 'EnemyB';
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  run.enemies[0].def = 9999;
+  mockRandom(0.5);
+  AbyssManager._executeRound();
+  // First log entry should be from AllyA (spd=80)
+  var firstLog = run.log[0];
+  assert(firstLog && firstLog.indexOf('AllyA') >= 0, 'AllyA acts first (spd=80)');
+  restoreRandom();
+});
+
+test('WHEN same SPD THEN ally acts first', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].spd = 50; run.allies[0].name = 'AllyX';
+  run.allies[0].currentHp = 9999; run.allies[0].maxHp = 9999;
+  run.enemies[0].spd = 50; run.enemies[0].name = 'EnemyY';
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  run.enemies[0].def = 9999;
+  mockRandom(0.5);
+  AbyssManager._executeRound();
+  var firstLog = run.log[0];
+  assert(firstLog && firstLog.indexOf('AllyX') >= 0, 'ally first at same SPD');
+  restoreRandom();
+});
+
+test('WHEN skillCd >= cooldown THEN use skill, skillCd reset to 0', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].skill = { name: '测试技能', type: 'damage', multiplier: 2.0, target: 'single', cooldown: 3 };
+  run.allies[0].skillCd = 3;
+  run.allies[0].spd = 99;
+  run.allies[0].currentHp = 9999; run.allies[0].maxHp = 9999;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  run.enemies[0].def = 9999;
+  mockRandom(0.5);
+  AbyssManager._executeRound();
+  assertEqual(run.allies[0].skillCd, 0, 'skillCd reset to 0');
+  var skillLog = run.log.find(function(l) { return l.indexOf('测试技能') >= 0; });
+  assert(skillLog, 'skill used in log');
+  restoreRandom();
+});
+
+test('WHEN skillCd < cooldown THEN normal attack, skillCd++', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].skill = { name: '测试技能', type: 'damage', multiplier: 2.0, target: 'single', cooldown: 3 };
+  run.allies[0].skillCd = 2;
+  run.allies[0].spd = 99;
+  run.allies[0].currentHp = 9999; run.allies[0].maxHp = 9999;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  run.enemies[0].def = 9999;
+  mockRandom(0.5);
+  AbyssManager._executeRound();
+  assertEqual(run.allies[0].skillCd, 3, 'skillCd incremented to 3');
+  var skillLog = run.log.find(function(l) { return l.indexOf('测试技能') >= 0; });
+  assert(!skillLog, 'skill NOT used');
+  restoreRandom();
+});
+
+test('WHEN unit has no skill THEN always normal attack', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].skill = null;
+  run.allies[0].spd = 99;
+  run.allies[0].currentHp = 9999; run.allies[0].maxHp = 9999;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  run.enemies[0].def = 9999;
+  mockRandom(0.5);
+  AbyssManager._executeRound();
+  // Normal attack log: "[第N回合] Name → Target X伤害"  (no [skillName] bracket)
+  // Skill attack log:  "[第N回合] Name [SkillName] → Target X伤害"
+  var allyLog = run.log.find(function(l) { return l.indexOf(run.allies[0].name) >= 0 && l.indexOf('→') >= 0; });
+  assert(allyLog, 'attack logged');
+  // Skill logs have '] [' pattern (end of round bracket + skill name bracket)
+  assert(allyLog.indexOf('] [') < 0, 'no skill bracket — normal attack');
+  restoreRandom();
+});
+
+test('WHEN last enemy killed THEN floor victory triggered', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].atk = 99999; run.allies[0].spd = 99;
+  run.allies[0].currentHp = 99999; run.allies[0].maxHp = 99999;
+  run.enemies[0].currentHp = 1;
+  run.enemies[0].def = 0;
+  mockRandom(0.5);
+  AbyssManager._executeRound();
+  // Enemy should die, floor victory should advance to floor 2
+  assert(run.currentFloor >= 2 || run.phase === 'complete', 'floor advanced after victory');
+  restoreRandom();
+});
+
+test('WHEN last ally killed THEN abyss defeat triggered', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].currentHp = 1; run.allies[0].def = 0; run.allies[0].spd = 1;
+  run.enemies[0].atk = 99999; run.enemies[0].spd = 99;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  mockRandom(0.5);
+  AbyssManager._executeRound();
+  assertEqual(run.phase, 'defeat', 'phase=defeat');
+  restoreRandom();
+});
+
+
+// ===== 能力 9：普通攻击 =====
+
+section('能力 9：普通攻击');
+
+test('WHEN attack THEN target loses HP and log recorded', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  var hpBefore = run.enemies[0].currentHp;
+  mockRandom(0.5);
+  AbyssManager._performAttack(run.allies[0], run.enemies, run);
+  assert(run.enemies[0].currentHp < hpBefore, 'enemy lost HP');
+  var atkLog = run.log.find(function(l) { return l.indexOf('→') >= 0 && l.indexOf('伤害') >= 0; });
+  assert(atkLog, 'attack logged');
+  restoreRandom();
+});
+
+test('WHEN attack with crit THEN log contains 💥暴击！', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  // _performAttack calls: pickAlive(randInt→random), calcDamage(rand→random, crit→random)
+  // Need 3 values: [pickAlive, damageRand, critCheck]
+  mockRandomSeq([0.5, 0.5, 0.01]); // crit: 0.01 < 0.05 = true
+  AbyssManager._performAttack(run.allies[0], run.enemies, run);
+  var critLog = run.log.find(function(l) { return l.indexOf('\u{1F4A5}') >= 0; });
+  assert(critLog, 'crit logged');
+  restoreRandom();
+});
+
+test('WHEN attack kills enemy THEN isAlive=false, currentHp=0', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.enemies[0].currentHp = 1; run.enemies[0].def = 0;
+  mockRandom(0.5);
+  AbyssManager._performAttack(run.allies[0], run.enemies, run);
+  assertEqual(run.enemies[0].currentHp, 0, 'HP=0');
+  assertEqual(run.enemies[0].isAlive, false, 'dead');
+  restoreRandom();
+});
+
+test('WHEN no alive targets THEN silent return', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.enemies[0].isAlive = false;
+  var logBefore = run.log.length;
+  AbyssManager._performAttack(run.allies[0], run.enemies, run);
+  assertEqual(run.log.length, logBefore, 'no log added');
+});
+
+
+// ===== 能力 10：技能系统 =====
+
+section('能力 10：技能系统');
+
+test('WHEN heal skill THEN self healed, not exceeding maxHp', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.allies[0].atk = 80;
+  run.allies[0].currentHp = 300;
+  run.allies[0].maxHp = 500;
+  var skill = { name: '治疗术', type: 'heal', multiplier: 0.5 };
+  AbyssManager._performSkill(run.allies[0], skill, run.enemies, run.allies, run);
+  // healAmount = floor(80 * 0.5) = 40
+  assertEqual(run.allies[0].currentHp, 340, 'healed by 40');
+  var healLog = run.log.find(function(l) { return l.indexOf('治疗术') >= 0 && l.indexOf('40') >= 0; });
+  assert(healLog, 'heal logged');
+});
+
+test('WHEN heal would exceed maxHp THEN capped at maxHp', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.allies[0].atk = 100;
+  run.allies[0].currentHp = 480;
+  run.allies[0].maxHp = 500;
+  var skill = { name: '治疗术', type: 'heal', multiplier: 0.5 };
+  AbyssManager._performSkill(run.allies[0], skill, run.enemies, run.allies, run);
+  assertEqual(run.allies[0].currentHp, 500, 'capped at maxHp');
+});
+
+test('WHEN buff skill THEN buff added and stats recalculated', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.allies[0].baseAtk = 100;
+  run.allies[0].atk = 100;
+  run.allies[0].buffs = [];
+  var skill = { name: '增益', type: 'buff', effect: { stat: 'atk', ratio: 0.5, duration: 3 } };
+  AbyssManager._performSkill(run.allies[0], skill, run.enemies, run.allies, run);
+  assertEqual(run.allies[0].buffs.length, 1, '1 buff added');
+  assertEqual(run.allies[0].buffs[0].stat, 'atk', 'buff stat');
+  assertEqual(run.allies[0].buffs[0].ratio, 0.5, 'buff ratio');
+  assertEqual(run.allies[0].atk, Math.floor(100 * 1.5), 'atk recalculated to 150');
+  var buffLog = run.log.find(function(l) { return l.indexOf('增益') >= 0; });
+  assert(buffLog, 'buff logged');
+});
+
+test('WHEN damage skill target=all THEN hits all alive enemies', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  mockRandom(0.5);
+  var logBefore = run.log.length;
+  var skill = { name: 'AOE', type: 'damage', target: 'all', multiplier: 2.0 };
+  AbyssManager._performSkill(run.allies[0], skill, run.enemies, run.allies, run);
+  var aoeLogs = run.log.filter(function(l) { return l.indexOf('AOE') >= 0; });
+  assertEqual(aoeLogs.length, 1, 'hit 1 enemy (only boss)');
+  restoreRandom();
+});
+
+test('WHEN damage skill target=random3 AND 1 enemy THEN hit 3 times', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.enemies[0].currentHp = 99999; run.enemies[0].maxHp = 99999;
+  mockRandom(0.5);
+  var skill = { name: 'R3', type: 'damage', target: 'random3', multiplier: 1.0 };
+  AbyssManager._performSkill(run.allies[0], skill, run.enemies, run.allies, run);
+  var r3Logs = run.log.filter(function(l) { return l.indexOf('R3') >= 0; });
+  assertEqual(r3Logs.length, 3, 'hit 3 times');
+  restoreRandom();
+});
+
+test('WHEN damage skill kills target THEN isAlive=false, currentHp=0', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.enemies[0].currentHp = 1; run.enemies[0].def = 0;
+  mockRandom(0.5);
+  var skill = { name: 'Kill', type: 'damage', target: 'single', multiplier: 5.0 };
+  AbyssManager._performSkill(run.allies[0], skill, run.enemies, run.allies, run);
+  assertEqual(run.enemies[0].currentHp, 0, 'HP=0');
+  assertEqual(run.enemies[0].isAlive, false, 'dead');
+  restoreRandom();
+});
+
+
+// ===== 能力 11：伤害计算 =====
+
+section('能力 11：伤害计算');
+
+test('WHEN atk=100, mult=1.0, def=50, rand=1.0, no crit THEN damage=66', function() {
+  resetAll();
+  // rand = 0.9 + 0.5*0.2 = 1.0; crit = 0.5 < 0.05 = false
+  mockRandomSeq([0.5, 0.5]);
+  var result = AbyssManager._calcDamage({ atk: 100 }, { def: 50 }, 1.0);
+  // base = floor(100*1.0*1.0) = 100
+  // reduction = 50/150 = 0.3333
+  // damage = max(1, floor(100*0.6667)) = 66
+  assertEqual(result.damage, 66, 'damage=66');
+  assertEqual(result.isCrit, false, 'no crit');
+  restoreRandom();
+});
+
+test('WHEN atk=100, mult=1.0, def=50, crit THEN damage=99', function() {
+  resetAll();
+  // rand = 0.9 + 0.5*0.2 = 1.0; crit = 0.01 < 0.05 = true
+  mockRandomSeq([0.5, 0.01]);
+  var result = AbyssManager._calcDamage({ atk: 100 }, { def: 50 }, 1.0);
+  // base damage = 66, crit = floor(66*1.5) = 99
+  assertEqual(result.damage, 99, 'crit damage=99');
+  assertEqual(result.isCrit, true, 'is crit');
+  restoreRandom();
+});
+
+test('WHEN atk=100, mult=2.5, def=100, rand=0.9, no crit THEN damage=112', function() {
+  resetAll();
+  // rand = 0.9 + 0.0*0.2 = 0.9; crit = 0.5 < 0.05 = false
+  mockRandomSeq([0.0, 0.5]);
+  var result = AbyssManager._calcDamage({ atk: 100 }, { def: 100 }, 2.5);
+  // base = floor(100*2.5*0.9) = 225
+  // reduction = 100/200 = 0.5
+  // damage = max(1, floor(225*0.5)) = 112
+  assertEqual(result.damage, 112, 'damage=112');
+  assertEqual(result.isCrit, false, 'no crit');
+  restoreRandom();
+});
+
+test('WHEN atk=10, mult=1.0, def=999, rand=0.9 THEN damage=1 (minimum)', function() {
+  resetAll();
+  // rand = 0.9; crit = false
+  mockRandomSeq([0.0, 0.5]);
+  var result = AbyssManager._calcDamage({ atk: 10 }, { def: 999 }, 1.0);
+  // base = floor(10*1.0*0.9) = 9
+  // reduction = 999/1099 ≈ 0.909
+  // damage = max(1, floor(9*0.091)) = max(1, 0) = 1
+  assertEqual(result.damage, 1, 'min damage=1');
+  restoreRandom();
+});
+
+
+// ===== 能力 12：死亡免疫 =====
+
+section('能力 12：死亡免疫');
+
+test('WHEN normal attack kills ally AND immunity triggers THEN hp=1, used=true', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  // Set up ally to die
+  run.allies[0].currentHp = 1;
+  run.allies[0].def = 0;
+  run.allies[0].deathImmunityUsed = false;
+  // Enemy is strong
+  run.enemies[0].atk = 9999;
+  // Mock hero lookup and set bonuses
+  HeroManager._heroes[run.allies[0].uid] = {
+    uid: run.allies[0].uid,
+    equipment: { weapon: 'w1' }
+  };
+  _getHeroSetBonusesReturn = [{ bonus: { effects: { deathImmunityChance: 1.0 } } }];
+  // pickAlive → calcDamage(rand, crit) → immunity check
+  mockRandom(0.5); // 0.5 < 1.0 → immunity triggers
+  AbyssManager._performAttack(run.enemies[0], run.allies, run);
+  assertEqual(run.allies[0].currentHp, 1, 'hp=1 after immunity');
+  assertEqual(run.allies[0].deathImmunityUsed, true, 'deathImmunityUsed=true');
+  var immuneLog = run.log.find(function(l) { return l.indexOf('天命不灭') >= 0; });
+  assert(immuneLog, 'immunity logged');
+  restoreRandom();
+});
+
+test('WHEN deathImmunityUsed=true (already used) THEN ally dies', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.allies[0].currentHp = 1;
+  run.allies[0].def = 0;
+  run.allies[0].deathImmunityUsed = true; // Already used
+  run.enemies[0].atk = 9999;
+  _getHeroSetBonusesReturn = [{ bonus: { effects: { deathImmunityChance: 1.0 } } }];
+  mockRandom(0.5);
+  AbyssManager._performAttack(run.enemies[0], run.allies, run);
+  assertEqual(run.allies[0].currentHp, 0, 'hp=0');
+  assertEqual(run.allies[0].isAlive, false, 'dead');
+  restoreRandom();
+});
+
+test('WHEN enemy dies from attack THEN no immunity check', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.enemies[0].currentHp = 1;
+  run.enemies[0].def = 0;
+  run.allies[0].atk = 9999;
+  mockRandom(0.5);
+  AbyssManager._performAttack(run.allies[0], run.enemies, run);
+  assertEqual(run.enemies[0].currentHp, 0, 'enemy hp=0');
+  assertEqual(run.enemies[0].isAlive, false, 'enemy dead (no immunity for enemies)');
+  restoreRandom();
+});
+
+test('WHEN no set bonuses THEN ally dies normally', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.allies[0].currentHp = 1;
+  run.allies[0].def = 0;
+  run.allies[0].deathImmunityUsed = false;
+  run.enemies[0].atk = 9999;
+  HeroManager._heroes[run.allies[0].uid] = { uid: run.allies[0].uid, equipment: {} };
+  _getHeroSetBonusesReturn = []; // No bonuses
+  mockRandom(0.5);
+  AbyssManager._performAttack(run.enemies[0], run.allies, run);
+  assertEqual(run.allies[0].currentHp, 0, 'hp=0');
+  assertEqual(run.allies[0].isAlive, false, 'dead');
+  restoreRandom();
+});
+
+test('WHEN skill kill on ally THEN NO death immunity (skill kills bypass)', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.round = 1;
+  run.allies[0].currentHp = 1;
+  run.allies[0].def = 0;
+  run.allies[0].deathImmunityUsed = false;
+  // Even with immunity available, skill kills should NOT check it
+  HeroManager._heroes[run.allies[0].uid] = { uid: run.allies[0].uid, equipment: { weapon: 'w1' } };
+  _getHeroSetBonusesReturn = [{ bonus: { effects: { deathImmunityChance: 1.0 } } }];
+  // Enemy uses damage skill on ally (hostiles = run.allies for enemy's perspective)
+  var skill = { name: '必杀', type: 'damage', target: 'all', multiplier: 99.0 };
+  mockRandom(0.5);
+  AbyssManager._performSkill(run.enemies[0], skill, run.allies, run.enemies, run);
+  assertEqual(run.allies[0].currentHp, 0, 'hp=0');
+  assertEqual(run.allies[0].isAlive, false, 'dead from skill');
+  assertEqual(run.allies[0].deathImmunityUsed, false, 'immunity NOT triggered for skill');
+  restoreRandom();
+});
+
+
+// ===== 能力 13：层通关处理 =====
+
+section('能力 13：层通关处理');
+
+test('WHEN floor 1 cleared THEN rewards accumulated + ResourceManager.add', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  // Set up: floor 1, rewards = { gold:2000, exp:1000 }
+  ResourceManager._resources = {};
+  mockRandom(0.9); // No equip drops (0.9 > any drop rate)
+  AbyssManager._handleFloorVictory();
+  assertEqual(run.rewards.gold, 2000, 'run.rewards.gold += 2000');
+  assertEqual(run.rewards.exp, 1000, 'run.rewards.exp += 1000');
+  assertEqual(ResourceManager._resources.gold, 2000, 'ResourceManager gold');
+  assertEqual(ResourceManager._resources.exp, 1000, 'ResourceManager exp');
+  restoreRandom();
+});
+
+test('WHEN floor cleared THEN abyss:floor_cleared emitted', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  mockRandom(0.9);
+  AbyssManager._handleFloorVictory();
+  var evt = _emitted.find(function(e) { return e.event === 'abyss:floor_cleared'; });
+  assert(evt, 'floor_cleared emitted');
+  assertEqual(evt.args[0].abyssId, 'abyss_hulao', 'correct abyssId');
+  assertEqual(evt.args[0].floor, 1, 'correct floor');
+  restoreRandom();
+});
+
+test('WHEN equip drop rolls succeed THEN droppedEquipment populated', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  // Floor 1 hulao: equipDrop = { 4: 0.20, 5: 0.05 }
+  // mockRandom(0.1): 0.1 < 0.20 ✓ (q4 drops), 0.1 < 0.05 ✗ (q5 doesn't)
+  mockRandom(0.1);
+  EquipmentManager.generateDrop = function(level, weights) {
+    return { uid: 'eq_' + Object.keys(weights)[0], quality: parseInt(Object.keys(weights)[0]), name: 'TestGear' };
+  };
+  AbyssManager._handleFloorVictory();
+  assert(run.droppedEquipment.length >= 1, 'at least 1 equip drop');
+  restoreRandom();
+});
+
+test('WHEN floor 5 mythic drop succeeds THEN mythic equipment created', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.currentFloor = 5;
+  AbyssManager._setupFloor();
+  _emitted = [];
+  // Mock: all random rolls succeed
+  mockRandom(0.01); // 0.01 < 0.05 (mythic chance) and 0.01 < 0.15 (equip chance)
+  _getMythicTemplateReturn = {
+    id: 'equip_mythic_tyrant_armor', name: '霸王战铠', type: 'armor',
+    emoji: '🔴', description: 'test', setId: 'set_tyrant',
+    statRange: [100, 100], statType: 'atk'
+  };
+  EquipmentManager.generateDrop = function() { return { uid: 'eq1', quality: 5, name: 'Q5' }; };
+  AbyssManager._handleFloorVictory();
+  // Should have mythic in droppedEquipment
+  var mythic = run.droppedEquipment.find(function(e) { return e.quality === 6; });
+  assert(mythic, 'mythic equipment dropped');
+  assertEqual(mythic.name, '霸王战铠', 'mythic name');
+  assertEqual(mythic.unsellable, true, 'unsellable');
+  assertEqual(mythic.setId, 'set_tyrant', 'setId');
+  // mythicDropCount incremented
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  assert(inst.mythicDropCount >= 1, 'mythicDropCount incremented');
+  // Toast for mythic
+  var toast = _emitted.find(function(e) { return e.event === 'toast:show' && e.args[0].message.indexOf('霸王战铠') >= 0; });
+  assert(toast, 'mythic toast');
+  // EquipmentManager.addToInventory called
+  var inInv = EquipmentManager._inventory.find(function(e) { return e.quality === 6; });
+  assert(inInv, 'mythic added to inventory');
+  restoreRandom();
+});
+
+test('WHEN floor cleared AND ally hp=50, maxHp=200 THEN healed to 110', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].currentHp = 50;
+  run.allies[0].maxHp = 200;
+  mockRandom(0.9); // No drops
+  AbyssManager._handleFloorVictory();
+  // 50 + floor(200 * 0.3) = 50 + 60 = 110
+  assertEqual(run.allies[0].currentHp, 110, 'healed to 110');
+  restoreRandom();
+});
+
+test('WHEN floor cleared AND ally hp=180, maxHp=200 THEN healed capped at 200', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.allies[0].currentHp = 180;
+  run.allies[0].maxHp = 200;
+  mockRandom(0.9);
+  AbyssManager._handleFloorVictory();
+  // 180 + 60 = 240 → capped at 200
+  assertEqual(run.allies[0].currentHp, 200, 'capped at maxHp');
+  restoreRandom();
+});
+
+test('WHEN currentFloor=3 > bestFloor=2 THEN bestFloor updated to 3', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  inst.bestFloor = 2;
+  run.currentFloor = 3;
+  AbyssManager._setupFloor(); // Set up floor 3 enemies
+  mockRandom(0.9);
+  AbyssManager._handleFloorVictory();
+  assertEqual(inst.bestFloor, 3, 'bestFloor updated');
+  restoreRandom();
+});
+
+test('WHEN currentFloor=2 AND bestFloor=5 THEN bestFloor stays 5', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  inst.bestFloor = 5;
+  run.currentFloor = 2;
+  AbyssManager._setupFloor();
+  mockRandom(0.9);
+  AbyssManager._handleFloorVictory();
+  assertEqual(inst.bestFloor, 5, 'bestFloor unchanged');
+  restoreRandom();
+});
+
+test('WHEN last floor cleared THEN triggers _handleAbyssComplete (no heal/advance)', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.currentFloor = 5;
+  AbyssManager._setupFloor();
+  _emitted = [];
+  mockRandom(0.9);
+  _getMythicTemplateReturn = null;
+  AbyssManager._handleFloorVictory();
+  assertEqual(run.phase, 'complete', 'phase=complete (abyss complete)');
+  var evt = _emitted.find(function(e) { return e.event === 'abyss:completed'; });
+  assert(evt, 'abyss:completed emitted');
+  restoreRandom();
+});
+
+
+// ===== 能力 14：深渊完成 =====
+
+section('能力 14：深渊完成');
+
+test('WHEN first clear THEN rewards + blueprint + cleared=true', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  inst.cleared = false;
+  ResourceManager._resources = {};
+  AbyssManager._handleAbyssComplete();
+  assertEqual(inst.cleared, true, 'cleared=true');
+  assertEqual(ResourceManager._resources.gold, 10000, 'first clear gold');
+  assertEqual(ResourceManager._resources.jade, 50, 'first clear jade');
+  assertEqual(run.rewards.gold, 10000, 'rewards.gold');
+  assertEqual(run.rewards.jade, 50, 'rewards.jade');
+  assert(ForgeManager._blueprints.indexOf('blueprint_tyrant_halberd') >= 0, 'blueprint added');
+  assertEqual(run.phase, 'complete', 'phase=complete');
+  var firstClearLog = run.log.find(function(l) { return l.indexOf('首通奖励') >= 0; });
+  assert(firstClearLog, 'first clear log');
+  var evt = _emitted.find(function(e) { return e.event === 'abyss:completed'; });
+  assert(evt, 'abyss:completed emitted');
+});
+
+test('WHEN repeat clear THEN no first clear rewards', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  inst.cleared = true; // Already cleared
+  ResourceManager._resources = {};
+  ForgeManager._blueprints = [];
+  AbyssManager._handleAbyssComplete();
+  assertEqual(ResourceManager._resources.gold || 0, 0, 'no gold reward');
+  assertEqual(ResourceManager._resources.jade || 0, 0, 'no jade reward');
+  assertEqual(ForgeManager._blueprints.length, 0, 'no blueprint');
+  assertEqual(run.phase, 'complete', 'still phase=complete');
+  var firstClearLog = run.log.find(function(l) { return l.indexOf('首通奖励') >= 0; });
+  assert(!firstClearLog, 'no first clear log');
+});
+
+test('WHEN ForgeManager undefined AND first clear THEN no error, resources ok', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  inst.cleared = false;
+  ResourceManager._resources = {};
+  var savedFM = ForgeManager;
+  ForgeManager = undefined;
+  AbyssManager._handleAbyssComplete();
+  assertEqual(inst.cleared, true, 'cleared=true');
+  assertEqual(ResourceManager._resources.gold, 10000, 'gold still works');
+  assertEqual(ResourceManager._resources.jade, 50, 'jade still works');
+  ForgeManager = savedFM;
+});
+
+
+// ===== 能力 15：深渊失败 =====
+
+section('能力 15：深渊失败');
+
+test('WHEN defeat on floor 3 THEN phase=defeat, log, emit', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  run.currentFloor = 3;
+  AbyssManager._handleAbyssDefeat();
+  assertEqual(run.phase, 'defeat', 'phase=defeat');
+  var defeatLog = run.log.find(function(l) { return l.indexOf('💀 全军覆没于第 3 层') >= 0; });
+  assert(defeatLog, 'defeat log');
+  var evt = _emitted.find(function(e) { return e.event === 'abyss:failed'; });
+  assert(evt, 'abyss:failed emitted');
+  assertEqual(evt.args[0].abyssId, 'abyss_hulao', 'abyssId');
+  assertEqual(evt.args[0].floor, 3, 'floor=3');
+});
+
+
+// ===== 能力 16：清除 Run =====
+
+section('能力 16：清除 Run');
+
+test('WHEN currentRun exists THEN clearRun sets null', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  assert(AbyssManager.getCurrentRun() !== null, 'run exists');
+  AbyssManager.clearRun();
+  assertEqual(AbyssManager.getCurrentRun(), null, 'null after clear');
+});
+
+test('WHEN currentRun already null THEN clearRun is no-op', function() {
+  resetAll();
+  assertEqual(AbyssManager.getCurrentRun(), null, 'already null');
+  AbyssManager.clearRun();
+  assertEqual(AbyssManager.getCurrentRun(), null, 'still null');
+});
+
+
+// ===== 能力 17：状态查询 =====
+
+section('能力 17：状态查询');
+
+test('isUnlocked returns correct value', function() {
+  resetAll();
+  AbyssManager._state.unlocked = true;
+  assertEqual(AbyssManager.isUnlocked(), true);
+  AbyssManager._state.unlocked = false;
+  assertEqual(AbyssManager.isUnlocked(), false);
+});
+
+test('getCurrentRun returns reference (not copy)', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  assert(run !== null, 'run exists');
+  run.testField = 'mutated';
+  assertEqual(AbyssManager.getCurrentRun().testField, 'mutated', 'same reference');
+});
+
+test('getInstance returns reference for valid abyss', function() {
+  resetAll();
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  assert(inst, 'instance exists');
+  inst.testField = 'mutated';
+  assertEqual(AbyssManager.getInstance('abyss_hulao').testField, 'mutated', 'same reference');
+});
+
+test('getInstance returns undefined for nonexistent abyss', function() {
+  resetAll();
+  var inst = AbyssManager.getInstance('nonexistent');
+  assertEqual(inst, undefined, 'undefined');
+});
+
+test('getState returns deep clone, no currentRun', function() {
+  resetAll();
+  AbyssManager._state.unlocked = true;
+  AbyssManager._state.instances.abyss_hulao.bestFloor = 3;
+  enterAbyssSetup('abyss_hulao', 1); // Sets currentRun
+  var state = AbyssManager.getState();
+  assertEqual(state.unlocked, true, 'unlocked');
+  assert(state.instances, 'instances present');
+  assert(state.currentRun === undefined, 'no currentRun in getState');
+  // Deep clone test: mutate returned value
+  state.instances.abyss_hulao.bestFloor = 999;
+  assertEqual(AbyssManager.getInstance('abyss_hulao').bestFloor, 3, 'mutation does not affect internal');
+});
+
+
+// ===== 能力 18：属性重算 =====
+
+section('能力 18：属性重算');
+
+test('WHEN single atk buff ratio=0.5 THEN atk=150', function() {
+  resetAll();
+  var unit = { baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 100, def: 50, spd: 30, buffs: [{ stat: 'atk', ratio: 0.5, duration: 3 }] };
+  AbyssManager._recalcStats(unit);
+  assertEqual(unit.atk, Math.floor(100 * 1.5), 'atk=150');
+  assertEqual(unit.def, 50, 'def unchanged');
+  assertEqual(unit.spd, 30, 'spd unchanged');
+});
+
+test('WHEN two atk buffs THEN additive: atk=floor(100*(1+0.3+0.2))=150', function() {
+  resetAll();
+  var unit = {
+    baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 100, def: 50, spd: 30,
+    buffs: [
+      { stat: 'atk', ratio: 0.3, duration: 5 },
+      { stat: 'atk', ratio: 0.2, duration: 5 }
+    ]
+  };
+  AbyssManager._recalcStats(unit);
+  assertEqual(unit.atk, Math.floor(100 * 1.5), 'atk=150');
+});
+
+test('WHEN extreme debuff ratio=-1.5 THEN atk=1 (minimum)', function() {
+  resetAll();
+  var unit = { baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 100, def: 50, spd: 30, buffs: [{ stat: 'atk', ratio: -1.5, duration: 5 }] };
+  AbyssManager._recalcStats(unit);
+  assertEqual(unit.atk, 1, 'min atk=1');
+});
+
+test('WHEN buffs empty THEN stats equal base', function() {
+  resetAll();
+  var unit = { baseAtk: 100, baseDef: 50, baseSpd: 30, atk: 999, def: 999, spd: 999, buffs: [] };
+  AbyssManager._recalcStats(unit);
+  assertEqual(unit.atk, 100, 'atk=baseAtk');
+  assertEqual(unit.def, 50, 'def=baseDef');
+  assertEqual(unit.spd, 30, 'spd=baseSpd');
+});
+
+
+// ===== 补充：跨能力集成测试 =====
+
+section('集成测试');
+
+test('Full run: enter → tick → multiple floors advance', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 2);
+  var run = AbyssManager.getCurrentRun();
+  // Make allies OP to clear floors quickly
+  for (var a = 0; a < run.allies.length; a++) {
+    run.allies[a].atk = 99999;
+    run.allies[a].def = 99999;
+    run.allies[a].currentHp = 99999;
+    run.allies[a].maxHp = 99999;
+    run.allies[a].spd = 99;
+  }
+  EquipmentManager.generateDrop = function() { return null; };
+  _getMythicTemplateReturn = null;
+  // Tick enough to clear multiple floors
+  for (var t = 0; t < 20; t++) AbyssManager.onTick(1.0);
+  // Should have advanced past floor 1
+  assert(run.currentFloor > 1 || run.phase === 'complete', 'advanced past floor 1');
+});
+
+test('Full run: complete all 5 floors', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 2);
+  var run = AbyssManager.getCurrentRun();
+  for (var a = 0; a < run.allies.length; a++) {
+    run.allies[a].atk = 999999;
+    run.allies[a].def = 999999;
+    run.allies[a].currentHp = 999999;
+    run.allies[a].maxHp = 999999;
+    run.allies[a].spd = 999;
+  }
+  EquipmentManager.generateDrop = function() { return null; };
+  _getMythicTemplateReturn = null;
+  mockRandom(0.9); // No drops
+  for (var t = 0; t < 100; t++) {
+    if (run.phase !== 'fighting') break;
+    AbyssManager.onTick(1.0);
+  }
+  assertEqual(run.phase, 'complete', 'fully completed');
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  assertEqual(inst.cleared, true, 'instance cleared');
+  assertEqual(inst.bestFloor, 5, 'bestFloor=5');
+  assert(run.rewards.gold > 0, 'accumulated gold rewards');
+  restoreRandom();
+});
+
+test('Full run: defeat resets nothing, rewards partial', function() {
+  resetAll();
+  enterAbyssSetup('abyss_hulao', 1);
+  var run = AbyssManager.getCurrentRun();
+  // Make ally weak to lose on floor 1
+  run.allies[0].atk = 1;
+  run.allies[0].def = 1;
+  run.allies[0].currentHp = 1;
+  run.allies[0].maxHp = 1;
+  run.allies[0].spd = 1;
+  for (var t = 0; t < 20; t++) {
+    if (run.phase !== 'fighting') break;
+    AbyssManager.onTick(1.0);
+  }
+  assertEqual(run.phase, 'defeat', 'defeated');
+  var inst = AbyssManager.getInstance('abyss_hulao');
+  assertEqual(inst.cleared, false, 'not cleared');
+});
+
+test('Enter chibi requires stage_5_5 cleared', function() {
+  resetAll();
+  setupTeam(1);
+  BattleManager._cleared = ['stage_4_10']; // Only hulao unlocked
+  ResourceManager._resources = { jade: 999, gold: 99999, iron: 999 };
+  AbyssManager._state.unlocked = true;
+  var result = AbyssManager.enterAbyss('abyss_chibi');
+  assertEqual(result, false, 'chibi locked');
+  // Now unlock chibi
+  BattleManager._cleared.push('stage_5_5');
+  result = AbyssManager.enterAbyss('abyss_chibi');
+  assertEqual(result, true, 'chibi unlocked');
+  var run = AbyssManager.getCurrentRun();
+  assertEqual(run.abyssId, 'abyss_chibi', 'entered chibi');
+  assertEqual(run.enemies[0].name, '甘宁', 'floor 1 boss');
+});
+
+test('Enter guandu costs jade=80, gold=12000, iron=500', function() {
+  resetAll();
+  setupAbyssUnlocked('abyss_guandu');
+  setupTeam(1);
+  ResourceManager._resources = { jade: 80, gold: 12000, iron: 500 };
+  AbyssManager._state.unlocked = true;
+  var result = AbyssManager.enterAbyss('abyss_guandu');
+  assertEqual(result, true, 'entered guandu');
+  assertEqual(ResourceManager._resources.jade, 0, 'jade spent');
+  assertEqual(ResourceManager._resources.gold, 0, 'gold spent');
+  assertEqual(ResourceManager._resources.iron, 0, 'iron spent');
+});
+
+
+// ===== 汇总 =====
+
+var passed = _results.filter(function(r) { return r.status === 'pass'; }).length;
+var failed = _results.filter(function(r) { return r.status === 'fail'; }).length;
+var skipped = _results.filter(function(r) { return r.status === 'skip'; }).length;
+var total = _results.length;
+
+var summaryEl = document.getElementById('summary');
+summaryEl.innerHTML =
+  '<h3>测试总结</h3>' +
+  '<div class="pass">✓ 通过: ' + passed + '</div>' +
+  '<div class="fail">✗ 失败: ' + failed + '</div>' +
+  '<div class="skip">⊘ 跳过: ' + skipped + '</div>' +
+  '<div>总计: ' + total + '</div>' +
+  '<div>覆盖率: ' + Math.round(passed / Math.max(1, total - skipped) * 100) + '%</div>';
+
+// Console output
+console.log('=== AbyssManager Test Results ===');
+console.log('Pass: ' + passed + ', Fail: ' + failed + ', Skip: ' + skipped + ', Total: ' + total);
+_results.forEach(function(r) {
+  if (r.status === 'fail') console.error('FAIL: ' + r.name + ' — ' + r.error);
+});
+</script>
+</body>
+</html>

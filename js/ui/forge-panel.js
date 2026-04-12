@@ -7,8 +7,8 @@ var ForgePanel = {
 
   init: function () {
     EventBus.on('forge:completed', this._onUpdate.bind(this));
-    EventBus.on('forge:mythic_completed', this._onUpdate.bind(this));
-    EventBus.on('forge:mythic_paused', this._onUpdate.bind(this));
+    EventBus.on('forge:paused', this._onUpdate.bind(this));
+    EventBus.on('forge:progress', this._onUpdate.bind(this));
     EventBus.on('resource:changed', this._onUpdate.bind(this));
   },
 
@@ -45,7 +45,7 @@ var ForgePanel = {
     } else {
       for (var q = 0; q < queue.length; q++) {
         var item = queue[q];
-        if (item.isMythic || item.quality === 6) continue; // mythic shown separately
+        if (item.quality === 6) continue; // mythic shown separately
         var remaining = Math.max(0, item.totalTime - item.elapsedTime);
         var progress = item.totalTime > 0 ? Math.min(100, (item.elapsedTime / item.totalTime * 100)) : 100;
         var mStr = Math.floor(remaining / 60);

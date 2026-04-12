@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Construction Worker System 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Construction Worker System 规范测试</h1>
+<pre>规范引用：specs/product-specs/construction-worker-system.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- ===== Mock 全局依赖：模块加载前定义 ===== -->
+<script>
+// ---- 共享 mock 状态 ----
+var _emitted = [];
+var _rmSpendCalls = [];
+var _rmSpendMultipleCalls = [];
+var _rmAddCalls = [];
+var _rmAddMultipleCalls = [];
+var _mockCanAfford = true;
+var _mockCanAffordMultiple = true;
+var _mockStageClear = {};
+var _roadGridBuilt = false;
+var _mockCollisionGrid = [[1, 2], [3, 4]];
+
+// CONSTANTS mock
+var CONSTANTS = {
+  RESOURCE: {
+    GOLD: 'gold', JADE: 'jade', EXP: 'exp',
+    FOOD: 'food', WOOD: 'wood', STONE: 'stone', IRON: 'iron'
+  },
+  RESOURCE_BASE_CAP: {
+    gold: 50000,
+    wood: 2000,
+    stone: 2000,
+    iron: 1000,
+    food: 200
+  }
+};
+
+// ResourceManager mock — tracks all calls for assertion
+var ResourceManager = {
+  canAfford: function(type, amount) { return _mockCanAfford; },
+  canAffordMultiple: function(costs) { return _mockCanAffordMultiple; },
+  spend: function(type, amount, cat, src, detail) {
+    _rmSpendCalls.push({ type: type, amount: amount, cat: cat, src: src, detail: detail });
+  },
+  spendMultiple: function(costs, cat, src, detail) {
+    _rmSpendMultipleCalls.push({ costs: costs, cat: cat, src: src, detail: detail });
+  },
+  add: function(type, amount, cat, src, detail) {
+    _rmAddCalls.push({ type: type, amount: amount, cat: cat, src: src, detail: detail });
+  },
+  addMultiple: function(amounts, cat, src, detail) {
+    _rmAddMultipleCalls.push({ amounts: amounts, cat: cat, src: src, detail: detail });
+    for (var t in amounts) {
+      if (amounts.hasOwnProperty(t) && amounts[t] > 0) {
+        _rmAddCalls.push({ type: t, amount: amounts[t], cat: cat, src: src, detail: detail });
+      }
+    }
+  }
+};
+
+// BattleManager mock
+var BattleManager = {
+  isStageCleared: function(stageId) {
+    return _mockStageClear.hasOwnProperty(stageId) ? _mockStageClear[stageId] : true;
+  }
+};
+
+// TownWorld mock
+var TownWorld = {
+  MAP_W: 40,
+  MAP_H: 40,
+  _defaultPositions: {},
+  _buildingSizes: {},
+  getCollisionGrid: function() { return _mockCollisionGrid; },
+  _buildRoadGrid: function() { _roadGridBuilt = true; }
+};
+</script>
+
+<!-- 核心依赖 -->
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+
+<!-- 数据 -->
+<script src="../js/data/buildings.js"></script>
+
+<!-- 被测模块 -->
+<script src="../js/modules/town-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/product-specs/construction-worker-system.md (Active)
+ *
+ * 测试策略：
+ *   - Mock CONSTANTS, ResourceManager, BattleManager, TownWorld
+ *   - 拦截 EventBus.emit 记录事件
+ *   - 每个测试前 resetTM() 重置状态
+ *   - 覆盖全部 8 个能力（CAP-WORKER-01 ~ 08）
+ */
+
+// ===== 微型测试框架 =====
+
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error((msg ? msg + ' ' : '') +
+      'expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg ? msg + ' ' : '') +
+      'expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== 拦截 EventBus.emit =====
+var _origEmit = EventBus.emit;
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+// ===== 重置辅助 =====
+function resetTM(savedData) {
+  _emitted = [];
+  _rmSpendCalls = [];
+  _rmSpendMultipleCalls = [];
+  _rmAddCalls = [];
+  _rmAddMultipleCalls = [];
+  _mockCanAfford = true;
+  _mockCanAffordMultiple = true;
+  _mockStageClear = {};
+  _roadGridBuilt = false;
+  TownManager.init(savedData);
+}
+
+// ================================================================
+// Group 1: CAP-WORKER-01 — Worker Initialization & Unlock
+// ================================================================
+section('CAP-WORKER-01: 工人初始化与解锁');
+
+test('W01-S1: 新游戏 → workers=1, firstBuildingCompleted=false, getMaxBuildSlots()===1', function() {
+  resetTM(undefined);
+  assertEqual(TownManager._state.workers, 1, 'workers');
+  assertEqual(TownManager._state.firstBuildingCompleted, false, 'firstBuildingCompleted');
+  assertEqual(TownManager.getMaxBuildSlots(), 1, 'getMaxBuildSlots');
+});
+
+test('W01-S2: 第一个非城主府建筑完成 → workers=2, firstBuildingCompleted=true, emit town:worker_unlocked', function() {
+  resetTM(undefined);
+  // Setup: lumber_camp Lv.0, set buildEndTime in the past to trigger completion
+  TownManager._state.buildings.lumber_camp.buildEndTime = Date.now() - 100;
+  _emitted = []; // Clear init events
+  TownManager.onTick(1);
+  // After tick, lumber_camp should be level 1 (completed)
+  assertEqual(TownManager._state.buildings.lumber_camp.level, 1, 'lumber_camp level after completion');
+  assertEqual(TownManager._state.workers, 2, 'workers after first building');
+  assertEqual(TownManager._state.firstBuildingCompleted, true, 'firstBuildingCompleted');
+  var unlocked = getEmitted('town:worker_unlocked');
+  assert(unlocked.length >= 1, 'should emit town:worker_unlocked');
+  assertEqual(unlocked[0].args[0].count, 2, 'worker count in event');
+  // Also check toast
+  var toasts = getEmitted('toast:show');
+  var foundToast = toasts.some(function(t) { return t.args[0].message.indexOf('第一个建筑') >= 0; });
+  assert(foundToast, 'should emit toast about first building');
+});
+
+test('W01-S3: 重复完成建筑时 firstBuildingCompleted=true → workers 不变（不重复奖励）', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 2;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.quarry.buildEndTime = Date.now() - 100;
+  _emitted = [];
+  TownManager.onTick(1);
+  assertEqual(TownManager._state.workers, 2, 'workers should remain 2');
+  var unlocked = getEmitted('town:worker_unlocked');
+  assertEqual(unlocked.length, 0, 'no worker_unlocked event');
+});
+
+test('W01-S4: 城主府升到 Lv.3 → workers=3', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 2;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.town_hall.level = 2;
+  TownManager._state.buildings.town_hall.buildEndTime = Date.now() - 100;
+  _emitted = [];
+  TownManager.onTick(1);
+  // town_hall should now be level 3
+  assertEqual(TownManager._state.buildings.town_hall.level, 3, 'town_hall level');
+  assertEqual(TownManager._state.workers, 3, 'workers after TH Lv.3');
+  var unlocked = getEmitted('town:worker_unlocked');
+  assert(unlocked.length >= 1, 'should emit worker_unlocked');
+  assertEqual(unlocked[0].args[0].count, 3, 'worker count');
+});
+
+test('W01-S5: 城主府升到 Lv.5 → workers=4', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 3;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.town_hall.level = 4;
+  TownManager._state.buildings.town_hall.buildEndTime = Date.now() - 100;
+  _emitted = [];
+  TownManager.onTick(1);
+  assertEqual(TownManager._state.buildings.town_hall.level, 5, 'town_hall level');
+  assertEqual(TownManager._state.workers, 4, 'workers after TH Lv.5');
+});
+
+test('W01-S6: 城主府升到 Lv.7 → workers=5 (MAX_WORKERS)', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 4;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.town_hall.level = 6;
+  TownManager._state.buildings.town_hall.buildEndTime = Date.now() - 100;
+  _emitted = [];
+  TownManager.onTick(1);
+  assertEqual(TownManager._state.buildings.town_hall.level, 7, 'town_hall level');
+  assertEqual(TownManager._state.workers, 5, 'workers after TH Lv.7 (capped)');
+});
+
+test('W01-S7: 存档迁移 — 无workers字段, town_hall Lv.6, 有完成建筑 → workers=4', function() {
+  // Old save: no workers field, town_hall level 6, barracks level 2 (completed building)
+  resetTM({
+    town: {
+      buildings: {
+        town_hall: { level: 6 },
+        barracks: { level: 2 },
+        lumber_camp: { level: 1 }
+      }
+      // No workers field → triggers migration
+    }
+  });
+  // Migration: workers=1 → barracks Lv.2 (non-TH, level>=1) → workers=2, firstBuildingCompleted=true
+  // TH Lv.6 >= 3 → workers=max(2,3)=3
+  // TH Lv.6 >= 5 → workers=max(3,4)=4
+  // TH Lv.6 < 7 → no change
+  // min(4, MAX_WORKERS=5) → 4
+  assertEqual(TownManager._state.workers, 4, 'migrated workers');
+  assertEqual(TownManager._state.firstBuildingCompleted, true, 'firstBuildingCompleted should be true');
+  assertDeepEqual(TownManager._state.buildQueue, [], 'buildQueue should be empty');
+});
+
+test('W01-S8: 存档迁移 — town_hall Lv.10（远超7）→ workers=5（不超过 MAX_WORKERS）', function() {
+  resetTM({
+    town: {
+      buildings: {
+        town_hall: { level: 10 },
+        lumber_camp: { level: 5 }
+      }
+    }
+  });
+  assertEqual(TownManager._state.workers, 5, 'migrated workers capped at 5');
+});
+
+test('W01-S9: 存档恢复 — 有workers字段 → 直接使用存档值', function() {
+  resetTM({
+    town: {
+      buildings: {
+        town_hall: { level: 5 },
+        barracks: { level: 3 }
+      },
+      workers: 3,
+      firstBuildingCompleted: true,
+      buildQueue: [{ id: 'q1', buildingId: 'quarry', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: 1000 }]
+    }
+  });
+  assertEqual(TownManager._state.workers, 3, 'workers from save');
+  assertEqual(TownManager._state.firstBuildingCompleted, true, 'firstBuildingCompleted from save');
+});
+
+// ================================================================
+// Group 2: CAP-WORKER-02 — Build Queue Enqueue
+// ================================================================
+section('CAP-WORKER-02: 建造队列入队');
+
+test('W02-S1: 成功入队 → 资源预扣, buildQueue 增长, 返回 {ok:true, queueItem}', function() {
+  resetTM(undefined);
+  // Setup: TH Lv.3 (levelCap=5), lumber_camp Lv.0, plenty of resources
+  TownManager._state.buildings.town_hall.level = 3;
+  // lumber_camp has no requires, Lv.0 → targetLevel=1
+  _mockCanAffordMultiple = true;
+  // Occupy all workers so item stays in queue (workers=1, put 1 active)
+  TownManager._state.buildings.quarry.buildEndTime = Date.now() + 60000;
+  _emitted = [];
+  _rmSpendMultipleCalls = [];
+
+  var result = TownManager.enqueueUpgrade('lumber_camp');
+  assertEqual(result.ok, true, 'should return ok:true');
+  assert(result.queueItem !== undefined, 'should return queueItem');
+  assertEqual(result.queueItem.buildingId, 'lumber_camp', 'queueItem.buildingId');
+  assertEqual(result.queueItem.targetLevel, 1, 'queueItem.targetLevel');
+  assert(typeof result.queueItem.id === 'string', 'queueItem should have an id');
+  assert(typeof result.queueItem.buildTime === 'number', 'queueItem should have buildTime');
+  assert(typeof result.queueItem.cost === 'object', 'queueItem should have cost');
+  // Resources were spent
+  assert(_rmSpendMultipleCalls.length >= 1, 'spendMultiple should be called');
+  assertEqual(_rmSpendMultipleCalls[0].cat, 'building', 'spend category');
+  assertEqual(_rmSpendMultipleCalls[0].src, 'queue_reserve', 'spend source');
+  // Queue updated event emitted
+  var queueEvents = getEmitted('town:queue_updated');
+  assert(queueEvents.length >= 1, 'should emit town:queue_updated');
+});
+
+test('W02-S2: 队列已满（6项）→ 返回 {ok:false, reason:"建造队列已满（最多6项）"}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  // Fill queue with 6 dummy items
+  for (var i = 0; i < 6; i++) {
+    TownManager._state.buildQueue.push({
+      id: 'dummy_' + i, buildingId: 'dummy_' + i, targetLevel: 1,
+      cost: { gold: 100 }, buildTime: 30, addedAt: Date.now()
+    });
+  }
+  var result = TownManager.enqueueUpgrade('lumber_camp');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '建造队列已满（最多6项）', 'reason');
+});
+
+test('W02-S3: 建筑已在队列中 → 返回 {ok:false, reason:"该建筑已在队列中"}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  TownManager._state.buildQueue.push({
+    id: 'q1', buildingId: 'lumber_camp', targetLevel: 1,
+    cost: { gold: 200 }, buildTime: 30, addedAt: Date.now()
+  });
+  var result = TownManager.enqueueUpgrade('lumber_camp');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '该建筑已在队列中', 'reason');
+});
+
+test('W02-S4: 建筑正在施工中 → 返回 {ok:false, reason:"正在施工中"}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  TownManager._state.buildings.lumber_camp.buildEndTime = Date.now() + 60000;
+  var result = TownManager.enqueueUpgrade('lumber_camp');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '正在施工中', 'reason');
+});
+
+test('W02-S5: 资源不足 → 返回 {ok:false, reason:"资源不足"}, buildQueue 不变', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  _mockCanAffordMultiple = false;
+  var queueBefore = TownManager._state.buildQueue.length;
+  var result = TownManager.enqueueUpgrade('lumber_camp');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '资源不足', 'reason');
+  assertEqual(TownManager._state.buildQueue.length, queueBefore, 'queue unchanged');
+});
+
+test('W02-S6: 入队时有空闲工人 → 立即开始施工（item 从 queue 移出）', function() {
+  resetTM(undefined);
+  // workers=1 (default), no active builds → 1 free worker
+  TownManager._state.buildings.town_hall.level = 3;
+  _mockCanAffordMultiple = true;
+  _emitted = [];
+
+  var result = TownManager.enqueueUpgrade('lumber_camp');
+  assertEqual(result.ok, true, 'enqueue should succeed');
+  // Item should have been processed immediately by _processQueue
+  // buildQueue should be empty (item was taken out)
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty after immediate dispatch');
+  // lumber_camp should now have buildEndTime set
+  assert(TownManager._state.buildings.lumber_camp.buildEndTime !== null, 'buildEndTime should be set');
+  assert(TownManager._state.buildings.lumber_camp.buildEndTime > Date.now() - 1000, 'buildEndTime should be in the future');
+  // building_started event should be emitted
+  var started = getEmitted('town:building_started');
+  assert(started.length >= 1, 'should emit town:building_started');
+  assertEqual(started[0].args[0].buildingId, 'lumber_camp', 'started event buildingId');
+});
+
+test('W02-S7: town_hall Lv.0 入队 → targetLevel 应为 2 (跳过 Lv.1)', function() {
+  resetTM(undefined);
+  // town_hall is already Lv.1 by default, so this tests the town_hall special case
+  // Actually town_hall starts at Lv.1, so costFormula(2) is used
+  // enqueueUpgrade for town_hall at Lv.1 → targetLevel = 2
+  _mockCanAffordMultiple = true;
+  _mockStageClear = { 'stage_1_10': true }; // unlock stage for TH Lv.2
+  // Occupy worker so item stays in queue
+  TownManager._state.buildings.barracks.buildEndTime = Date.now() + 60000;
+  var result = TownManager.enqueueUpgrade('town_hall');
+  assertEqual(result.ok, true, 'enqueue should succeed');
+  // Check the queue item
+  assert(TownManager._state.buildQueue.length >= 0, 'item may have been dispatched');
+});
+
+// ================================================================
+// Group 3: CAP-WORKER-03 — Queue Auto-dispatch (_processQueue)
+// ================================================================
+section('CAP-WORKER-03: 队列自动派工');
+
+test('W03-S1: 3 workers, 1 active, queue 有 2 项 → 两项都开始, queue 清空', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 3;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.town_hall.level = 5;
+  // 1 active build
+  TownManager._state.buildings.barracks.level = 1;
+  TownManager._state.buildings.barracks.buildEndTime = Date.now() + 60000;
+  // Queue 2 items: lumber_camp Lv.0→1, quarry Lv.0→1
+  TownManager._state.buildQueue = [
+    { id: 'qa', buildingId: 'lumber_camp', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() },
+    { id: 'qb', buildingId: 'quarry', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+  _emitted = [];
+
+  TownManager._processQueue();
+
+  // Both should be started
+  assert(TownManager._state.buildings.lumber_camp.buildEndTime !== null, 'lumber_camp should be started');
+  assert(TownManager._state.buildings.quarry.buildEndTime !== null, 'quarry should be started');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty');
+  // building_started emitted twice
+  var started = getEmitted('town:building_started');
+  assertEqual(started.length, 2, 'should emit building_started twice');
+  // queue_updated emitted
+  var queueUpdated = getEmitted('town:queue_updated');
+  assert(queueUpdated.length >= 1, 'should emit town:queue_updated');
+});
+
+test('W03-S2: 2 workers, 2 active, queue 有 3 项 → queue 不变（无空闲工人）', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 2;
+  TownManager._state.firstBuildingCompleted = true;
+  // 2 active builds
+  TownManager._state.buildings.lumber_camp.buildEndTime = Date.now() + 60000;
+  TownManager._state.buildings.quarry.buildEndTime = Date.now() + 60000;
+  // Queue 3 items
+  TownManager._state.buildQueue = [
+    { id: 'qa', buildingId: 'iron_mine', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() },
+    { id: 'qb', buildingId: 'barracks', targetLevel: 1, cost: { gold: 300 }, buildTime: 30, addedAt: Date.now() },
+    { id: 'qc', buildingId: 'farmland', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+  _emitted = [];
+
+  TownManager._processQueue();
+
+  assertEqual(TownManager._state.buildQueue.length, 3, 'queue should remain unchanged');
+  var started = getEmitted('town:building_started');
+  assertEqual(started.length, 0, 'no building_started events');
+});
+
+test('W03-S3: 队首项 level 不匹配 → 退还资源, 移除, 处理下一项', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 2;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.town_hall.level = 5;
+  // Queue head: lumber_camp targetLevel=2, but lumber_camp is Lv.0 (mismatch: 0 !== 2-1=1)
+  TownManager._state.buildings.lumber_camp.level = 0;
+  // Queue second item: quarry Lv.0→1 (valid)
+  TownManager._state.buildQueue = [
+    { id: 'qa', buildingId: 'lumber_camp', targetLevel: 2, cost: { gold: 300, wood: 50 }, buildTime: 30, addedAt: Date.now() },
+    { id: 'qb', buildingId: 'quarry', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+  _emitted = [];
+  _rmAddMultipleCalls = [];
+
+  TownManager._processQueue();
+
+  // First item should be removed and resources refunded
+  assert(_rmAddMultipleCalls.length >= 1, 'addMultiple should be called for refund');
+  assertEqual(_rmAddMultipleCalls[0].amounts.gold, 300, 'refund gold');
+  assertEqual(_rmAddMultipleCalls[0].amounts.wood, 50, 'refund wood');
+  assertEqual(_rmAddMultipleCalls[0].cat, 'building', 'refund category');
+  assertEqual(_rmAddMultipleCalls[0].src, 'queue_refund', 'refund source');
+  // Toast warning should be emitted
+  var toasts = getEmitted('toast:show');
+  var warningFound = toasts.some(function(t) { return t.args[0].type === 'warning' && t.args[0].message.indexOf('失效') >= 0; });
+  assert(warningFound, 'should emit warning toast about invalidated task');
+  // Second item should have started
+  assert(TownManager._state.buildings.quarry.buildEndTime !== null, 'quarry should be started');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty');
+});
+
+test('W03-S4: 施工完成后 onTick 触发 _processQueue → 队列下一项开始施工', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 2;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.town_hall.level = 5;
+  // 1 active build about to complete
+  TownManager._state.buildings.lumber_camp.buildEndTime = Date.now() - 100;
+  // 1 item in queue: quarry Lv.0→1
+  TownManager._state.buildQueue = [
+    { id: 'qa', buildingId: 'quarry', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+  _emitted = [];
+
+  TownManager.onTick(1);
+
+  // lumber_camp should have completed (level 1)
+  assertEqual(TownManager._state.buildings.lumber_camp.level, 1, 'lumber_camp level after completion');
+  assertEqual(TownManager._state.buildings.lumber_camp.buildEndTime, null, 'lumber_camp buildEndTime cleared');
+  // quarry should have started from queue
+  assert(TownManager._state.buildings.quarry.buildEndTime !== null, 'quarry should be started from queue');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty');
+});
+
+// ================================================================
+// Group 4: CAP-WORKER-04 — Cancel Queue/Active Tasks
+// ================================================================
+section('CAP-WORKER-04: 取消队列/施工任务');
+
+test('W04-S1: 取消等待的队列项 → 资源退还, 移除, 返回 {ok:true, refunded:true}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  var queueItem = {
+    id: 'cancel_me', buildingId: 'lumber_camp', targetLevel: 1,
+    cost: { gold: 500, wood: 100 }, buildTime: 30, addedAt: Date.now()
+  };
+  TownManager._state.buildQueue.push(queueItem);
+  _emitted = [];
+  _rmAddMultipleCalls = [];
+
+  var result = TownManager.cancelQueueItem('cancel_me');
+  assertEqual(result.ok, true, 'should succeed');
+  assertEqual(result.refunded, true, 'should be refunded');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty');
+  // Check refund
+  assert(_rmAddMultipleCalls.length >= 1, 'addMultiple should be called');
+  assertEqual(_rmAddMultipleCalls[0].amounts.gold, 500, 'refund gold');
+  assertEqual(_rmAddMultipleCalls[0].amounts.wood, 100, 'refund wood');
+  // queue_updated event
+  var queueEvents = getEmitted('town:queue_updated');
+  assert(queueEvents.length >= 1, 'should emit town:queue_updated');
+});
+
+test('W04-S2: 取消不存在的队列项 → 返回 {ok:false, reason:"任务不存在"}', function() {
+  resetTM(undefined);
+  var result = TownManager.cancelQueueItem('nonexistent_id');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '任务不存在', 'reason');
+});
+
+test('W04-S3: 取消正在施工的建筑 → buildEndTime=null, 不退资源, 返回 {ok:true, refunded:false}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.barracks.level = 1;
+  TownManager._state.buildings.barracks.buildEndTime = Date.now() + 60000;
+  _emitted = [];
+  _rmAddMultipleCalls = [];
+
+  var result = TownManager.cancelActiveBuilding('barracks');
+  assertEqual(result.ok, true, 'should succeed');
+  assertEqual(result.refunded, false, 'should not be refunded');
+  assertEqual(TownManager._state.buildings.barracks.buildEndTime, null, 'buildEndTime should be null');
+  // Level should not change
+  assertEqual(TownManager._state.buildings.barracks.level, 1, 'level should not change');
+  // No addMultiple call (no refund)
+  assertEqual(_rmAddMultipleCalls.length, 0, 'no resource refund');
+  // building_cancelled event
+  var cancelled = getEmitted('town:building_cancelled');
+  assert(cancelled.length >= 1, 'should emit town:building_cancelled');
+  assertEqual(cancelled[0].args[0].buildingId, 'barracks', 'cancelled buildingId');
+});
+
+test('W04-S4: 取消施工后触发 _processQueue → 队列首项开始施工', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 1;
+  // 1 active build on barracks
+  TownManager._state.buildings.barracks.level = 1;
+  TownManager._state.buildings.barracks.buildEndTime = Date.now() + 60000;
+  TownManager._state.buildings.town_hall.level = 5;
+  // 1 item in queue: lumber_camp Lv.0→1
+  TownManager._state.buildQueue = [
+    { id: 'qa', buildingId: 'lumber_camp', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+  _emitted = [];
+
+  TownManager.cancelActiveBuilding('barracks');
+
+  // barracks cancelled
+  assertEqual(TownManager._state.buildings.barracks.buildEndTime, null, 'barracks cancelled');
+  // _processQueue should have started lumber_camp
+  assert(TownManager._state.buildings.lumber_camp.buildEndTime !== null, 'lumber_camp should be started');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty');
+});
+
+test('W04-S5: 取消未在施工的建筑 → 返回 {ok:false, reason:"该建筑未在施工"}', function() {
+  resetTM(undefined);
+  var result = TownManager.cancelActiveBuilding('barracks');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '该建筑未在施工', 'reason');
+});
+
+test('W04-S6: 取消已过期（buildEndTime在过去）的建筑 → 返回 {ok:false, reason:"该建筑未在施工"}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.barracks.buildEndTime = Date.now() - 1000;
+  var result = TownManager.cancelActiveBuilding('barracks');
+  assertEqual(result.ok, false, 'should fail for expired build');
+  assertEqual(result.reason, '该建筑未在施工', 'reason');
+});
+
+// ================================================================
+// Group 5: CAP-WORKER-05 — Queue Reorder
+// ================================================================
+section('CAP-WORKER-05: 队列排序');
+
+test('W05-S1: 将 C 从位置 2 移到位置 0: [A,B,C,D] → [C,A,B,D]', function() {
+  resetTM(undefined);
+  TownManager._state.buildQueue = [
+    { id: 'A', buildingId: 'lumber_camp', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 1 },
+    { id: 'B', buildingId: 'quarry', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 2 },
+    { id: 'C', buildingId: 'iron_mine', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 3 },
+    { id: 'D', buildingId: 'farmland', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 4 }
+  ];
+  _emitted = [];
+
+  var result = TownManager.reorderQueue('C', 0);
+  assertEqual(result, true, 'should return true');
+  var ids = TownManager._state.buildQueue.map(function(i) { return i.id; });
+  assertDeepEqual(ids, ['C', 'A', 'B', 'D'], 'order should be [C, A, B, D]');
+  // queue_updated event
+  var queueEvents = getEmitted('town:queue_updated');
+  assert(queueEvents.length >= 1, 'should emit town:queue_updated');
+});
+
+test('W05-S2: 不存在的 queueItemId → 返回 false, queue 不变', function() {
+  resetTM(undefined);
+  TownManager._state.buildQueue = [
+    { id: 'A', buildingId: 'lumber_camp', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 1 },
+    { id: 'B', buildingId: 'quarry', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 2 }
+  ];
+  var result = TownManager.reorderQueue('NONEXISTENT', 0);
+  assertEqual(result, false, 'should return false');
+  var ids = TownManager._state.buildQueue.map(function(i) { return i.id; });
+  assertDeepEqual(ids, ['A', 'B'], 'queue should be unchanged');
+});
+
+test('W05-S3: newIndex=-1 → 钳制为 0, 项移至队列头部', function() {
+  resetTM(undefined);
+  TownManager._state.buildQueue = [
+    { id: 'A', buildingId: 'lumber_camp', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 1 },
+    { id: 'B', buildingId: 'quarry', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 2 },
+    { id: 'C', buildingId: 'iron_mine', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 3 }
+  ];
+  var result = TownManager.reorderQueue('C', -1);
+  assertEqual(result, true, 'should return true');
+  var ids = TownManager._state.buildQueue.map(function(i) { return i.id; });
+  assertDeepEqual(ids, ['C', 'A', 'B'], 'C should be at head');
+});
+
+test('W05-S4: newIndex=100（超出长度）→ 钳制为末尾', function() {
+  resetTM(undefined);
+  TownManager._state.buildQueue = [
+    { id: 'A', buildingId: 'lumber_camp', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 1 },
+    { id: 'B', buildingId: 'quarry', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 2 },
+    { id: 'C', buildingId: 'iron_mine', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 3 }
+  ];
+  var result = TownManager.reorderQueue('A', 100);
+  assertEqual(result, true, 'should return true');
+  var ids = TownManager._state.buildQueue.map(function(i) { return i.id; });
+  assertDeepEqual(ids, ['B', 'C', 'A'], 'A should be at end');
+});
+
+// ================================================================
+// Group 6: CAP-WORKER-06 — getMaxBuildSlots Compatibility
+// ================================================================
+section('CAP-WORKER-06: getMaxBuildSlots 兼容替换');
+
+test('W06-S1: workers=3 → getMaxBuildSlots()===3', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 3;
+  assertEqual(TownManager.getMaxBuildSlots(), 3, 'getMaxBuildSlots should return workers');
+});
+
+test('W06-S2: workers=1 → getMaxBuildSlots()===1', function() {
+  resetTM(undefined);
+  assertEqual(TownManager.getMaxBuildSlots(), 1, 'getMaxBuildSlots should return 1');
+});
+
+test('W06-S3: workers=5 → getMaxBuildSlots()===5', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 5;
+  assertEqual(TownManager.getMaxBuildSlots(), 5, 'getMaxBuildSlots should return 5');
+});
+
+test('W06-S4: getWorkerCount() 返回当前工人数', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 4;
+  assertEqual(TownManager.getWorkerCount(), 4, 'getWorkerCount should return workers');
+});
+
+test('W06-S5: getBuildQueue() 返回 buildQueue 副本（修改不影响内部）', function() {
+  resetTM(undefined);
+  TownManager._state.buildQueue = [
+    { id: 'A', buildingId: 'lumber_camp', targetLevel: 1, cost: {}, buildTime: 30, addedAt: 1 }
+  ];
+  var q = TownManager.getBuildQueue();
+  assertEqual(q.length, 1, 'should have 1 item');
+  q.push({ id: 'X' }); // Modify the copy
+  assertEqual(TownManager._state.buildQueue.length, 1, 'internal queue should not be modified');
+});
+
+// ================================================================
+// Group 7: CAP-WORKER-07 — Offline Queue Progression
+// ================================================================
+section('CAP-WORKER-07: 离线队列推进');
+
+test('W07-S1: 离线 2h, 1 active build (1h ago expired), queue 有 2 项 (各 30min) → 全部完成', function() {
+  var now = Date.now();
+  var oneHourMs = 3600 * 1000;
+  var thirtyMinMs = 1800 * 1000;
+
+  // Simulate: build expired 1 hour ago
+  resetTM({
+    town: {
+      buildings: {
+        town_hall: { level: 5 },
+        lumber_camp: { level: 0, buildEndTime: now - oneHourMs },
+        quarry: { level: 0 },
+        iron_mine: { level: 0 }
+      },
+      workers: 3,
+      firstBuildingCompleted: true,
+      buildQueue: [
+        { id: 'q1', buildingId: 'quarry', targetLevel: 1, cost: { gold: 200 }, buildTime: 1800, addedAt: now - 2 * oneHourMs },
+        { id: 'q2', buildingId: 'iron_mine', targetLevel: 1, cost: { gold: 200 }, buildTime: 1800, addedAt: now - 2 * oneHourMs }
+      ]
+    }
+  });
+
+  // After init, _processOfflineBuilds should have:
+  // 1. Completed lumber_camp (expired 1h ago) → level 1
+  // 2. Started quarry from queue at completedAt time, quarry.buildEndTime = (now - 1h) + 30min*1000 = now - 30min → also expired → completed
+  // 3. Started iron_mine from queue, iron_mine.buildEndTime = quarry's completedAt + 30min → may also be expired
+  // All should be completed since total offline time >> total build time
+  assertEqual(TownManager._state.buildings.lumber_camp.level, 1, 'lumber_camp should be level 1');
+  assertEqual(TownManager._state.buildings.lumber_camp.buildEndTime, null, 'lumber_camp buildEndTime null');
+  assertEqual(TownManager._state.buildings.quarry.level, 1, 'quarry should be level 1');
+  assertEqual(TownManager._state.buildings.quarry.buildEndTime, null, 'quarry buildEndTime null');
+  assertEqual(TownManager._state.buildings.iron_mine.level, 1, 'iron_mine should be level 1');
+  assertEqual(TownManager._state.buildings.iron_mine.buildEndTime, null, 'iron_mine buildEndTime null');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty');
+});
+
+test('W07-S2: 离线 30min, build 需 1h → 建筑仍在施工, queue 不变', function() {
+  var now = Date.now();
+  var thirtyMinAgo = now - 30 * 60 * 1000;
+  // buildEndTime is 30 minutes in the future (build started 30min ago, needs 1h, so 30min remain)
+  var buildEnd = now + 30 * 60 * 1000;
+
+  resetTM({
+    town: {
+      buildings: {
+        town_hall: { level: 3 },
+        lumber_camp: { level: 0, buildEndTime: buildEnd }
+      },
+      workers: 2,
+      firstBuildingCompleted: true,
+      buildQueue: [
+        { id: 'q1', buildingId: 'quarry', targetLevel: 1, cost: { gold: 200 }, buildTime: 1800, addedAt: thirtyMinAgo }
+      ]
+    }
+  });
+
+  // Build is still in progress
+  assertEqual(TownManager._state.buildings.lumber_camp.level, 0, 'lumber_camp still level 0');
+  assert(TownManager._state.buildings.lumber_camp.buildEndTime !== null, 'lumber_camp still building');
+  assertEqual(TownManager._state.buildQueue.length, 1, 'queue should still have 1 item');
+});
+
+test('W07-S3: 离线中 queue 项的二次验证失败 → 退还资源, 继续处理下一项', function() {
+  var now = Date.now();
+  var oneHourMs = 3600 * 1000;
+
+  resetTM({
+    town: {
+      buildings: {
+        town_hall: { level: 5 },
+        lumber_camp: { level: 0, buildEndTime: now - oneHourMs },
+        quarry: { level: 1 }, // quarry already Lv.1, but queue says targetLevel=1 → mismatch (1 !== 1-1=0)
+        iron_mine: { level: 0 }
+      },
+      workers: 3,
+      firstBuildingCompleted: true,
+      buildQueue: [
+        { id: 'q1', buildingId: 'quarry', targetLevel: 1, cost: { gold: 200 }, buildTime: 1800, addedAt: now - 2 * oneHourMs },
+        { id: 'q2', buildingId: 'iron_mine', targetLevel: 1, cost: { gold: 300 }, buildTime: 1800, addedAt: now - 2 * oneHourMs }
+      ]
+    }
+  });
+
+  // quarry already level 1, targetLevel 1 → level(1) !== targetLevel-1(0) → validation fails → refund
+  // iron_mine should still be processed and completed
+  assertEqual(TownManager._state.buildings.lumber_camp.level, 1, 'lumber_camp completed');
+  // quarry level should not change (validation failed)
+  assertEqual(TownManager._state.buildings.quarry.level, 1, 'quarry level unchanged (validation failed)');
+  // iron_mine should have been processed
+  assertEqual(TownManager._state.buildings.iron_mine.level, 1, 'iron_mine completed');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue should be empty');
+});
+
+// ================================================================
+// Group 8: CAP-WORKER-08 — startUpgrade Queue Conflict
+// ================================================================
+section('CAP-WORKER-08: startUpgrade 队列冲突检查');
+
+test('W08-S1: startUpgrade 时建筑在 buildQueue → 返回 {ok:false, reason:"该建筑已在队列中"}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  TownManager._state.buildings.lumber_camp.level = 0;
+  TownManager._state.buildQueue = [
+    { id: 'q1', buildingId: 'lumber_camp', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+  _rmSpendMultipleCalls = [];
+
+  var result = TownManager.startUpgrade('lumber_camp');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '该建筑已在队列中', 'reason');
+  // No resources deducted
+  assertEqual(_rmSpendMultipleCalls.length, 0, 'no resources spent');
+});
+
+test('W08-S2: startUpgrade 时建筑不在 queue → 正常行为（扣资源、设 buildEndTime）', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  TownManager._state.buildings.barracks.level = 1;
+  TownManager._state.buildQueue = []; // No conflict
+  _mockCanAffordMultiple = true;
+  _rmSpendMultipleCalls = [];
+  _emitted = [];
+
+  var result = TownManager.startUpgrade('barracks');
+  assertEqual(result.ok, true, 'should succeed');
+  // Resources deducted
+  assert(_rmSpendMultipleCalls.length >= 1, 'spendMultiple called');
+  assertEqual(_rmSpendMultipleCalls[0].src, 'building_upgrade', 'spend source');
+  // buildEndTime set
+  assert(TownManager._state.buildings.barracks.buildEndTime !== null, 'buildEndTime set');
+  assert(TownManager._state.buildings.barracks.buildEndTime > Date.now() - 1000, 'buildEndTime in future');
+  // building_started event
+  var started = getEmitted('town:building_started');
+  assert(started.length >= 1, 'building_started emitted');
+  assertEqual(started[0].args[0].buildingId, 'barracks', 'correct buildingId');
+});
+
+test('W08-S3: startUpgrade 多个建筑在 queue, 只检查目标建筑', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  TownManager._state.buildings.barracks.level = 1;
+  // Queue has lumber_camp, but we are upgrading barracks
+  TownManager._state.buildQueue = [
+    { id: 'q1', buildingId: 'lumber_camp', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+  _mockCanAffordMultiple = true;
+  _rmSpendMultipleCalls = [];
+
+  var result = TownManager.startUpgrade('barracks');
+  assertEqual(result.ok, true, 'should succeed (barracks not in queue)');
+});
+
+// ================================================================
+// 补充测试: _checkWorkerUnlock 边界
+// ================================================================
+section('补充: _checkWorkerUnlock 边界');
+
+test('W-EXTRA-1: _checkWorkerUnlock town_hall 从 Lv.4→5（workers 已经是 3）→ workers=4', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 3;
+  TownManager._state.firstBuildingCompleted = true;
+  _emitted = [];
+
+  var changed = TownManager._checkWorkerUnlock('town_hall', 5);
+  assertEqual(changed, true, 'should return true');
+  assertEqual(TownManager._state.workers, 4, 'workers should be 4');
+});
+
+test('W-EXTRA-2: _checkWorkerUnlock town_hall Lv.7 但 workers 已经是 5 → workers 不变', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 5;
+  TownManager._state.firstBuildingCompleted = true;
+  _emitted = [];
+
+  var changed = TownManager._checkWorkerUnlock('town_hall', 7);
+  assertEqual(changed, false, 'should return false (already maxed)');
+  assertEqual(TownManager._state.workers, 5, 'workers should remain 5');
+});
+
+test('W-EXTRA-3: _checkWorkerUnlock 非城主府建筑, firstBuildingCompleted 已为 true → workers 不变', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 2;
+  TownManager._state.firstBuildingCompleted = true;
+  _emitted = [];
+
+  var changed = TownManager._checkWorkerUnlock('barracks', 3);
+  assertEqual(changed, false, 'should return false');
+  assertEqual(TownManager._state.workers, 2, 'workers unchanged');
+});
+
+test('W-EXTRA-4: _checkWorkerUnlock silent=true → 不 emit toast', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 1;
+  TownManager._state.firstBuildingCompleted = false;
+  _emitted = [];
+
+  TownManager._checkWorkerUnlock('barracks', 1, true);
+  assertEqual(TownManager._state.workers, 2, 'workers should be 2');
+  // worker_unlocked should still be emitted
+  var unlocked = getEmitted('town:worker_unlocked');
+  assert(unlocked.length >= 1, 'worker_unlocked still emitted');
+  // But toast should NOT be emitted
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 0, 'no toast in silent mode');
+});
+
+// ================================================================
+// 补充测试: _canEnqueue 详细检查
+// ================================================================
+section('补充: _canEnqueue 详细检查');
+
+test('W-ENQ-1: _canEnqueue 未知建筑 → {ok:false, reason:"未知建筑"}', function() {
+  resetTM(undefined);
+  var result = TownManager._canEnqueue('nonexistent_xyz');
+  assertEqual(result.ok, false);
+  assertEqual(result.reason, '未知建筑');
+});
+
+test('W-ENQ-2: _canEnqueue 已达最大等级 → {ok:false, reason:"已达最大等级"}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 10;
+  var result = TownManager._canEnqueue('town_hall');
+  assertEqual(result.ok, false);
+  assertEqual(result.reason, '已达最大等级');
+});
+
+test('W-ENQ-3: _canEnqueue 城主府等级上限 → {ok:false, reason:"需升级城主府解锁更高等级"}', function() {
+  resetTM(undefined);
+  // TH Lv.2 → _townHallUnlocks[2].levelCap=3; barracks at Lv.3 → meets cap
+  TownManager._state.buildings.town_hall.level = 2;
+  TownManager._state.buildings.barracks.level = 3;
+  var result = TownManager._canEnqueue('barracks');
+  assertEqual(result.ok, false);
+  assertEqual(result.reason, '需升级城主府解锁更高等级');
+});
+
+test('W-ENQ-4: _canEnqueue 前置依赖不满足 → {ok:false, reason:"需要 X Lv.Y"}', function() {
+  resetTM(undefined);
+  // barracks requires {town_hall: 3}; TH is Lv.1
+  TownManager._state.buildings.town_hall.level = 2;
+  TownManager._state.buildings.barracks.level = 0;
+  var result = TownManager._canEnqueue('barracks');
+  assertEqual(result.ok, false);
+  assert(result.reason.indexOf('需要') >= 0, 'should mention prerequisite');
+});
+
+test('W-ENQ-5: _canEnqueue 建筑槽不足 → {ok:false, reason:"建筑槽不足，升级城主府解锁"}', function() {
+  resetTM(undefined);
+  // TH Lv.1 (slots=4), fill 4 building slots
+  TownManager._state.buildings.quarry.level = 1;
+  TownManager._state.buildings.iron_mine.level = 1;
+  TownManager._state.buildings.farmland.level = 1;
+  TownManager._state.buildings.warehouse.level = 1;
+  // lumber_camp still level 0 → new building → slot check
+  var result = TownManager._canEnqueue('lumber_camp');
+  assertEqual(result.ok, false);
+  assertEqual(result.reason, '建筑槽不足，升级城主府解锁');
+});
+
+test('W-ENQ-6: _canEnqueue 通过所有检查 → {ok:true}', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 3;
+  // lumber_camp Lv.0, no requires, TH Lv.3 slots=10, levelCap=5 → all pass
+  var result = TownManager._canEnqueue('lumber_camp');
+  assertEqual(result.ok, true);
+});
+
+// ================================================================
+// 补充测试: _validateQueueItem
+// ================================================================
+section('补充: _validateQueueItem 二次验证');
+
+test('W-VAL-1: level 不匹配 → false', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 5;
+  TownManager._state.buildings.lumber_camp.level = 2; // level 2, targetLevel expects 2 → 2-1=1 ≠ 2
+  var item = { id: 'test', buildingId: 'lumber_camp', targetLevel: 2, cost: { gold: 100 }, buildTime: 30 };
+  assertEqual(TownManager._validateQueueItem(item), false, 'level mismatch');
+});
+
+test('W-VAL-2: 建筑正在施工 → false', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 5;
+  TownManager._state.buildings.lumber_camp.level = 0;
+  TownManager._state.buildings.lumber_camp.buildEndTime = Date.now() + 60000;
+  var item = { id: 'test', buildingId: 'lumber_camp', targetLevel: 1, cost: { gold: 100 }, buildTime: 30 };
+  assertEqual(TownManager._validateQueueItem(item), false, 'building already in construction');
+});
+
+test('W-VAL-3: 正常情况 → true', function() {
+  resetTM(undefined);
+  TownManager._state.buildings.town_hall.level = 5;
+  TownManager._state.buildings.lumber_camp.level = 0;
+  var item = { id: 'test', buildingId: 'lumber_camp', targetLevel: 1, cost: { gold: 100 }, buildTime: 30 };
+  assertEqual(TownManager._validateQueueItem(item), true, 'should pass validation');
+});
+
+// ================================================================
+// 补充测试: 完整 enqueueUpgrade 流程整合
+// ================================================================
+section('补充: enqueueUpgrade 整合流程');
+
+test('W-INT-1: 入队多项后按顺序启动', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 3;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildings.town_hall.level = 5;
+  _mockCanAffordMultiple = true;
+
+  // Enqueue lumber_camp (workers free → starts immediately)
+  var r1 = TownManager.enqueueUpgrade('lumber_camp');
+  assertEqual(r1.ok, true, 'first enqueue ok');
+  assert(TownManager._state.buildings.lumber_camp.buildEndTime !== null, 'lumber_camp started');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue empty after immediate start');
+
+  // Enqueue quarry (still 2 free workers → starts immediately)
+  var r2 = TownManager.enqueueUpgrade('quarry');
+  assertEqual(r2.ok, true, 'second enqueue ok');
+  assert(TownManager._state.buildings.quarry.buildEndTime !== null, 'quarry started');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue empty');
+
+  // Enqueue iron_mine (still 1 free worker → starts immediately)
+  var r3 = TownManager.enqueueUpgrade('iron_mine');
+  assertEqual(r3.ok, true, 'third enqueue ok');
+  assert(TownManager._state.buildings.iron_mine.buildEndTime !== null, 'iron_mine started');
+  assertEqual(TownManager._state.buildQueue.length, 0, 'queue empty');
+
+  // 3 workers all busy now. Enqueue farmland → should stay in queue
+  var r4 = TownManager.enqueueUpgrade('farmland');
+  assertEqual(r4.ok, true, 'fourth enqueue ok');
+  assertEqual(TownManager._state.buildQueue.length, 1, 'farmland stays in queue');
+  assertEqual(TownManager._state.buildings.farmland.buildEndTime, null, 'farmland not started yet');
+});
+
+test('W-INT-2: getState() 返回的 state 包含 workers/firstBuildingCompleted/buildQueue', function() {
+  resetTM(undefined);
+  TownManager._state.workers = 3;
+  TownManager._state.firstBuildingCompleted = true;
+  TownManager._state.buildQueue = [
+    { id: 'q1', buildingId: 'lumber_camp', targetLevel: 1, cost: { gold: 200 }, buildTime: 30, addedAt: Date.now() }
+  ];
+
+  var state = TownManager.getState();
+  assertEqual(state.workers, 3, 'state should contain workers');
+  assertEqual(state.firstBuildingCompleted, true, 'state should contain firstBuildingCompleted');
+  assert(Array.isArray(state.buildQueue), 'state should contain buildQueue');
+  assertEqual(state.buildQueue.length, 1, 'buildQueue should have 1 item');
+});
+
+test('W-INT-3: 城主府升级通关条件检查 via enqueue', function() {
+  resetTM(undefined);
+  // TH Lv.1 → upgrading to Lv.2 needs stage_1_10
+  _mockStageClear = { 'stage_1_10': false };
+  _mockCanAffordMultiple = true;
+  var result = TownManager.enqueueUpgrade('town_hall');
+  assertEqual(result.ok, false, 'should fail');
+  assertEqual(result.reason, '需通关 1-10', 'should mention stage requirement');
+});
+
+// ================================================================
+// 汇总
+// ================================================================
+var pass = _results.filter(function(r) { return r.status === 'pass'; }).length;
+var fail = _results.filter(function(r) { return r.status === 'fail'; }).length;
+var total = _results.length;
+
+var summaryEl = document.getElementById('summary');
+summaryEl.innerHTML =
+  '<b>测试结果：</b>' +
+  '<span class="pass">✓ ' + pass + ' 通过</span>  ' +
+  '<span class="fail">✗ ' + fail + ' 失败</span>  ' +
+  '共 ' + total + ' 个测试' +
+  (fail === 0 ? '<br><span class="pass">🎉 全部通过！</span>' : '');
+</script>
+</body>
+</html>

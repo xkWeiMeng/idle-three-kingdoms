@@ -168,7 +168,7 @@ var MerchantManager = {
     };
     equip.stats[item.statType] = item.statValue;
 
-    EquipmentManager._inventory.push(equip);
+    EquipmentManager.addToInventory(equip);
     EventBus.emit('merchant:purchased', { item: equip, price: item.price });
     EventBus.emit('toast:show', { type: 'success', message: '购买了 ' + item.name + '！' });
     return true;
@@ -196,14 +196,15 @@ var MerchantManager = {
       return false;
     }
 
+    // Pre-check mythic template before spending
+    var template = getMythicTemplate(equipId);
+    if (!template) return false;
+
     ResourceManager.spend('gold', item.price);
     item.sold = true;
     this._state.permanentSold[equipId] = true;
 
     // Create mythic equipment instance
-    var template = getMythicTemplate(equipId);
-    if (!template) return false;
-
     var statValue = Utils.randInt(template.statRange[0], template.statRange[1]);
     var equip = {
       uid: Utils.uid(),
@@ -221,7 +222,7 @@ var MerchantManager = {
     };
     equip.stats[template.statType] = statValue;
 
-    EquipmentManager._inventory.push(equip);
+    EquipmentManager.addToInventory(equip);
     EventBus.emit('merchant:purchased', { item: equip, price: item.price });
     EventBus.emit('toast:show', { type: 'success', message: '🔴 获得神话装备：' + template.name + '！' });
     return true;

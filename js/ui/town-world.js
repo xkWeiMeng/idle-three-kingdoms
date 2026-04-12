@@ -979,7 +979,7 @@ var TownWorld = {
 
   _doUpgrade: function (buildingId) {
     if (typeof TownManager !== 'undefined') {
-      var result = TownManager.startUpgrade(buildingId);
+      var result = TownManager.enqueueUpgrade(buildingId);
       if (result.ok) {
         if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
         var def = BuildingData[buildingId];

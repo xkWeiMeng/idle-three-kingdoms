@@ -81,8 +81,11 @@ const HeroManager = {
 
   /** 移出队伍 */
   removeFromTeam(uid) {
-    this._team = this._team.filter(function (u) { return u !== uid; });
+    var idx = this._team.indexOf(uid);
+    if (idx === -1) return false;
+    this._team.splice(idx, 1);
     EventBus.emit('hero:team_changed', this.getTeam());
+    return true;
   },
 
   /** 是否上阵 */

@@ -6,7 +6,224 @@
 
 ## [Unreleased]
 
+- **Construction Worker System 建造工人系统 SDD 闭环** (`specs/product-specs/construction-worker-system.md`) — 2026-04-16
+  - **回溯背景**：commit `8fd4cae` 实现了外围组件但核心 TownManager 逻辑缺失，本次补全闭环
+  - **已有实现（8fd4cae）**：BuildQueueWidget UI (`js/ui/build-queue-widget.js`)、WORKER_CONFIG 常量 (`js/data/buildings.js`)、`ResourceManager.addMultiple()`、build-menu.js / town-panel.js 迁移到 `enqueueUpgrade()`
+  - **本次补全（TownManager 核心）**：
+    - 新增 `_state` 字段：`workers`、`firstBuildingCompleted`、`buildQueue`
+    - 新增 13 个方法：`getWorkerCount()`、`getBuildQueue()`、`_checkWorkerUnlock()`、`_canEnqueue()`、`enqueueUpgrade()`、`_processQueue()`、`_validateQueueItem()`、`cancelQueueItem()`、`cancelActiveBuilding()`、`reorderQueue()`、`_processOfflineBuilds()`
+    - 替换 `getMaxBuildSlots()` 返回 `_state.workers`（原为 town_hall >= 5 ? 2 : 1）
+    - `startUpgrade()` 新增队列冲突检查
+    - 存档迁移：旧存档自动推算工人数（基于城主府等级和建筑历史）
+    - 离线队列推进：init 时追溯完成过期施工 + 按序启动队列任务
+  - **Bug 修复**：`js/ui/town-world.js` 迁移 `startUpgrade()` → `enqueueUpgrade()`（原 commit 遗漏）
+  - 测试文件 (`tests/construction-worker.test.html`)：57 个测试覆盖 8 个能力（工人解锁、队列入队、自动派工、取消退费、队列排序、兼容替换、离线推进、startUpgrade 冲突），57/57 通过
+  - 规范状态：Active（产品规范，无需变更）
+
+- **Core Contracts 系统规范全量审查 → Active** (`specs/system/core-contracts.md`) — 2026-04-15
+  - 全量审查 15 个 Manager 服务规范与核心契约的一致性，修复 8 项缺陷
+  - **P0 修复 (4)**：① 服务表补充 ParkingManager（14→15 个服务完整注册）；② 事件表补充 5 个 parking:* 事件（slot_unlocked, vehicle_acquired, vehicle_parked, vehicle_removed, income_collected）；③ 存档格式补充 `parking: ParkingManager.getState()` 键；④ 写操作白名单补充 ParkingManager → ResourceManager（canAffordMultiple/spendMultiple/add）
+  - **P1 修复 (2)**：① 事件表补充 `equip:inventory_changed`（EquipmentManager 已在代码中 emit 2 处）；② 初始化顺序 #14 ParkingManager 依赖描述修正（EquipmentManager → TownManager）
+  - **P2 修复 (1)**：导航节补全 15 个服务链接（原仅 3 个）
+  - 存档格式键序与 main.js 对齐（merchant → forge → abyss → farm → parking → towerDefense）
+  - 验证初始化顺序（15 项）与 main.js 行 39-53 完全一致
+  - 验证 Tick 顺序（12 项）与 main.js 行 82-93 完全一致
+  - 规范状态：Draft → **Active**
+
+- **TownManager 服务规范 SDD 全流程** (`specs/services/town-manager.md`) — 2026-04-14
+  - 逆向工程从现有代码（777 行）创建服务规范，12 个能力、79 个 WHEN/THEN 场景、8 条不变量
+  - 能力覆盖：初始化与存档、建筑状态查询（7 个 API）、升级费用/时间查询、建筑升级（9 项前置检查）、施工加速、Tick 处理（施工完成 + 资源产出）、战斗加成查询（8 个 getter）、资源上限与产出率（6 个 API）、集市交易、建筑分类查询、道路网络 MST、碰撞网格代理
+  - 经 spec-reviewer 审查修复 7 项（1×P0 + 4×P1 + 2×P2）：检查项计数修正、`_getUnlockedBuildingCount` 精确语义、`getBuildingState` 引用语义标注、core-contracts 方法名修正 + 事件注册 + 服务表链接、预留接口标注。规范提升为 Active
+  - 执行计划 (`specs/exec-plans/town-manager.md`)：9 个任务 4 个阶段
+  - 代码审计：79/79 场景 PASS，零修复（逆向规范与代码完全对齐）
+  - 测试文件 (`tests/town-manager.test.html`)：87 个测试覆盖 12 个能力，87/87 通过
+  - 漂移检测：零行为级漂移，修复 2 处 core-contracts 交叉引用（RM 写操作接口 + 3 个消费方只读查询）
+
+- **AbyssManager 服务规范 SDD 全流程** (`specs/services/abyss-manager.md`) — 2026-04-14
+  - 逆向工程从现有代码创建服务规范，18 个能力、76 个 WHEN/THEN 场景
+  - 经 spec-reviewer 审查修复 5 P1 + 6 P2（死亡免疫范围、init/tick 顺序、core-contracts 前置声明、金币格式差异、并发战斗不变量、buff 永不过期、事件载荷语义等），规范提升为 Active
+  - 执行计划 (`specs/exec-plans/abyss-manager.md`)：5 阶段 7 个任务
+  - 代码审计 76/76 场景全 PASS
+  - 测试文件 (`tests/abyss-manager.test.html`)：87 个测试覆盖 18 个能力 + 2 组集成测试，100% 场景覆盖率
+  - Core Contracts 同步更新：服务注册、6 项只读查询授权、3 项写操作授权、4 个 abyss:* 事件、存档 key、初始化顺序 #13、Tick 顺序 #9
+  - 漂移检测：13/13 检查项全 PASS，零漂移
+
+### Fixed
+
+- **神话装备入库绕过 EquipmentManager 公共 API** (`js/modules/abyss-manager.js`) — 2026-04-14
+  - `EquipmentManager._inventory.push(mythicEquip)` → `EquipmentManager.addToInventory(mythicEquip)`
+  - 修复前：直接操作私有数组 `_inventory`，绕过背包溢出保护和容量检查
+  - 修复后：使用公共 API `addToInventory()`，与 BattleManager/TowerDefenseManager 保持一致
+
+- **MerchantManager 服务规范 SDD 全流程** (`specs/services/merchant-manager.md`) — 2026-04-14
+  - 逆向工程从现有代码创建服务规范，7 个能力、26 个 WHEN/THEN 场景
+  - 经 spec-reviewer 2 轮审查（修复 2 P0 + 5 P1 + 5 P2 = 12 个问题），规范已 Active
+  - 执行计划 (`specs/exec-plans/merchant-manager.md`)：5 个任务
+  - 测试文件 (`tests/merchant-manager.test.html`)：26 个测试覆盖 7 个能力的 26 个 WHEN/THEN 场景
+  - Core Contracts 同步更新：服务注册、事件契约、存档格式、初始化/Tick 顺序、跨模块写操作+只读查询授权
+  - 漂移检测：3 处低严重度漂移已修复（初始化/Tick 顺序与 main.js 对齐）
+
+### Fixed
+
+- **`buyNormal`/`buyPermanent` 绕过 EquipmentManager 公共 API** (`js/modules/merchant-manager.js`) — 2026-04-14
+  - `EquipmentManager._inventory.push(equip)` → `EquipmentManager.addToInventory(equip)`（2 处）
+  - 修复前：直接操作私有数组，绕过溢出栏保护机制
+  - 修复后：使用公共 API，正确处理背包溢出
+
+- **`buyPermanent` 金币泄漏 Bug** (`js/modules/merchant-manager.js`) — 2026-04-14
+  - `getMythicTemplate()` 检查移至 `ResourceManager.spend()` 之前
+  - 修复前：模板不存在时金币已扣除、商品标记为已售（不可逆状态泄漏）
+  - 修复后：模板不存在时直接返回 false，不扣金币、不改状态
+
+- **Core Contracts 初始化/Tick 顺序与 main.js 不一致** (`specs/system/core-contracts.md`) — 2026-04-14
+  - 全面对齐 Manager 初始化顺序（15 个条目）和 Tick 注册顺序（12 个条目）与 main.js 实际代码
+
+- **FarmManager 服务规范 SDD 全流程** (`specs/services/farm-manager.md`) — 2026-04-14
+  - 逆向工程从现有代码创建服务规范，14 个能力、62 个 WHEN/THEN 场景
+  - 经 spec-reviewer 审查（修复 4 个 P1 + 4 个 P2 问题），规范已 Active
+  - 执行计划 (`specs/exec-plans/farm-manager.md`)：5 个任务
+  - 测试文件 (`tests/farm-manager.test.html`)：64 个测试覆盖 14 个能力，100% 场景覆盖率
+  - 经 drift-detector 漂移检测：零运行时行为漂移，5 个文档级漂移已修复
+
+### Fixed
+
+- **`removeBug()` API 错误 (BUG-01/02)** (`js/modules/farm-manager.js`) — 2026-04-14
+  - BUG-01: `ResourceManager.has('gold', 50)` → `ResourceManager.canAfford('gold', 50)`（has 方法不存在，运行时 TypeError）
+  - BUG-02: `ResourceManager.add('gold', -50)` → `ResourceManager.spend('gold', 50, 'farming', 'bug_removal')`（add 的 amount<=0 守卫导致金币永远不被扣除）
+  - 修复前：除虫功能完全不可用（P0 级 Bug）
+
+- **`_tickReady` 和 `plant()` 未重置 `isReharvest` (BUG-03)** (`js/modules/farm-manager.js`) — 2026-04-14
+  - `_tickReady` 枯萎重置补充 `plot.isReharvest = false`
+  - `plant()` 播种初始化补充 `plot.isReharvest = false`
+  - 修复前：韭菜枯萎后同田地种植新作物会错误使用 reharvestTime 而非 growthTime
+
+- **`core-contracts` FarmManager 相关声明** (`specs/system/core-contracts.md`) — 2026-04-14
+  - 服务表新增 FarmManager 条目
+  - 跨模块写操作新增 FarmManager → ResourceManager 授权
+  - 跨模块只读查询新增 FarmManager → TownManager.getState()
+  - 事件契约表新增 15 个 farm:* 事件
+  - 存档格式新增 `"farm"` 字段
+  - 初始化顺序新增 #11 FarmManager
+  - Tick 顺序新增 #7 FarmManager.onTick(dt)
+
 ### Added
+
+- **FarmManager 服务规范** (`specs/services/farm-manager.md`) — 2026-04-14
+  - 14 个能力：初始化/播种/生长枯萎/收获/浇水/施肥/除虫/购买种子/合成/料理/自动收获/制作肥料/出售作物/查询API
+  - 62 个 WHEN/THEN 验收场景（含正常/边界/错误路径）
+  - 依赖声明、事件契约、状态结构、不变量、辅助方法全部文档化
+
+- **FarmManager 测试文件** (`tests/farm-manager.test.html`) — 2026-04-14
+  - 64 个测试覆盖全部 14 个能力 = 14 个测试组
+  - Mock 隔离策略：ResourceManager、TownManager、EconomyManager、EventBus.emit
+  - Math.random 控制用于虫害触发和双倍收获的确定性测试
+  - 100% 规范场景覆盖率
+
+- **FarmManager 执行计划** (`specs/exec-plans/farm-manager.md`) — 2026-04-14
+  - T1: 代码审计（62 场景逐一比对）
+  - T2: core-contracts 同步
+  - T3: 测试骨架生成
+  - T4: 漂移检测
+  - T5: 变更记录
+
+- **ForgeManager 服务规范 SDD 全流程** (`specs/services/forge-manager.md`) — 2026-04-14
+  - 逆向工程从现有代码创建服务规范，6 个能力、32 个 WHEN/THEN 场景
+  - 经 spec-reviewer 审查修复 5P0 + 7P1：已知 Bug 标注、core-contracts 同步、模板缺失场景、精度差异说明等
+  - 修复 6 处代码 Bug（见 Fixed 节）
+  - 同步更新 core-contracts：服务表、初始化顺序、Tick 顺序、事件表、写操作白名单、只读查询白名单、存档格式
+  - 执行计划 (`specs/exec-plans/forge-manager.md`)：5 个任务
+  - 测试文件 (`tests/forge-manager.test.html`)：32 个测试覆盖 6 个能力的 32 个场景，100% 覆盖率
+  - 漂移检测：0 功能性漂移，8 项文档漂移全部已修复
+
+### Fixed
+
+- **`getState()` 神话锻造信息不可见 (BUG-1+BUG-2)** (`js/modules/forge-manager.js`) — 2026-04-14
+  - 修复判断条件：`job.isMythic`（从未设置）→ `job.quality === 6`
+  - 修复字段映射：`job.blueprintId/progress/requiredTime`（不存在）→ `job.blueprintId/elapsedTime/totalTime`
+  - 修复前：UI 神话锻造面板永远显示空，进度不可见
+
+- **`_completeForge()` 违反模块边界 (BUG-3)** (`js/modules/forge-manager.js`) — 2026-04-14
+  - `EquipmentManager._inventory.push(equip)` → `EquipmentManager.addToInventory(equip)`
+  - 修复后锻造完成走标准背包流程（容量检查 → 溢出栏）
+
+- **`_completeForge()` 模板缺失时僵尸任务 (BUG-3+)** (`js/modules/forge-manager.js`) — 2026-04-14
+  - getMythicTemplate 返回 null 或无候选模板时，现在正确 splice 移除队列任务
+  - 修复前：job.completed=true 但不从 queue 移除，永久阻塞锻造队列
+
+- **forge-panel.js 事件名错误 (BUG-4)** (`js/ui/forge-panel.js`) — 2026-04-14
+  - `forge:mythic_completed` → `forge:completed`（去重后改为 `forge:paused`）
+  - `forge:mythic_paused` → `forge:progress`
+  - 移除残留 `item.isMythic` 死代码条件
+
+- **`startMythicForge()` 缺少 blueprintId 字段 (BUG-5)** (`js/modules/forge-manager.js`) — 2026-04-14
+  - job 对象新增 `blueprintId` 字段存储原始图纸 ID
+  - 使 `getState().mythicForge.blueprintId` 可用于 UI 的 `BlueprintData` 查找
+
+### Changed
+
+- **`specs/system/core-contracts.md` ForgeManager 全量注册** — 2026-04-14
+  - 服务表新增 ForgeManager
+  - 初始化顺序新增 #13 ForgeManager
+  - Tick 注册顺序新增 #9 ForgeManager.onTick(dt)
+  - 事件表新增 forge:started/completed/paused/progress
+  - 跨模块写操作白名单新增 ForgeManager → ResourceManager/EquipmentManager
+  - 只读查询白名单新增 ForgeManager → TownManager.getState()
+  - 存档格式新增 "forge" key
+
+- **HeroManager 服务规范 SDD 全流程** (`specs/services/hero-manager.md`) — 2026-04-13
+  - 服务规范从 Draft 提升为 Active，经 REVIEW 修复 8 项问题：
+    - `getAllHeroes()` → `getAll()`（匹配代码 12+ 处调用）
+    - 返回值从「深拷贝」修正为「内部引用」（匹配实际行为）
+    - `init(saved)` 参数描述修正为完整存档对象
+    - `_state.heroes`/`_state.team` → `_heroes`/`_team`
+    - 补充 `addToTeam` 无效 uid 守卫场景
+    - 装备加成公式补充 `EquipTypeToStat` 映射和等级缩放
+    - `getBattlePower` 补充 `Math.floor()`
+    - 修正 C5-S2 赵云 baseAtk 数值（38→50）
+  - 补充边界场景：`getHeroStats(无效uid)→null`、`getBattlePower(无效uid)→0`
+  - 执行计划 (`specs/exec-plans/hero-manager.md`)：4 个任务
+  - 测试文件 (`tests/hero-manager.test.html`)：25 个测试覆盖 6 个能力的 25 个 WHEN/THEN 场景
+
+### Fixed
+
+- **`removeFromTeam` 返回值与事件守卫** (`js/modules/hero-manager.js`) — 2026-04-13
+  - 添加 `indexOf` 守卫：uid 不在队伍中时返回 `false` 且不触发 `hero:team_changed` 事件
+  - uid 在队伍中时改用 `splice` 移除并返回 `true`
+  - 修复前：无返回值（undefined），且始终触发事件
+
+- **`core-contracts` HeroManager 写操作授权** (`specs/system/core-contracts.md`) — 2026-04-13
+  - 允许的跨模块写操作列表新增 `HeroManager → ResourceManager.canAfford() / ResourceManager.spend() / ResourceManager.add()`
+  - 覆盖升级消耗 EXP 和重复武将转换 EXP 两个场景
+
+
+### Added
+
+- **ResourceManager 服务规范** (`specs/services/resource-manager.md`) — 2026-04-10
+  - 6 个能力：查询资源、增加资源、消耗资源、食物定时回复、每日登录奖励、统计追踪
+  - 38 个 WHEN/THEN 验收场景（含正常/边界/错误路径）
+  - 完整的存档兼容迁移规则（4 种存档格式兼容）
+  - 经 spec-reviewer 审查（修复 9 处问题：资源上限数值、默认值、参数格式、缺失 API 等），规范已 Active
+  - 经 drift-detector 漂移检测：零行为级漂移，38/38 场景与代码对齐
+
+- **ResourceManager 测试文件** (`tests/resource-manager.test.html`) — 2026-04-10
+  - 50 个测试覆盖全部 6 个能力 + 存档兼容 = 7 个测试组
+  - Mock 隔离策略：CONSTANTS、TownManager、EconomyManager、EventBus
+  - 100% 规范场景覆盖率
+
+- **ResourceManager 执行计划** (`specs/exec-plans/resource-manager.md`) — 2026-04-10
+
+### Fixed
+
+- **`ResourceManager.setHighestStage` 回退守卫缺失** (`js/modules/resource-manager.js`) — 2026-04-10
+  - 原代码无条件赋值 `this._stats.highestStage = stageId`，导致较低关卡 ID 覆盖较高值
+  - 新增 `if (!current || stageId > current)` 守卫，仅在新 stageId 字典序更大时才更新
+
+### Changed
+
+- **`specs/system/core-contracts.md` 资源基础上限表同步** — 2026-04-10
+  - gold: 10000 → 50000、wood: 500 → 2000、stone: 500 → 2000、iron: 300 → 1000
+  - 与 `CONSTANTS.RESOURCE_BASE_CAP` 实际值对齐
+
 
 - **深渊战利品爆落与连续刷本 (Abyss Loot Explosion)** — 2026-04-06
   - 产品规范 (`specs/product-specs/abyss-loot-explosion.md`)：4 个能力 (CAP-LOOT-01~04)

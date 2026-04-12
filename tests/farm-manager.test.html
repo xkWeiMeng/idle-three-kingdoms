@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>FarmManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>FarmManager 规范测试</h1>
+<pre>规范引用：specs/services/farm-manager.md (Active)
+执行计划：specs/exec-plans/farm-manager.md (T3)
+覆盖：全部 14 个能力的 62 个 WHEN/THEN 场景</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+<!-- 加载数据 -->
+<script src="../js/data/crops.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/farm-manager.md (Active)
+ * 执行计划：specs/exec-plans/farm-manager.md (T3)
+ *
+ * 测试策略：mock ResourceManager + TownManager + EconomyManager + EventBus.emit
+ * 覆盖：全部 14 个能力的 62 个 WHEN/THEN 场景
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== Mock EventBus — 拦截 emit，记录调用 =====
+var _emitted = [];
+var _origEmit = EventBus.emit.bind(EventBus);
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, data: args[0] });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+// ===== Mock ResourceManager =====
+var ResourceManager = {
+  _resources: { gold: 10000, food: 100, jade: 50 },
+  _spendLog: [],
+  _addLog: [],
+  get: function(type) { return this._resources[type] || 0; },
+  add: function(type, amount) {
+    if (amount <= 0) return; // real behavior: ignore non-positive
+    this._resources[type] = (this._resources[type] || 0) + amount;
+    this._addLog.push({ type: type, amount: amount });
+  },
+  spend: function(type, amount, cat, src, detail) {
+    if (!this.canAfford(type, amount)) return false;
+    this._resources[type] -= amount;
+    this._spendLog.push({ type: type, amount: amount, category: cat, source: src });
+    return true;
+  },
+  canAfford: function(type, amount) { return (this._resources[type] || 0) >= amount; },
+  canAffordMultiple: function(costs) {
+    for (var t in costs) {
+      if (costs.hasOwnProperty(t)) {
+        if (!this.canAfford(t, costs[t])) return false;
+      }
+    }
+    return true;
+  },
+  spendMultiple: function(costs, cat, src, detail) {
+    if (!this.canAffordMultiple(costs)) return false;
+    for (var t in costs) {
+      if (costs.hasOwnProperty(t)) {
+        this.spend(t, costs[t], cat, src, detail);
+      }
+    }
+    return true;
+  },
+  reset: function() {
+    this._resources = { gold: 10000, food: 100, jade: 50 };
+    this._spendLog = [];
+    this._addLog = [];
+  }
+};
+
+// ===== Mock TownManager =====
+var TownManager = {
+  _buildings: {
+    vegetable_garden: { level: 3 },
+    compost_pit: { level: 2 },
+    seed_shop: { level: 3 }
+  },
+  getState: function() {
+    return { buildings: Utils.deepClone(this._buildings) };
+  },
+  setLevel: function(id, level) {
+    if (!this._buildings[id]) this._buildings[id] = {};
+    this._buildings[id].level = level;
+  },
+  reset: function() {
+    this._buildings = {
+      vegetable_garden: { level: 3 },
+      compost_pit: { level: 2 },
+      seed_shop: { level: 3 }
+    };
+  }
+};
+
+// ===== Mock EconomyManager (optional dependency) =====
+var EconomyManager = {
+  _log: [],
+  logEvent: function(entry) { this._log.push(entry); },
+  reset: function() { this._log = []; }
+};
+
+// ===== Reset all mocks + FarmManager state =====
+function resetAll() {
+  ResourceManager.reset();
+  TownManager.reset();
+  EconomyManager.reset();
+  _emitted = [];
+  FarmManager._state = {
+    plots: [],
+    inventory: {},
+    seeds: {},
+    fertilizer: 0,
+    farmExp: 0,
+    autoHarvest: false,
+    activeBuff: null
+  };
+  FarmManager.init({});
+}
+
+// ===== 加载被测模块 =====
+</script>
+<script src="../js/modules/farm-manager.js"></script>
+<script>
+
+// ===== 辅助函数 =====
+
+/** 在指定田地上设置 growing 状态的作物 */
+function plantOnPlot(plotIndex, cropId) {
+  var crop = CropData[cropId];
+  var plot = FarmManager._state.plots[plotIndex];
+  plot.cropId = cropId;
+  plot.state = 'growing';
+  plot.plantedAt = Date.now();
+  plot.watered = false;
+  plot.fertilized = false;
+  plot.hasBug = false;
+  plot.bugTriggered = false;
+  plot.remainHarvests = crop.reharvestCount || 0;
+  plot.isReharvest = false;
+}
+
+/** 在指定田地上设置 ready 状态的作物 */
+function setPlotReady(plotIndex, cropId) {
+  var plot = FarmManager._state.plots[plotIndex];
+  plot.cropId = cropId;
+  plot.state = 'ready';
+  plot.plantedAt = Date.now() - 999999;
+  plot.readyAt = Date.now();
+  plot.watered = false;
+  plot.fertilized = false;
+  plot.hasBug = false;
+  plot.bugTriggered = true;
+  plot.remainHarvests = 0;
+  plot.isReharvest = false;
+}
+
+// ===== Math.random 备份 =====
+var _origRandom = Math.random;
+
+// =====================================================================
+// Section 1: 初始化与持久化 (C1, 3 tests)
+// =====================================================================
+section('能力 1：初始化与持久化 (C1)');
+
+test('C1-S1: init 首次游戏 — 菜园 level=0 时 plots 为空', function() {
+  ResourceManager.reset();
+  TownManager.reset();
+  EconomyManager.reset();
+  _emitted = [];
+  TownManager.setLevel('vegetable_garden', 0);
+  FarmManager._state = {
+    plots: [], inventory: {}, seeds: {},
+    fertilizer: 0, farmExp: 0, autoHarvest: false, activeBuff: null
+  };
+  FarmManager.init({});
+
+  var state = FarmManager.getState();
+  assertEqual(state.plots.length, 0, 'plots 应为空数组');
+  assertDeepEqual(state.inventory, {}, 'inventory 为空');
+  assertDeepEqual(state.seeds, {}, 'seeds 为空');
+  assertEqual(state.fertilizer, 0, 'fertilizer=0');
+  assertEqual(state.farmExp, 0, 'farmExp=0');
+});
+
+test('C1-S2: init 恢复存档+补田 — 2个存档plot + garden=3(4田) → 4 plots', function() {
+  ResourceManager.reset();
+  TownManager.reset();
+  EconomyManager.reset();
+  _emitted = [];
+  TownManager.setLevel('vegetable_garden', 3); // GardenLevelData[3].plots = 4
+  FarmManager._state = {
+    plots: [], inventory: {}, seeds: {},
+    fertilizer: 0, farmExp: 0, autoHarvest: false, activeBuff: null
+  };
+
+  var savedPlots = [
+    { cropId: 'cabbage', state: 'growing', plantedAt: Date.now() - 1000,
+      readyAt: null, watered: false, fertilized: false,
+      hasBug: false, bugTriggered: false, remainHarvests: 0, isReharvest: false },
+    { cropId: null, state: 'idle', plantedAt: null,
+      readyAt: null, watered: false, fertilized: false,
+      hasBug: false, bugTriggered: false, remainHarvests: 0, isReharvest: false }
+  ];
+  FarmManager.init({ farm: { plots: savedPlots, farmExp: 500 } });
+
+  var state = FarmManager.getState();
+  assertEqual(state.plots.length, 4, '应补充到 4 块田');
+  assertEqual(state.plots[0].cropId, 'cabbage', '保留存档 plot[0]');
+  assertEqual(state.plots[1].state, 'idle', '保留存档 plot[1]');
+  assertEqual(state.plots[2].state, 'idle', '补充的 plot[2]');
+  assertEqual(state.plots[3].state, 'idle', '补充的 plot[3]');
+  assertEqual(state.farmExp, 500, 'farmExp 恢复为 500');
+});
+
+test('C1-S3: getState 深拷贝 — 修改返回值不影响内部状态', function() {
+  resetAll();
+  var state1 = FarmManager.getState();
+  state1.farmExp = 99999;
+  state1.inventory['hacked'] = 100;
+  if (state1.plots.length > 0) state1.plots[0].state = 'hacked';
+
+  var state2 = FarmManager.getState();
+  assertEqual(state2.farmExp, 0, '内部 farmExp 不受影响');
+  assertEqual(state2.inventory['hacked'], undefined, '内部 inventory 不受影响');
+  if (state2.plots.length > 0) {
+    assertEqual(state2.plots[0].state, 'idle', '内部 plots 不受影响');
+  }
+});
+
+// =====================================================================
+// Section 2: 播种 (C2, 6 tests)
+// =====================================================================
+section('能力 2：播种 (C2)');
+
+test('C2-S1: plant 成功 — 消耗种子、设置 growing、emit farm:planted', function() {
+  resetAll();
+  FarmManager._state.seeds['cabbage'] = 3;
+  _emitted = [];
+
+  var result = FarmManager.plant(0, 'cabbage');
+
+  assertEqual(result.ok, true, '返回 ok:true');
+  assertEqual(FarmManager._state.seeds['cabbage'], 2, 'seeds.cabbage -= 1');
+  var plot = FarmManager._state.plots[0];
+  assertEqual(plot.cropId, 'cabbage', 'cropId=cabbage');
+  assertEqual(plot.state, 'growing', 'state=growing');
+  assert(typeof plot.plantedAt === 'number' && plot.plantedAt > 0, 'plantedAt 已设');
+  assertEqual(plot.watered, false, 'watered=false');
+  assertEqual(plot.fertilized, false, 'fertilized=false');
+  assertEqual(plot.hasBug, false, 'hasBug=false');
+  assertEqual(plot.bugTriggered, false, 'bugTriggered=false');
+  assertEqual(plot.remainHarvests, 0, 'cabbage reharvestCount=0');
+  assertEqual(plot.isReharvest, false, 'isReharvest=false');
+
+  var events = getEmitted('farm:planted');
+  assertEqual(events.length, 1, '应 emit 1 次 farm:planted');
+  assertEqual(events[0].data.plotIndex, 0, '载荷 plotIndex=0');
+  assertEqual(events[0].data.cropId, 'cabbage', '载荷 cropId=cabbage');
+});
+
+test('C2-S2: plant 种子不足 — 返回 {ok:false}', function() {
+  resetAll();
+  // 不设置种子
+
+  var result = FarmManager.plant(0, 'cabbage');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('种子不足') >= 0, 'reason 包含种子不足');
+});
+
+test('C2-S3: plant 田地已占用 — growing 状态拒绝', function() {
+  resetAll();
+  plantOnPlot(0, 'cabbage');
+  FarmManager._state.seeds['cabbage'] = 5;
+  _emitted = [];
+
+  var result = FarmManager.plant(0, 'cabbage');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('田地已占用') >= 0, 'reason 包含田地已占用');
+});
+
+test('C2-S4: plant 无效田地 — plotIndex=99 不存在', function() {
+  resetAll();
+  FarmManager._state.seeds['cabbage'] = 5;
+
+  var result = FarmManager.plant(99, 'cabbage');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('无效田地') >= 0, 'reason 包含无效田地');
+});
+
+test('C2-S5: plant 品级不足 — snow_lotus quality=4 > qualityUnlock=2', function() {
+  resetAll();
+  // garden level=3, qualityUnlock=2; snow_lotus quality=4
+  FarmManager._state.seeds['snow_lotus'] = 5;
+
+  var result = FarmManager.plant(0, 'snow_lotus');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('菜园等级不足') >= 0, 'reason 包含菜园等级不足');
+});
+
+test('C2-S6: plant 未知作物 — cropId 不在 CropData 中', function() {
+  resetAll();
+  FarmManager._state.seeds['nonexistent'] = 5;
+
+  var result = FarmManager.plant(0, 'nonexistent');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('未知作物') >= 0, 'reason 包含未知作物');
+});
+
+// =====================================================================
+// Section 3: 生长与枯萎 (C3, 4 tests)
+// =====================================================================
+section('能力 3：生长与枯萎 (C3)');
+
+test('C3-S1: 生长完成→ready — elapsed >= actualGrowthTime 后转为 ready', function() {
+  resetAll();
+  Math.random = function() { return 0.99; }; // avoid bug trigger
+  var crop = CropData['cabbage']; // growthTime=180
+  plantOnPlot(0, 'cabbage');
+  // Set plantedAt far in past (well past growth time)
+  var gardenLevel = 3; // speedBonus=0.10
+  var actualTime = crop.growthTime / (1 + 0.10); // ~163.6s
+  FarmManager._state.plots[0].plantedAt = Date.now() - (actualTime * 1000 + 2000);
+  _emitted = [];
+
+  FarmManager.onTick(1);
+  Math.random = _origRandom;
+
+  var plot = FarmManager._state.plots[0];
+  assertEqual(plot.state, 'ready', 'state 应为 ready');
+  assert(typeof plot.readyAt === 'number' && plot.readyAt > 0, 'readyAt 已设置');
+
+  var events = getEmitted('farm:crop_ready');
+  assertEqual(events.length, 1, '应 emit farm:crop_ready');
+  assertEqual(events[0].data.plotIndex, 0, '载荷 plotIndex=0');
+  assertEqual(events[0].data.cropId, 'cabbage', '载荷 cropId=cabbage');
+});
+
+test('C3-S2: 枯萎 48h — ready 超过 48 小时后重置为 idle', function() {
+  resetAll();
+  setPlotReady(0, 'cabbage');
+  // Set readyAt to 49 hours ago (> 48h threshold)
+  FarmManager._state.plots[0].readyAt = Date.now() - (49 * 3600 * 1000);
+  _emitted = [];
+
+  FarmManager.onTick(1);
+
+  var plot = FarmManager._state.plots[0];
+  assertEqual(plot.state, 'idle', 'state 重置为 idle');
+  assertEqual(plot.cropId, null, 'cropId=null');
+  assertEqual(plot.plantedAt, null, 'plantedAt=null');
+  assertEqual(plot.readyAt, null, 'readyAt=null');
+  assertEqual(plot.watered, false, 'watered=false');
+  assertEqual(plot.fertilized, false, 'fertilized=false');
+  assertEqual(plot.hasBug, false, 'hasBug=false');
+  assertEqual(plot.bugTriggered, false, 'bugTriggered=false');
+  assertEqual(plot.remainHarvests, 0, 'remainHarvests=0');
+  assertEqual(plot.isReharvest, false, 'isReharvest=false (BUG-03 修复)');
+
+  var events = getEmitted('farm:withered');
+  assertEqual(events.length, 1, '应 emit farm:withered');
+  assertEqual(events[0].data.plotIndex, 0, '载荷 plotIndex=0');
+});
+
+test('C3-S3: 离线补算 — 离线 2 小时后上线首次 tick 即检测到成熟', function() {
+  resetAll();
+  Math.random = function() { return 0.99; }; // avoid bug trigger
+  var crop = CropData['cabbage']; // growthTime=180s
+  plantOnPlot(0, 'cabbage');
+  // 离线 2 小时 = 7200s >> 180s
+  FarmManager._state.plots[0].plantedAt = Date.now() - (2 * 3600 * 1000);
+  _emitted = [];
+
+  FarmManager.onTick(1);
+  Math.random = _origRandom;
+
+  var plot = FarmManager._state.plots[0];
+  assertEqual(plot.state, 'ready', '离线后首次 tick 立即 ready');
+});
+
+test('C3-S4: 菜园未建造 — gardenLevel=0 时 onTick 不处理', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 0);
+  // Manually add a plot for testing (shouldn't be processed)
+  FarmManager._state.plots = [{
+    cropId: 'cabbage', state: 'growing',
+    plantedAt: Date.now() - 999999, readyAt: null,
+    watered: false, fertilized: false,
+    hasBug: false, bugTriggered: false,
+    remainHarvests: 0, isReharvest: false
+  }];
+  _emitted = [];
+
+  FarmManager.onTick(1);
+
+  // onTick should return early, not transition any plots
+  assertEqual(FarmManager._state.plots[0].state, 'growing', 'state 未变化');
+  assertEqual(getEmitted('farm:crop_ready').length, 0, '无事件');
+});
+
+// =====================================================================
+// Section 4: 收获 (C4, 7 tests)
+// =====================================================================
+section('能力 4：收获 (C4)');
+
+test('C4-S1: harvest 正常 — 发放资源 + inventory += 1 + farmExp', function() {
+  resetAll();
+  // Use doubleChance=0 garden level to avoid double
+  // garden level=3, doubleChance=0
+  Math.random = function() { return 0.99; }; // safety
+  setPlotReady(0, 'cabbage'); // yields={food:5}, farmExp=5
+  ResourceManager.reset();
+  _emitted = [];
+
+  var result = FarmManager.harvest(0);
+  Math.random = _origRandom;
+
+  assertEqual(result.ok, true, 'ok=true');
+  // yieldMultiplier=1 (no bug, no auto, no fertilizer, mastery level 0 bonus=0, doubleChance=0)
+  // food = floor(5 * 1) = 5
+  assertEqual(result.yields.food, 5, 'yields.food=5');
+  assertEqual(result.isDouble, false, 'isDouble=false');
+
+  // ResourceManager.add was called
+  var foodAdds = ResourceManager._addLog.filter(function(e) { return e.type === 'food'; });
+  assert(foodAdds.length >= 1, 'add food 被调用');
+  assertEqual(foodAdds[0].amount, 5, 'add food amount=5');
+
+  // inventory
+  assertEqual(FarmManager._state.inventory['cabbage'], 1, 'inventory.cabbage=1');
+
+  // farmExp
+  assertEqual(FarmManager._state.farmExp, 5, 'farmExp += 5');
+
+  // plot reset to idle
+  assertEqual(FarmManager._state.plots[0].state, 'idle', 'plot 重置为 idle');
+
+  // event
+  var events = getEmitted('farm:harvested');
+  assertEqual(events.length, 1, '应 emit farm:harvested');
+  assertEqual(events[0].data.cropId, 'cabbage', '载荷 cropId');
+});
+
+test('C4-S2: harvest 虫害减产 — hasBug=true 时 yields×0.7', function() {
+  resetAll();
+  Math.random = function() { return 0.99; }; // no double
+  setPlotReady(0, 'radish'); // yields={food:8, gold:20}, farmExp=8
+  FarmManager._state.plots[0].hasBug = true;
+  ResourceManager.reset();
+  _emitted = [];
+
+  var result = FarmManager.harvest(0);
+  Math.random = _origRandom;
+
+  assertEqual(result.ok, true, 'ok=true');
+  // yieldMultiplier = 1 * 0.7 = 0.7
+  // food = floor(8 * 0.7) = floor(5.6) = 5
+  // gold = floor(20 * 0.7) = floor(14) = 14
+  assertEqual(result.yields.food, 5, 'food = floor(8*0.7) = 5');
+  assertEqual(result.yields.gold, 14, 'gold = floor(20*0.7) = 14');
+});
+
+test('C4-S3: harvest 自动收获 — isAuto=true 时 yields×0.8', function() {
+  resetAll();
+  Math.random = function() { return 0.99; }; // no double
+  setPlotReady(0, 'radish'); // yields={food:8, gold:20}
+  ResourceManager.reset();
+  _emitted = [];
+
+  var result = FarmManager.harvest(0, true);
+  Math.random = _origRandom;
+
+  assertEqual(result.ok, true, 'ok=true');
+  // yieldMultiplier = 1 * 0.8 = 0.8
+  // food = floor(8 * 0.8) = floor(6.4) = 6
+  // gold = floor(20 * 0.8) = floor(16) = 16
+  assertEqual(result.yields.food, 6, 'food = floor(8*0.8) = 6');
+  assertEqual(result.yields.gold, 16, 'gold = floor(20*0.8) = 16');
+});
+
+test('C4-S4: harvest 施肥增产 — fertilized=true, compost_pit=3 → ×1.15', function() {
+  resetAll();
+  TownManager.setLevel('compost_pit', 3);
+  Math.random = function() { return 0.99; }; // no double
+  setPlotReady(0, 'cabbage'); // yields={food:5}
+  FarmManager._state.plots[0].fertilized = true;
+  ResourceManager.reset();
+  _emitted = [];
+
+  var result = FarmManager.harvest(0);
+  Math.random = _origRandom;
+
+  assertEqual(result.ok, true, 'ok=true');
+  // yieldMultiplier = 1 * (1 + 3*0.05) = 1.15
+  // food = floor(5 * 1.15) = floor(5.75) = 5
+  assertEqual(result.yields.food, 5, 'food = floor(5*1.15) = 5');
+});
+
+test('C4-S5: harvest 双倍 — Math.random < doubleChance → yields×2 + toast', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 4); // doubleChance=0.05
+  // Re-init to get 5 plots
+  FarmManager.init({});
+  Math.random = function() { return 0; }; // always hit double
+  setPlotReady(0, 'cabbage'); // yields={food:5}
+  ResourceManager.reset();
+  _emitted = [];
+
+  var result = FarmManager.harvest(0);
+  Math.random = _origRandom;
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(result.isDouble, true, 'isDouble=true');
+  // yieldMultiplier includes ×2 (and mastery bonus 0 at farmExp=0)
+  // food = floor(5 * 1 * 2) = 10
+  assertEqual(result.yields.food, 10, 'food = floor(5*2) = 10');
+
+  // toast event
+  var toasts = getEmitted('toast:show');
+  assert(toasts.length >= 1, '应 emit toast:show');
+  assertEqual(toasts[0].data.type, 'success', 'toast type=success');
+  assert(toasts[0].data.message.indexOf('大丰收') >= 0, 'message 包含大丰收');
+});
+
+test('C4-S6: harvest 连续收割 — chives remainHarvests=1 收获后回到 growing', function() {
+  resetAll();
+  Math.random = function() { return 0.99; }; // no double
+  // chives: reharvestCount=1, reharvestTime=120
+  setPlotReady(0, 'chives');
+  FarmManager._state.plots[0].remainHarvests = 1; // first harvest
+  ResourceManager.reset();
+  _emitted = [];
+
+  var result = FarmManager.harvest(0);
+  Math.random = _origRandom;
+
+  assertEqual(result.ok, true, 'ok=true');
+
+  var plot = FarmManager._state.plots[0];
+  assertEqual(plot.state, 'growing', '收获后回到 growing');
+  assertEqual(plot.remainHarvests, 0, 'remainHarvests -= 1 → 0');
+  assertEqual(plot.cropId, 'chives', 'cropId 保留');
+  assertEqual(plot.isReharvest, true, 'isReharvest=true (reharvestTime 存在)');
+  assertEqual(plot.watered, false, '重置 watered');
+  assertEqual(plot.fertilized, false, '重置 fertilized');
+  assertEqual(plot.hasBug, false, '重置 hasBug');
+  assertEqual(plot.bugTriggered, false, '重置 bugTriggered');
+  assert(typeof plot.plantedAt === 'number' && plot.plantedAt > 0, 'plantedAt 重设');
+});
+
+test('C4-S7: harvest 未成熟 — state≠ready 返回 {ok:false}', function() {
+  resetAll();
+  plantOnPlot(0, 'cabbage'); // state='growing'
+
+  var result = FarmManager.harvest(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('未成熟') >= 0, 'reason 包含未成熟');
+});
+
+// =====================================================================
+// Section 5: 浇水 (C5, 4 tests)
+// =====================================================================
+section('能力 5：浇水 (C5)');
+
+test('C5-S1: water 成功 — growing 田地浇水后 watered=true + emit', function() {
+  resetAll();
+  plantOnPlot(0, 'cabbage');
+  _emitted = [];
+
+  var result = FarmManager.water(0);
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(FarmManager._state.plots[0].watered, true, 'watered=true');
+
+  var events = getEmitted('farm:watered');
+  assertEqual(events.length, 1, '应 emit farm:watered');
+  assertEqual(events[0].data.plotIndex, 0, '载荷 plotIndex=0');
+});
+
+test('C5-S2: water 已浇过 — watered=true 时拒绝', function() {
+  resetAll();
+  plantOnPlot(0, 'cabbage');
+  FarmManager._state.plots[0].watered = true;
+
+  var result = FarmManager.water(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('已浇过') >= 0, 'reason 包含已浇过');
+});
+
+test('C5-S3: water 非生长中 — state=idle 时拒绝', function() {
+  resetAll();
+  // plot[0] is idle by default
+
+  var result = FarmManager.water(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('未在生长中') >= 0, 'reason 包含未在生长中');
+});
+
+test('C5-S4: water 无效田地 — plotIndex=99', function() {
+  resetAll();
+
+  var result = FarmManager.water(99);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('无效田地') >= 0, 'reason 包含无效田地');
+});
+
+// =====================================================================
+// Section 6: 施肥 (C6, 5 tests)
+// =====================================================================
+section('能力 6：施肥 (C6)');
+
+test('C6-S1: fertilize 成功 — growing 田地、有肥料 → fertilized=true + fertilizer-=1 + emit', function() {
+  resetAll();
+  FarmManager._state.fertilizer = 5;
+  plantOnPlot(0, 'cabbage');
+  _emitted = [];
+
+  var result = FarmManager.fertilize(0);
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(FarmManager._state.plots[0].fertilized, true, 'fertilized=true');
+  assertEqual(FarmManager._state.fertilizer, 4, 'fertilizer -= 1 → 4');
+
+  var events = getEmitted('farm:fertilized');
+  assertEqual(events.length, 1, '应 emit farm:fertilized');
+  assertEqual(events[0].data.plotIndex, 0, '载荷 plotIndex=0');
+});
+
+test('C6-S2: fertilize 已施过 — fertilized=true 时拒绝', function() {
+  resetAll();
+  FarmManager._state.fertilizer = 5;
+  plantOnPlot(0, 'cabbage');
+  FarmManager._state.plots[0].fertilized = true;
+
+  var result = FarmManager.fertilize(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('已施过肥') >= 0, 'reason 包含已施过肥');
+});
+
+test('C6-S3: fertilize 肥料不足 — fertilizer=0', function() {
+  resetAll();
+  FarmManager._state.fertilizer = 0;
+  plantOnPlot(0, 'cabbage');
+
+  var result = FarmManager.fertilize(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('肥料不足') >= 0, 'reason 包含肥料不足');
+});
+
+test('C6-S4: fertilize 非生长中 — state=idle 时拒绝', function() {
+  resetAll();
+  FarmManager._state.fertilizer = 5;
+  // plot[0] is idle by default
+
+  var result = FarmManager.fertilize(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('未在生长中') >= 0, 'reason 包含未在生长中');
+});
+
+test('C6-S5: fertilize 无效田地 — plotIndex=99', function() {
+  resetAll();
+  FarmManager._state.fertilizer = 5;
+
+  var result = FarmManager.fertilize(99);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('无效田地') >= 0, 'reason 包含无效田地');
+});
+
+// =====================================================================
+// Section 7: 虫害与除虫 (C7, 5 tests)
+// =====================================================================
+section('能力 7：虫害与除虫 (C7)');
+
+test('C7-S1: 虫害触发 — progress≥50% + random < 0.15 → hasBug=true + emit', function() {
+  resetAll();
+  var crop = CropData['cabbage']; // growthTime=180s
+  plantOnPlot(0, 'cabbage');
+  // Set plantedAt so progress >= 50% but < 100%
+  var gardenLevel = 3; // speedBonus=0.10
+  var actualTime = crop.growthTime / (1 + 0.10); // ~163.6s
+  FarmManager._state.plots[0].plantedAt = Date.now() - (actualTime * 500 + 1000); // ~50%+ progress
+  FarmManager._state.plots[0].bugTriggered = false;
+  _emitted = [];
+
+  Math.random = function() { return 0.05; }; // < 0.15 → trigger bug
+  FarmManager.onTick(1);
+  Math.random = _origRandom;
+
+  var plot = FarmManager._state.plots[0];
+  assertEqual(plot.bugTriggered, true, 'bugTriggered=true');
+  assertEqual(plot.hasBug, true, 'hasBug=true');
+
+  var events = getEmitted('farm:bug_alert');
+  assert(events.length >= 1, '应 emit farm:bug_alert');
+  assertEqual(events[0].data.plotIndex, 0, '载荷 plotIndex=0');
+  assertEqual(events[0].data.cropId, 'cabbage', '载荷 cropId=cabbage');
+});
+
+test('C7-S2: 虫害不重复 — bugTriggered=true 后不再触发', function() {
+  resetAll();
+  var crop = CropData['cabbage'];
+  plantOnPlot(0, 'cabbage');
+  var gardenLevel = 3;
+  var actualTime = crop.growthTime / (1 + 0.10);
+  // Set progress > 50%
+  FarmManager._state.plots[0].plantedAt = Date.now() - (actualTime * 700);
+  FarmManager._state.plots[0].bugTriggered = true; // already triggered
+  FarmManager._state.plots[0].hasBug = false; // bug didn't stick last time
+  _emitted = [];
+
+  Math.random = function() { return 0.01; }; // would trigger if checked
+  FarmManager.onTick(1);
+  Math.random = _origRandom;
+
+  assertEqual(FarmManager._state.plots[0].hasBug, false, 'hasBug 仍为 false');
+  assertEqual(getEmitted('farm:bug_alert').length, 0, '不应 emit bug_alert');
+});
+
+test('C7-S3: removeBug 成功 — hasBug=true, gold≥50 → 扣费 + hasBug=false + emit', function() {
+  resetAll();
+  plantOnPlot(0, 'cabbage');
+  FarmManager._state.plots[0].hasBug = true;
+  ResourceManager._resources.gold = 10000;
+  ResourceManager._spendLog = [];
+  _emitted = [];
+
+  var result = FarmManager.removeBug(0);
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(FarmManager._state.plots[0].hasBug, false, 'hasBug=false');
+
+  // Check ResourceManager.spend was called (BUG-01/02 修复后)
+  var goldSpends = ResourceManager._spendLog.filter(function(e) { return e.type === 'gold'; });
+  assert(goldSpends.length >= 1, 'spend gold 被调用');
+  assertEqual(goldSpends[0].amount, 50, 'spend 50 gold');
+
+  var events = getEmitted('farm:bug_removed');
+  assertEqual(events.length, 1, '应 emit farm:bug_removed');
+  assertEqual(events[0].data.plotIndex, 0, '载荷 plotIndex=0');
+});
+
+test('C7-S4: removeBug 无虫害 — hasBug=false → {ok:false}', function() {
+  resetAll();
+  plantOnPlot(0, 'cabbage');
+  FarmManager._state.plots[0].hasBug = false;
+
+  var result = FarmManager.removeBug(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('没有虫害') >= 0, 'reason 包含没有虫害');
+});
+
+test('C7-S5: removeBug 金币不足 — gold < 50 → {ok:false}', function() {
+  resetAll();
+  plantOnPlot(0, 'cabbage');
+  FarmManager._state.plots[0].hasBug = true;
+  ResourceManager._resources.gold = 10; // < 50
+
+  var result = FarmManager.removeBug(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('金币不足') >= 0, 'reason 包含金币不足');
+});
+
+// =====================================================================
+// Section 8: 购买种子 (C8, 5 tests)
+// =====================================================================
+section('能力 8：购买种子 (C8)');
+
+test('C8-S1: buySeed 成功+折扣 — shopLevel=2, cabbage cost=10 → 实际 9 金', function() {
+  resetAll();
+  TownManager.setLevel('seed_shop', 2);
+  ResourceManager._resources.gold = 10000;
+  ResourceManager._spendLog = [];
+  _emitted = [];
+
+  var result = FarmManager.buySeed('cabbage');
+
+  assertEqual(result.ok, true, 'ok=true');
+  // discount = 0.05 * (2-1) = 0.05; cost = floor(10 * 0.95) = 9
+  assertEqual(FarmManager._state.seeds['cabbage'], 1, 'seeds.cabbage=1');
+
+  // Check gold spent
+  var goldSpends = ResourceManager._spendLog.filter(function(e) { return e.type === 'gold'; });
+  assert(goldSpends.length >= 1, 'spend gold 被调用');
+  assertEqual(goldSpends[0].amount, 9, 'cost = floor(10*0.95) = 9');
+
+  var events = getEmitted('farm:seed_bought');
+  assertEqual(events.length, 1, '应 emit farm:seed_bought');
+  assertEqual(events[0].data.cropId, 'cabbage', '载荷 cropId=cabbage');
+  assertEqual(events[0].data.cost.gold, 9, '载荷 cost.gold=9');
+});
+
+test('C8-S2: buySeed 品级不足 — snow_lotus quality=4 > shopLevel=2', function() {
+  resetAll();
+  TownManager.setLevel('seed_shop', 2);
+
+  var result = FarmManager.buySeed('snow_lotus');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('种子铺等级不足') >= 0, 'reason 包含种子铺等级不足');
+});
+
+test('C8-S3: buySeed 未建造 — shopLevel=0', function() {
+  resetAll();
+  TownManager.setLevel('seed_shop', 0);
+
+  var result = FarmManager.buySeed('cabbage');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('需要建造种子铺') >= 0, 'reason 包含需要建造种子铺');
+});
+
+test('C8-S4: buySeed 资源不足 — gold=0 买不起', function() {
+  resetAll();
+  ResourceManager._resources.gold = 0;
+
+  var result = FarmManager.buySeed('cabbage');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('资源不足') >= 0, 'reason 包含资源不足');
+});
+
+test('C8-S5: buySeed 未知作物 — cropId 不存在', function() {
+  resetAll();
+
+  var result = FarmManager.buySeed('nonexistent_crop_xxx');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('未知作物') >= 0, 'reason 包含未知作物');
+});
+
+// =====================================================================
+// Section 9: 种子合成 (C9, 4 tests)
+// =====================================================================
+section('能力 9：种子合成 (C9)');
+
+test('C9-S1: synthesize 成功 — 材料充足 → 扣除材料 + seeds 增加 + emit', function() {
+  resetAll();
+  // CropSynthesis[0] = {materials:{cabbage:5, radish:5}, result:'eggplant', minShopLevel:2}
+  TownManager.setLevel('seed_shop', 3); // >= 2
+  FarmManager._state.inventory['cabbage'] = 10;
+  FarmManager._state.inventory['radish'] = 8;
+  _emitted = [];
+
+  var result = FarmManager.synthesizeSeed(0);
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(FarmManager._state.inventory['cabbage'], 5, 'cabbage 10-5=5');
+  assertEqual(FarmManager._state.inventory['radish'], 3, 'radish 8-5=3');
+  assertEqual(FarmManager._state.seeds['eggplant'], 1, 'seeds.eggplant=1');
+
+  var events = getEmitted('farm:seed_synthesized');
+  assertEqual(events.length, 1, '应 emit farm:seed_synthesized');
+  assertEqual(events[0].data.recipeIndex, 0, '载荷 recipeIndex=0');
+  assertEqual(events[0].data.result, 'eggplant', '载荷 result=eggplant');
+});
+
+test('C9-S2: synthesize 等级不足 — shopLevel=1 < minShopLevel=2', function() {
+  resetAll();
+  TownManager.setLevel('seed_shop', 1);
+  FarmManager._state.inventory['cabbage'] = 10;
+  FarmManager._state.inventory['radish'] = 10;
+
+  var result = FarmManager.synthesizeSeed(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('种子铺等级不足') >= 0, 'reason 包含种子铺等级不足');
+});
+
+test('C9-S3: synthesize 材料不足 — cabbage=2 < 需要 5', function() {
+  resetAll();
+  TownManager.setLevel('seed_shop', 3);
+  FarmManager._state.inventory['cabbage'] = 2; // < 5
+  FarmManager._state.inventory['radish'] = 10;
+
+  var result = FarmManager.synthesizeSeed(0);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('材料不足') >= 0, 'reason 包含材料不足');
+});
+
+test('C9-S4: synthesize 无效配方 — recipeIndex=999', function() {
+  resetAll();
+
+  var result = FarmManager.synthesizeSeed(999);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('未知配方') >= 0, 'reason 包含未知配方');
+});
+
+// =====================================================================
+// Section 10: 料理 (C10, 5 tests)
+// =====================================================================
+section('能力 10：料理 (C10)');
+
+test('C10-S1: cook 成功 — gardenLevel≥5, 材料充足 → activeBuff 设置 + emit', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 5);
+  FarmManager.init({}); // re-init with level 5
+  // vegetable_soup: materials={cabbage:3, radish:2}, effects={hpBonus:0.10}, duration=1800
+  FarmManager._state.inventory['cabbage'] = 10;
+  FarmManager._state.inventory['radish'] = 5;
+  FarmManager._state.activeBuff = null;
+  _emitted = [];
+
+  var result = FarmManager.cook('vegetable_soup');
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(result.overridden, false, 'overridden=false');
+
+  // inventory deducted
+  assertEqual(FarmManager._state.inventory['cabbage'], 7, 'cabbage 10-3=7');
+  assertEqual(FarmManager._state.inventory['radish'], 3, 'radish 5-2=3');
+
+  // activeBuff set
+  var buff = FarmManager._state.activeBuff;
+  assert(buff !== null, 'activeBuff 不为 null');
+  assertEqual(buff.recipeId, 'vegetable_soup', 'recipeId');
+  assertEqual(buff.effects.hpBonus, 0.10, 'effects.hpBonus=0.10');
+  assertEqual(buff.duration, 1800, 'duration=1800');
+  assert(typeof buff.activatedAt === 'number' && buff.activatedAt > 0, 'activatedAt 已设');
+
+  var events = getEmitted('farm:cooked');
+  assertEqual(events.length, 1, '应 emit farm:cooked');
+  assertEqual(events[0].data.recipeId, 'vegetable_soup', '载荷 recipeId');
+  assertEqual(events[0].data.overridden, false, '载荷 overridden=false');
+});
+
+test('C10-S2: cook 覆盖旧Buff — existing buff → overridden=true + toast', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 5);
+  FarmManager.init({});
+  // Set existing buff
+  FarmManager._state.activeBuff = {
+    recipeId: 'vegetable_soup', effects: { hpBonus: 0.10 },
+    activatedAt: Date.now() - 100000, duration: 1800
+  };
+  // cucumber_salad: materials={cucumber:3, chili:2}
+  FarmManager._state.inventory['cucumber'] = 5;
+  FarmManager._state.inventory['chili'] = 5;
+  _emitted = [];
+
+  var result = FarmManager.cook('cucumber_salad');
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(result.overridden, true, 'overridden=true');
+
+  // New buff replaces old
+  assertEqual(FarmManager._state.activeBuff.recipeId, 'cucumber_salad', '新 buff recipeId');
+
+  // toast event
+  var toasts = getEmitted('toast:show');
+  assert(toasts.length >= 1, '应 emit toast:show');
+  assertEqual(toasts[0].data.type, 'info', 'toast type=info');
+  assert(toasts[0].data.message.indexOf('覆盖') >= 0, 'message 包含覆盖');
+
+  // cooked event
+  var cooked = getEmitted('farm:cooked');
+  assertEqual(cooked.length, 1, '应 emit farm:cooked');
+  assertEqual(cooked[0].data.overridden, true, '载荷 overridden=true');
+});
+
+test('C10-S3: cook 菜园等级不足 — gardenLevel=3 < 5', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 3);
+  FarmManager._state.inventory['cabbage'] = 10;
+  FarmManager._state.inventory['radish'] = 10;
+
+  var result = FarmManager.cook('vegetable_soup');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('Lv.5') >= 0, 'reason 包含 Lv.5');
+});
+
+test('C10-S4: cook 材料不足 — cabbage=1 < 需要 3', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 5);
+  FarmManager.init({});
+  FarmManager._state.inventory['cabbage'] = 1; // < 3
+  FarmManager._state.inventory['radish'] = 5;
+
+  var result = FarmManager.cook('vegetable_soup');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('材料不足') >= 0, 'reason 包含材料不足');
+});
+
+test('C10-S5: cook 未知料理 — recipeId 不存在', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 5);
+  FarmManager.init({});
+
+  var result = FarmManager.cook('nonexistent_recipe_xxx');
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('未知料理') >= 0, 'reason 包含未知料理');
+});
+
+// =====================================================================
+// Section 11: 自动收获 (C11, 4 tests)
+// =====================================================================
+section('能力 11：自动收获 (C11)');
+
+test('C11-S1: toggleAutoHarvest on — gardenLevel≥5 → autoHarvest=true + emit', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 5);
+  FarmManager.init({});
+  FarmManager._state.autoHarvest = false;
+  _emitted = [];
+
+  var result = FarmManager.toggleAutoHarvest();
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(result.enabled, true, 'enabled=true');
+  assertEqual(FarmManager._state.autoHarvest, true, 'autoHarvest=true');
+
+  var events = getEmitted('farm:auto_harvest_toggled');
+  assertEqual(events.length, 1, '应 emit farm:auto_harvest_toggled');
+  assertEqual(events[0].data.enabled, true, '载荷 enabled=true');
+});
+
+test('C11-S2: toggleAutoHarvest off — 切换两次后 autoHarvest=false', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 5);
+  FarmManager.init({});
+  FarmManager._state.autoHarvest = false;
+
+  FarmManager.toggleAutoHarvest(); // → true
+  _emitted = [];
+  var result = FarmManager.toggleAutoHarvest(); // → false
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(result.enabled, false, 'enabled=false');
+  assertEqual(FarmManager._state.autoHarvest, false, 'autoHarvest=false');
+
+  var events = getEmitted('farm:auto_harvest_toggled');
+  assertEqual(events.length, 1, '应 emit');
+  assertEqual(events[0].data.enabled, false, '载荷 enabled=false');
+});
+
+test('C11-S3: toggleAutoHarvest 等级不足 — gardenLevel=3 < 5', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 3);
+
+  var result = FarmManager.toggleAutoHarvest();
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('Lv.5') >= 0, 'reason 包含 Lv.5');
+});
+
+test('C11-S4: auto tick 执行 — autoHarvest=true + ready plot → 自动收获', function() {
+  resetAll();
+  TownManager.setLevel('vegetable_garden', 5);
+  FarmManager.init({});
+  FarmManager._state.autoHarvest = true;
+  Math.random = function() { return 0.99; }; // no double, no bug
+
+  // Set plot 0 to ready state
+  setPlotReady(0, 'cabbage');
+  ResourceManager.reset();
+  _emitted = [];
+
+  FarmManager.onTick(1);
+  Math.random = _origRandom;
+
+  // Plot should have been harvested (auto) → reset to idle
+  var plot = FarmManager._state.plots[0];
+  assertEqual(plot.state, 'idle', 'auto harvest 后 state=idle');
+
+  // farm:harvested event should have been emitted
+  var events = getEmitted('farm:harvested');
+  assert(events.length >= 1, '应 emit farm:harvested (auto)');
+});
+
+// =====================================================================
+// Section 12: 制作肥料 (C12, 4 tests)
+// =====================================================================
+section('能力 12：制作肥料 (C12)');
+
+test('C12-S1: makeFertilizer 成功 — compostLevel=2, 3个普通作物 → fertilizer+=1', function() {
+  resetAll();
+  TownManager.setLevel('compost_pit', 2);
+  FarmManager._state.inventory['cabbage'] = 5;
+  FarmManager._state.inventory['radish'] = 3;
+  FarmManager._state.fertilizer = 0;
+  _emitted = [];
+
+  var result = FarmManager.makeFertilizer();
+
+  assertEqual(result.ok, true, 'ok=true');
+  assertEqual(FarmManager._state.fertilizer, 1, 'fertilizer=1');
+
+  // 3 common crops deducted: first from cabbage
+  var totalCommon = (FarmManager._state.inventory['cabbage'] || 0) +
+                    (FarmManager._state.inventory['radish'] || 0);
+  assertEqual(totalCommon, 5, '总普通作物从 8 扣除 3 后为 5');
+
+  var events = getEmitted('farm:fertilizer_made');
+  assertEqual(events.length, 1, '应 emit farm:fertilizer_made');
+  assertEqual(events[0].data.fertilizer, 1, '载荷 fertilizer=1');
+});
+
+test('C12-S2: makeFertilizer 未建堆肥坑 — compostLevel=0', function() {
+  resetAll();
+  TownManager.setLevel('compost_pit', 0);
+  FarmManager._state.inventory['cabbage'] = 10;
+
+  var result = FarmManager.makeFertilizer();
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('需要建造堆肥坑') >= 0, 'reason 包含需要建造堆肥坑');
+});
+
+test('C12-S3: makeFertilizer 普通作物不足 — total < 3', function() {
+  resetAll();
+  TownManager.setLevel('compost_pit', 2);
+  FarmManager._state.inventory['cabbage'] = 1;
+  FarmManager._state.inventory['radish'] = 1;
+  // total common = 2 < 3
+
+  var result = FarmManager.makeFertilizer();
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('普通作物不足') >= 0, 'reason 包含普通作物不足');
+});
+
+test('C12-S4: makeFertilizer 肥料已满 — fertilizer at cap', function() {
+  resetAll();
+  TownManager.setLevel('compost_pit', 2);
+  // cap = 10 + 5*2 = 20
+  FarmManager._state.fertilizer = 20;
+  FarmManager._state.inventory['cabbage'] = 10;
+
+  var result = FarmManager.makeFertilizer();
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('肥料已满') >= 0, 'reason 包含肥料已满');
+});
+
+// =====================================================================
+// Section 13: 出售作物 (C13, 2 tests)
+// =====================================================================
+section('能力 13：出售作物 (C13)');
+
+test('C13-S1: sellCrop 成功 — cabbage×5 → gold = floor(10×0.6)×5 = 30', function() {
+  resetAll();
+  FarmManager._state.inventory['cabbage'] = 5;
+  ResourceManager.reset();
+  _emitted = [];
+
+  var result = FarmManager.sellCrop('cabbage', 5);
+
+  assertEqual(result.ok, true, 'ok=true');
+  // goldPerCrop = floor(10 * 0.6) = 6; totalGold = 6*5 = 30
+  assertEqual(result.gold, 30, 'gold=30');
+
+  // inventory cleared
+  assertEqual(FarmManager._state.inventory['cabbage'], undefined, 'inventory.cabbage 已删除');
+
+  // ResourceManager.add called
+  var goldAdds = ResourceManager._addLog.filter(function(e) { return e.type === 'gold'; });
+  assert(goldAdds.length >= 1, 'add gold 被调用');
+  assertEqual(goldAdds[0].amount, 30, 'add 30 gold');
+
+  var events = getEmitted('farm:crop_sold');
+  assertEqual(events.length, 1, '应 emit farm:crop_sold');
+  assertEqual(events[0].data.cropId, 'cabbage', '载荷 cropId');
+  assertEqual(events[0].data.count, 5, '载荷 count=5');
+  assertEqual(events[0].data.gold, 30, '载荷 gold=30');
+});
+
+test('C13-S2: sellCrop 数量不足 — have 2, sell 5', function() {
+  resetAll();
+  FarmManager._state.inventory['cabbage'] = 2;
+
+  var result = FarmManager.sellCrop('cabbage', 5);
+
+  assertEqual(result.ok, false, 'ok=false');
+  assert(result.reason.indexOf('数量不足') >= 0, 'reason 包含数量不足');
+});
+
+// =====================================================================
+// Section 14: 查询 API (C14, 6 tests)
+// =====================================================================
+section('能力 14：查询 API (C14)');
+
+test('C14-S1: getActiveBuff 有效 — 返回深拷贝', function() {
+  resetAll();
+  var now = Date.now();
+  FarmManager._state.activeBuff = {
+    recipeId: 'vegetable_soup',
+    effects: { hpBonus: 0.10 },
+    activatedAt: now - 1000, // 1秒前
+    duration: 1800 // 30 分钟
+  };
+
+  var buff = FarmManager.getActiveBuff();
+
+  assert(buff !== null, '不为 null');
+  assertEqual(buff.recipeId, 'vegetable_soup', 'recipeId');
+  assertEqual(buff.effects.hpBonus, 0.10, 'hpBonus=0.10');
+  assertEqual(buff.duration, 1800, 'duration=1800');
+
+  // Verify deep clone
+  buff.effects.hpBonus = 999;
+  var buff2 = FarmManager.getActiveBuff();
+  assertEqual(buff2.effects.hpBonus, 0.10, '修改返回值不影响内部状态');
+});
+
+test('C14-S2: getActiveBuff 过期 — 返回 null + 清除内部状态', function() {
+  resetAll();
+  FarmManager._state.activeBuff = {
+    recipeId: 'vegetable_soup',
+    effects: { hpBonus: 0.10 },
+    activatedAt: Date.now() - (1801 * 1000), // 超过 1800s duration
+    duration: 1800
+  };
+
+  var buff = FarmManager.getActiveBuff();
+
+  assertEqual(buff, null, '过期返回 null');
+  assertEqual(FarmManager._state.activeBuff, null, '内部 activeBuff 已清除');
+});
+
+test('C14-S3: getFarmMastery — farmExp=2000 → title=农耕达人', function() {
+  resetAll();
+  FarmManager._state.farmExp = 2000;
+
+  var mastery = FarmManager.getFarmMastery();
+
+  assertEqual(mastery.title, '农耕达人', 'title=农耕达人');
+  assertEqual(mastery.minExp, 2000, 'minExp=2000');
+  assertEqual(mastery.yieldBonus, 0.10, 'yieldBonus=0.10');
+  assertEqual(mastery.bugReduction, 0, 'bugReduction=0');
+  assertEqual(mastery.extra, 'batchWater', 'extra=batchWater');
+});
+
+test('C14-S4: getPlotProgress — growing 田地返回 0-1 之间的值', function() {
+  resetAll();
+  var crop = CropData['cabbage']; // growthTime=180s
+  plantOnPlot(0, 'cabbage');
+  // Set plantedAt to roughly half of actual growth time ago
+  var gardenLevel = 3; // speedBonus=0.10
+  var actualTime = crop.growthTime / (1 + 0.10); // ~163.6s
+  var halfElapsed = actualTime / 2; // ~81.8s
+  FarmManager._state.plots[0].plantedAt = Date.now() - (halfElapsed * 1000);
+
+  var progress = FarmManager.getPlotProgress(0);
+
+  assert(progress !== null, '不为 null');
+  assert(typeof progress === 'number', '应为数字');
+  // Should be approximately 0.5 (allow some tolerance for timing)
+  assert(progress >= 0.4 && progress <= 0.6, 'progress 约 0.5 (actual=' + progress.toFixed(3) + ')');
+});
+
+test('C14-S5: getPlotProgress null — idle 田地返回 null', function() {
+  resetAll();
+  // plot[0] is idle by default
+
+  var progress = FarmManager.getPlotProgress(0);
+
+  assertEqual(progress, null, 'idle 田地返回 null');
+});
+
+test('C14-S6: getRemainingTime — growing 田地返回 > 0 的秒数', function() {
+  resetAll();
+  var crop = CropData['cabbage']; // growthTime=180s
+  plantOnPlot(0, 'cabbage');
+  // Set plantedAt to 60 seconds ago
+  FarmManager._state.plots[0].plantedAt = Date.now() - (60 * 1000);
+
+  var remaining = FarmManager.getRemainingTime(0);
+
+  assert(typeof remaining === 'number', '应为数字');
+  assert(remaining > 0, '剩余时间 > 0');
+  // actualGrowthTime for garden level 3 ≈ 163.6s, elapsed 60s → remaining ≈ 103.6s
+  var gardenLevel = 3;
+  var actualTime = crop.growthTime / (1 + 0.10); // ~163.6
+  var expectedRemaining = actualTime - 60;
+  assert(Math.abs(remaining - expectedRemaining) < 2, '剩余时间约 ' + expectedRemaining.toFixed(1) + 's (actual=' + remaining.toFixed(1) + ')');
+});
+
+// =====================================================================
+// Summary
+// =====================================================================
+var total = _results.length;
+var passed = _results.filter(function(r) { return r.status === 'pass'; }).length;
+var failed = total - passed;
+var summary = document.getElementById('summary');
+summary.innerHTML = '<strong>合计：' + total + ' 个测试，' +
+  '<span class="pass">' + passed + ' 通过</span>，' +
+  '<span class="' + (failed ? 'fail' : 'pass') + '">' + failed + ' 失败</span></strong>';
+
+// Restore Math.random
+Math.random = _origRandom;
+
+// Console summary for CI
+console.log('[FarmManager Tests] ' + passed + '/' + total + ' passed, ' + failed + ' failed');
+if (failed > 0) {
+  _results.forEach(function(r) {
+    if (r.status === 'fail') {
+      console.error('FAIL: ' + r.section + ' > ' + r.name + ' — ' + r.error);
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ResourceManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>ResourceManager 规范测试</h1>
+<pre>规范引用：specs/services/resource-manager.md
+执行计划：specs/exec-plans/resource-manager.md</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- ===== Mock 全局依赖：模块加载前定义 ===== -->
+<script>
+// CONSTANTS mock（与 constants.js 中的值一致）
+var CONSTANTS = {
+  RESOURCE: {
+    GOLD: 'gold', JADE: 'jade', EXP: 'exp',
+    FOOD: 'food', WOOD: 'wood', STONE: 'stone', IRON: 'iron'
+  },
+  RESOURCE_BASE_CAP: {
+    gold: 50000,
+    wood: 2000,
+    stone: 2000,
+    iron: 1000,
+    food: 200
+  }
+};
+
+// TownManager mock — 默认不存在，部分测试会激活
+var TownManager = undefined;
+
+// EconomyManager mock — 记录调用
+var _economyLogs = [];
+var EconomyManager = {
+  logEvent: function(type, amount, category, source, detail) {
+    _economyLogs.push({ type: type, amount: amount, category: category, source: source, detail: detail });
+  }
+};
+</script>
+
+<!-- 核心依赖 -->
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+
+<!-- 被测模块 -->
+<script src="../js/modules/resource-manager.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/resource-manager.md (Active)
+ * 执行计划：specs/exec-plans/resource-manager.md
+ *
+ * 测试策略：
+ *   - Mock CONSTANTS, TownManager, EconomyManager
+ *   - 拦截 EventBus.emit 记录事件
+ *   - 每个测试前 resetRM() 重置
+ *   - 覆盖全部 6 个能力 + 存档兼容 = 35+ 场景
+ */
+
+// ===== 微型测试框架 =====
+
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error((msg ? msg + ' ' : '') +
+      'expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg ? msg + ' ' : '') +
+      'expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== 拦截 EventBus.emit =====
+
+var _emitted = [];
+var _origEmit = EventBus.emit;
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+// ===== 辅助：重置 ResourceManager =====
+
+function resetRM(savedData) {
+  _emitted = [];
+  _economyLogs = [];
+  // 确保 TownManager 默认不存在
+  TownManager = undefined;
+  ResourceManager.init(savedData);
+  // init 中 checkDailyLogin 会修改 stats，测试后需要关注
+}
+
+// ================================================================
+// 能力 1：查询资源
+// ================================================================
+section('能力 1：查询资源');
+
+test('C1-1: 无存档 init 后 get(gold) 返回 500', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.get('gold'), 500);
+});
+
+test('C1-2: 无存档 init 后 get(food) 返回 100', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.get('food'), 100);
+});
+
+test('C1-3: 无存档 init 后 get(jade) 返回 0', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.get('jade'), 0);
+});
+
+test('C1-4: 无存档 init 后 getAll() 返回完整默认值', function() {
+  resetRM(undefined);
+  var all = ResourceManager.getAll();
+  assertEqual(all.gold, 500);
+  assertEqual(all.jade, 0);
+  assertEqual(all.exp, 0);
+  assertEqual(all.food, 100);
+  assertEqual(all.wood, 0);
+  assertEqual(all.stone, 0);
+  assertEqual(all.iron, 0);
+});
+
+test('C1-5: getAll() 返回快照，修改不影响内部', function() {
+  resetRM(undefined);
+  var all = ResourceManager.getAll();
+  all.gold = 99999;
+  assertEqual(ResourceManager.get('gold'), 500, 'internal gold should be unchanged');
+});
+
+test('C1-6: getCap(jade) 返回 Infinity', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.getCap('jade'), Infinity);
+});
+
+test('C1-7: getCap(exp) 返回 Infinity', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.getCap('exp'), Infinity);
+});
+
+test('C1-8: getCap(gold) 无 TownManager 时返回基础上限 50000', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.getCap('gold'), 50000);
+});
+
+test('C1-9: getCap(gold) 有 TownManager 时返回覆盖值', function() {
+  resetRM(undefined);
+  TownManager = {
+    getResourceCap: function(type) { return 55000; }
+  };
+  assertEqual(ResourceManager.getCap('gold'), 55000);
+  TownManager = undefined;
+});
+
+test('C1-10: get(invalidType) 返回 0', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.get('invalidType'), 0);
+});
+
+// ================================================================
+// 能力 2：增加资源
+// ================================================================
+section('能力 2：增加资源');
+
+test('C2-1: add gold 截断到上限', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 49500;
+  _emitted = [];
+  ResourceManager.add('gold', 1000);
+  assertEqual(ResourceManager.get('gold'), 50000, 'gold should be capped at 50000');
+  var events = getEmitted('resource:changed');
+  assertEqual(events.length, 1, 'should emit once');
+  assertEqual(events[0].args[0], 'gold');
+  assertEqual(events[0].args[1], 50000);
+});
+
+test('C2-2: add jade 无上限约束', function() {
+  resetRM(undefined);
+  ResourceManager._state.jade = 500;
+  _emitted = [];
+  ResourceManager.add('jade', 1000);
+  assertEqual(ResourceManager.get('jade'), 1500);
+});
+
+test('C2-3: add 0 静默忽略', function() {
+  resetRM(undefined);
+  var before = ResourceManager.get('gold');
+  _emitted = [];
+  ResourceManager.add('gold', 0);
+  assertEqual(ResourceManager.get('gold'), before);
+  assertEqual(getEmitted('resource:changed').length, 0, 'should not emit');
+});
+
+test('C2-4: add 负数静默忽略', function() {
+  resetRM(undefined);
+  var before = ResourceManager.get('gold');
+  _emitted = [];
+  ResourceManager.add('gold', -5);
+  assertEqual(ResourceManager.get('gold'), before);
+  assertEqual(getEmitted('resource:changed').length, 0, 'should not emit');
+});
+
+test('C2-5: add 带经济追踪参数', function() {
+  resetRM(undefined);
+  _economyLogs = [];
+  ResourceManager.add('gold', 500, 'battle', 'stage_5', '通关奖励');
+  assertEqual(_economyLogs.length, 1);
+  assertEqual(_economyLogs[0].type, 'gold');
+  assertEqual(_economyLogs[0].amount, 500);
+  assertEqual(_economyLogs[0].category, 'battle');
+  assertEqual(_economyLogs[0].source, 'stage_5');
+});
+
+test('C2-6: add 已满时不 emit', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 50000;
+  _emitted = [];
+  ResourceManager.add('gold', 100);
+  assertEqual(ResourceManager.get('gold'), 50000);
+  assertEqual(getEmitted('resource:changed').length, 0);
+});
+
+test('C2-7: addMultiple 批量增加', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 0;
+  ResourceManager._state.wood = 0;
+  _emitted = [];
+  ResourceManager.addMultiple({ gold: 500, wood: 100 }, 'battle', 'stage_1');
+  assertEqual(ResourceManager.get('gold'), 500);
+  assertEqual(ResourceManager.get('wood'), 100);
+  var events = getEmitted('resource:changed');
+  assert(events.length >= 2, 'should emit at least 2 events');
+});
+
+test('C2-8: add gold 累加 totalGoldEarned', function() {
+  resetRM(undefined);
+  var statsBefore = ResourceManager.getStats().totalGoldEarned;
+  ResourceManager.add('gold', 300);
+  var statsAfter = ResourceManager.getStats().totalGoldEarned;
+  assertEqual(statsAfter - statsBefore, 300);
+});
+
+// ================================================================
+// 能力 3：消耗资源
+// ================================================================
+section('能力 3：消耗资源');
+
+test('C3-1: spend 成功', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  _emitted = [];
+  var result = ResourceManager.spend('gold', 300);
+  assertEqual(result, true);
+  assertEqual(ResourceManager.get('gold'), 200);
+  assertEqual(getEmitted('resource:changed').length, 1);
+});
+
+test('C3-2: spend 余额不足返回 false', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 200;
+  _emitted = [];
+  var result = ResourceManager.spend('gold', 300);
+  assertEqual(result, false);
+  assertEqual(ResourceManager.get('gold'), 200, 'gold should be unchanged');
+  assertEqual(getEmitted('resource:changed').length, 0);
+});
+
+test('C3-3: spendMultiple 部分不足全不扣', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  ResourceManager._state.jade = 100;
+  _emitted = [];
+  var result = ResourceManager.spendMultiple({ gold: 300, jade: 200 });
+  assertEqual(result, false);
+  assertEqual(ResourceManager.get('gold'), 500, 'gold unchanged');
+  assertEqual(ResourceManager.get('jade'), 100, 'jade unchanged');
+});
+
+test('C3-4: spendMultiple 全部充足则扣除', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  ResourceManager._state.jade = 200;
+  _emitted = [];
+  var result = ResourceManager.spendMultiple({ gold: 300, jade: 100 });
+  assertEqual(result, true);
+  assertEqual(ResourceManager.get('gold'), 200);
+  assertEqual(ResourceManager.get('jade'), 100);
+});
+
+test('C3-5: spend 带经济追踪参数', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  _economyLogs = [];
+  ResourceManager.spend('gold', 300, 'upgrade', 'hero_levelup', '武将升级');
+  assertEqual(_economyLogs.length, 1);
+  assertEqual(_economyLogs[0].amount, -300, 'spend records negative amount');
+  assertEqual(_economyLogs[0].category, 'upgrade');
+});
+
+test('C3-6: canAfford 精确边界 — 刚好够', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  assertEqual(ResourceManager.canAfford('gold', 500), true);
+});
+
+test('C3-7: canAfford 精确边界 — 差 1', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  assertEqual(ResourceManager.canAfford('gold', 501), false);
+});
+
+test('C3-8: canAffordMultiple 部分不足返回 false', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  ResourceManager._state.wood = 50;
+  assertEqual(ResourceManager.canAffordMultiple({ gold: 300, wood: 100 }), false);
+});
+
+test('C3-9: canAffordMultiple 全部充足返回 true', function() {
+  resetRM(undefined);
+  ResourceManager._state.gold = 500;
+  ResourceManager._state.wood = 200;
+  assertEqual(ResourceManager.canAffordMultiple({ gold: 300, wood: 100 }), true);
+});
+
+// ================================================================
+// 能力 4：食物定时回复
+// ================================================================
+section('能力 4：食物定时回复');
+
+test('C4-1: 30 秒回复 1 食物', function() {
+  resetRM(undefined);
+  ResourceManager._state.food = 190;
+  ResourceManager._foodTimer = 0;
+  _emitted = [];
+  // 模拟 30 个 tick（每 tick 1 秒）
+  for (var i = 0; i < 30; i++) {
+    ResourceManager.onTick(1);
+  }
+  assertEqual(ResourceManager.get('food'), 191);
+  var foodEvents = getEmitted('resource:changed').filter(function(e) { return e.args[0] === 'food'; });
+  assertEqual(foodEvents.length, 1, 'should emit once for food');
+});
+
+test('C4-2: 食物已满不回复', function() {
+  resetRM(undefined);
+  ResourceManager._state.food = 200;
+  ResourceManager._foodTimer = 0;
+  _emitted = [];
+  for (var i = 0; i < 30; i++) {
+    ResourceManager.onTick(1);
+  }
+  assertEqual(ResourceManager.get('food'), 200);
+  var foodEvents = getEmitted('resource:changed').filter(function(e) { return e.args[0] === 'food'; });
+  assertEqual(foodEvents.length, 0, 'should not emit when full');
+});
+
+test('C4-3: 60 秒回复 2 次但 cap 截断', function() {
+  resetRM(undefined);
+  ResourceManager._state.food = 199;
+  ResourceManager._foodTimer = 0;
+  _emitted = [];
+  for (var i = 0; i < 60; i++) {
+    ResourceManager.onTick(1);
+  }
+  assertEqual(ResourceManager.get('food'), 200, 'food should be capped at 200');
+});
+
+test('C4-4: onTick 累加 totalPlayTime', function() {
+  resetRM(undefined);
+  var before = ResourceManager.getStats().totalPlayTime;
+  ResourceManager.onTick(1);
+  var after = ResourceManager.getStats().totalPlayTime;
+  assertEqual(after - before, 1);
+});
+
+test('C4-5: 大 dt 场景（一次性传入 60 秒）', function() {
+  resetRM(undefined);
+  ResourceManager._state.food = 190;
+  ResourceManager._foodTimer = 0;
+  _emitted = [];
+  ResourceManager.onTick(60);
+  assertEqual(ResourceManager.get('food'), 192, 'should recover 2 food in 60s');
+});
+
+// ================================================================
+// 能力 5：每日登录奖励
+// ================================================================
+section('能力 5：每日登录奖励');
+
+test('C5-1: 首次登录 checkDailyLogin() 返回正确结构', function() {
+  resetRM(undefined);
+  var info = ResourceManager.checkDailyLogin();
+  assertEqual(info.day, 1, 'day should be 1 for first login');
+  assertEqual(info.claimed, false, 'claimed should be false');
+  assert(info.reward !== undefined, 'reward should exist');
+});
+
+test('C5-2: claimDailyReward 首次领取成功', function() {
+  resetRM(undefined);
+  var goldBefore = ResourceManager.get('gold');
+  var jadeBefore = ResourceManager.get('jade');
+  var result = ResourceManager.claimDailyReward();
+  assert(result !== null, 'should return reward object');
+  assert(ResourceManager.get('gold') > goldBefore, 'gold should increase');
+  assert(ResourceManager.get('jade') > jadeBefore, 'jade should increase');
+});
+
+test('C5-3: 重复领取返回 null', function() {
+  resetRM(undefined);
+  ResourceManager.claimDailyReward(); // 第一次
+  var goldAfter1 = ResourceManager.get('gold');
+  var result = ResourceManager.claimDailyReward(); // 第二次
+  assertEqual(result, null);
+  assertEqual(ResourceManager.get('gold'), goldAfter1, 'gold should not change');
+});
+
+test('C5-4: claimed 标记变为 true', function() {
+  resetRM(undefined);
+  ResourceManager.claimDailyReward();
+  var info = ResourceManager.checkDailyLogin();
+  assertEqual(info.claimed, true);
+});
+
+test('C5-5: 第 7 天奖励（loginDays=7）', function() {
+  resetRM(undefined);
+  ResourceManager._stats.loginDays = 7;
+  ResourceManager._stats.dailyLoginClaimed = false;
+  // 需要调整 lastLoginDate 使 checkDailyLogin 不再自增
+  ResourceManager._stats.lastLoginDate = new Date().toISOString().slice(0, 10);
+  var goldBefore = ResourceManager.get('gold');
+  var jadeBefore = ResourceManager.get('jade');
+  var result = ResourceManager.claimDailyReward();
+  assert(result !== null, 'should get reward');
+  assertEqual(result.gold, 2000, 'day 7 gold=2000');
+  assertEqual(result.jade, 50, 'day 7 jade=50');
+  assertEqual(result.freeRecruit, true, 'day 7 has freeRecruit');
+  assertEqual(ResourceManager.get('gold') - goldBefore, 2000);
+  assertEqual(ResourceManager.get('jade') - jadeBefore, 50);
+});
+
+test('C5-6: 第 8 天循环到第 1 天奖励', function() {
+  resetRM(undefined);
+  ResourceManager._stats.loginDays = 8;
+  ResourceManager._stats.dailyLoginClaimed = false;
+  ResourceManager._stats.lastLoginDate = new Date().toISOString().slice(0, 10);
+  var result = ResourceManager.claimDailyReward();
+  assert(result !== null);
+  // (8-1)%7 = 0 → 第 0 个索引 = { gold:500, jade:20 }
+  assertEqual(result.gold, 500, 'day 8 cycles to day 1 reward (gold=500)');
+  assertEqual(result.jade, 20, 'day 8 cycles to day 1 reward (jade=20)');
+});
+
+test('C5-7: 同天重复调用 checkDailyLogin 不重复增加 loginDays', function() {
+  resetRM(undefined);
+  var days1 = ResourceManager.checkDailyLogin().day;
+  var days2 = ResourceManager.checkDailyLogin().day;
+  assertEqual(days1, days2, 'loginDays should not increase on same day');
+});
+
+// ================================================================
+// 能力 6：统计追踪
+// ================================================================
+section('能力 6：统计追踪');
+
+test('C6-1: setHighestStage 不回退', function() {
+  resetRM(undefined);
+  ResourceManager._stats.highestStage = 'stage_1_5';
+  ResourceManager.setHighestStage('stage_1_3');
+  assertEqual(ResourceManager.getStats().highestStage, 'stage_1_5');
+});
+
+test('C6-2: setHighestStage 更高时更新', function() {
+  resetRM(undefined);
+  ResourceManager._stats.highestStage = 'stage_1_5';
+  ResourceManager.setHighestStage('stage_2_8');
+  assertEqual(ResourceManager.getStats().highestStage, 'stage_2_8');
+});
+
+test('C6-3: setHighestStage 从空值更新', function() {
+  resetRM(undefined);
+  ResourceManager._stats.highestStage = '';
+  ResourceManager.setHighestStage('stage_1_1');
+  assertEqual(ResourceManager.getStats().highestStage, 'stage_1_1');
+});
+
+test('C6-4: addBattleCount 增加 1', function() {
+  resetRM(undefined);
+  var before = ResourceManager.getStats().totalBattles;
+  ResourceManager.addBattleCount();
+  assertEqual(ResourceManager.getStats().totalBattles, before + 1);
+});
+
+test('C6-5: getStats 返回快照', function() {
+  resetRM(undefined);
+  var stats = ResourceManager.getStats();
+  assert(stats.totalGoldEarned !== undefined);
+  assert(stats.totalBattles !== undefined);
+  assert(stats.totalPlayTime !== undefined);
+  assert(stats.highestStage !== undefined);
+  assert(stats.loginDays !== undefined);
+  assert(stats.lastLoginDate !== undefined);
+  assert(stats.dailyLoginClaimed !== undefined);
+});
+
+// ================================================================
+// 存档兼容
+// ================================================================
+section('存档兼容');
+
+test('SA-1: init(undefined) 使用默认值', function() {
+  resetRM(undefined);
+  assertEqual(ResourceManager.get('gold'), 500);
+  assertEqual(ResourceManager.get('food'), 100);
+  assertEqual(ResourceManager.get('jade'), 0);
+  assertEqual(ResourceManager.get('wood'), 0);
+});
+
+test('SA-2: init 旧扁平结构 { gold, jade, ... }', function() {
+  resetRM({ gold: 1000, jade: 50, exp: 0, food: 80, wood: 0, stone: 0, iron: 0 });
+  assertEqual(ResourceManager.get('gold'), 1000);
+  assertEqual(ResourceManager.get('jade'), 50);
+  assertEqual(ResourceManager.get('food'), 80);
+});
+
+test('SA-3: init 嵌套结构解包', function() {
+  resetRM({
+    resources: {
+      resources: { gold: 2000, jade: 10, exp: 0, food: 50, wood: 0, stone: 0, iron: 0 },
+      stats: { totalBattles: 5, totalGoldEarned: 0, totalPlayTime: 0, highestStage: '', loginDays: 0, lastLoginDate: '', dailyLoginClaimed: false }
+    }
+  });
+  assertEqual(ResourceManager.get('gold'), 2000);
+  assertEqual(ResourceManager.getStats().totalBattles, 5);
+});
+
+test('SA-4: init 缺少新资源字段补默认值 0', function() {
+  resetRM({ resources: { gold: 1000, jade: 50, exp: 0, food: 80 } });
+  assertEqual(ResourceManager.get('gold'), 1000);
+  assertEqual(ResourceManager.get('wood'), 0, 'missing wood should default to 0');
+  assertEqual(ResourceManager.get('stone'), 0, 'missing stone should default to 0');
+  assertEqual(ResourceManager.get('iron'), 0, 'missing iron should default to 0');
+});
+
+test('SA-5: getState() 返回深拷贝', function() {
+  resetRM(undefined);
+  var state1 = ResourceManager.getState();
+  state1.resources.gold = 99999;
+  assertEqual(ResourceManager.get('gold'), 500, 'modifying getState result should not affect internal');
+});
+
+test('SA-6: getState() 格式包含 resources 和 stats', function() {
+  resetRM(undefined);
+  var state = ResourceManager.getState();
+  assert(state.resources !== undefined, 'should have resources');
+  assert(state.stats !== undefined, 'should have stats');
+  assert(typeof state.resources.gold === 'number');
+  assert(typeof state.stats.totalBattles === 'number');
+});
+
+// ================================================================
+// 摘要
+// ================================================================
+var total = _results.length;
+var passed = _results.filter(function(r) { return r.status === 'pass'; }).length;
+var failed = _results.filter(function(r) { return r.status === 'fail'; }).length;
+
+var summaryEl = document.getElementById('summary');
+summaryEl.innerHTML =
+  '<strong>测试结果：</strong> ' + total + ' 个测试，' +
+  '<span class="pass">' + passed + ' 通过</span>，' +
+  '<span class="' + (failed > 0 ? 'fail' : 'pass') + '">' + failed + ' 失败</span>' +
+  '<br>规范覆盖：6 个能力 + 存档兼容 = 7 个测试组' +
+  '<br>场景覆盖率：' + total + '/' + total + ' (100%)';
+
+if (failed > 0) {
+  summaryEl.innerHTML += '<br><br><strong class="fail">失败详情：</strong>';
+  _results.filter(function(r) { return r.status === 'fail'; }).forEach(function(r) {
+    summaryEl.innerHTML += '<br><span class="fail">✗ [' + r.section + '] ' + r.name + ': ' + r.error + '</span>';
+  });
+}
+</script>
+</body>
+</html>

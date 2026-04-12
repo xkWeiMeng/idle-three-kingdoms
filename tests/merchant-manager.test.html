@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MerchantManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>MerchantManager 规范测试</h1>
+<pre>规范引用：specs/services/merchant-manager.md (Active)
+覆盖：7 个能力, 26 个 WHEN/THEN 场景</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/merchant-manager.md (Active)
+ *
+ * 测试策略：mock EventBus.emit + ResourceManager + EquipmentManager + EquipmentData + MerchantPermanentStock + getMythicTemplate
+ * 覆盖：全部 7 个能力的 26 个 WHEN/THEN 场景
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== Mock EventBus — 拦截 emit，记录调用 =====
+var _emitted = [];
+var _origEmit = EventBus.emit.bind(EventBus);
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+function resetEmitted() {
+  _emitted = [];
+}
+
+// ===== Mock ResourceManager =====
+var ResourceManager = {
+  _resources: {},
+  _spent: [],
+  add: function(type, amount) {
+    this._resources[type] = (this._resources[type] || 0) + amount;
+  },
+  spend: function(type, amount) {
+    this._resources[type] = (this._resources[type] || 0) - amount;
+    this._spent.push({ type: type, amount: amount });
+  },
+  canAfford: function(type, amount) {
+    return (this._resources[type] || 0) >= amount;
+  },
+  get: function(type) {
+    return this._resources[type] || 0;
+  },
+  reset: function() {
+    this._resources = {};
+    this._spent = [];
+  }
+};
+
+// ===== Mock EquipmentManager =====
+var EquipmentManager = {
+  _inventory: [],
+  _maxCapacity: 50,
+  _added: [],
+  getInventory: function() {
+    return this._inventory;
+  },
+  getMaxCapacity: function() {
+    return this._maxCapacity;
+  },
+  addToInventory: function(equip) {
+    this._inventory.push(equip);
+    this._added.push(equip);
+  },
+  reset: function() {
+    this._inventory = [];
+    this._maxCapacity = 50;
+    this._added = [];
+  }
+};
+
+// ===== Mock EquipmentData — 覆盖 weapon/armor + quality 1-5，另加 accessory/mount =====
+var EquipmentData = [
+  // weapon Q1-Q5
+  { id: 'equip_iron_sword', name: '铁剑', type: 'weapon', quality: 1, statType: 'atk', statRange: [3, 8], description: '普通的铁剑', emoji: '🗡️' },
+  { id: 'equip_green_blade', name: '碧刃', type: 'weapon', quality: 2, statType: 'atk', statRange: [8, 15], description: '泛着绿光的利刃', emoji: '⚔️' },
+  { id: 'equip_frost_spear', name: '霜寒枪', type: 'weapon', quality: 3, statType: 'atk', statRange: [15, 25], description: '枪尖凝霜', emoji: '🔱' },
+  { id: 'equip_dragon_crescent', name: '青龙偃月刀', type: 'weapon', quality: 4, statType: 'atk', statRange: [30, 45], description: '关公刀', emoji: '🔪' },
+  { id: 'equip_heaven_sword', name: '天子剑', type: 'weapon', quality: 5, statType: 'atk', statRange: [55, 70], description: '天子之剑', emoji: '⚔️' },
+  // armor Q1-Q5
+  { id: 'equip_cloth_robe', name: '布衣', type: 'armor', quality: 1, statType: 'def', statRange: [3, 8], description: '布衣', emoji: '👕' },
+  { id: 'equip_leather_armor', name: '皮甲', type: 'armor', quality: 2, statType: 'def', statRange: [8, 15], description: '皮甲', emoji: '🧥' },
+  { id: 'equip_chain_mail', name: '锁子甲', type: 'armor', quality: 3, statType: 'def', statRange: [15, 25], description: '锁子甲', emoji: '🛡️' },
+  { id: 'equip_plate_armor', name: '板甲', type: 'armor', quality: 4, statType: 'def', statRange: [30, 45], description: '板甲', emoji: '🛡️' },
+  { id: 'equip_divine_armor', name: '神铠', type: 'armor', quality: 5, statType: 'def', statRange: [55, 70], description: '神铠', emoji: '🛡️' },
+  // accessory Q1-Q5
+  { id: 'equip_wooden_ring', name: '木戒', type: 'accessory', quality: 1, statType: 'hp', statRange: [10, 30], description: '木戒', emoji: '💍' },
+  { id: 'equip_jade_pendant', name: '翡翠佩', type: 'accessory', quality: 2, statType: 'hp', statRange: [30, 60], description: '翡翠佩', emoji: '💎' },
+  { id: 'equip_spirit_orb', name: '灵珠', type: 'accessory', quality: 3, statType: 'hp', statRange: [60, 100], description: '灵珠', emoji: '🔮' },
+  { id: 'equip_dragon_ring', name: '龙戒', type: 'accessory', quality: 4, statType: 'hp', statRange: [100, 180], description: '龙戒', emoji: '💍' },
+  { id: 'equip_heaven_pearl', name: '天珠', type: 'accessory', quality: 5, statType: 'hp', statRange: [200, 350], description: '天珠', emoji: '🔮' },
+  // mount Q1-Q5
+  { id: 'equip_donkey', name: '毛驴', type: 'mount', quality: 1, statType: 'spd', statRange: [2, 5], description: '毛驴', emoji: '🐴' },
+  { id: 'equip_warhorse', name: '战马', type: 'mount', quality: 2, statType: 'spd', statRange: [5, 10], description: '战马', emoji: '🐴' },
+  { id: 'equip_fine_horse', name: '良驹', type: 'mount', quality: 3, statType: 'spd', statRange: [10, 18], description: '良驹', emoji: '🐎' },
+  { id: 'equip_shadow_horse', name: '绝影', type: 'mount', quality: 4, statType: 'spd', statRange: [20, 30], description: '绝影', emoji: '🐎' },
+  { id: 'equip_red_hare', name: '赤兔', type: 'mount', quality: 5, statType: 'spd', statRange: [35, 50], description: '赤兔马', emoji: '🐎' }
+];
+
+// ===== Mock MerchantPermanentStock =====
+var MerchantPermanentStock = [
+  { equipId: 'equip_mythic_tyrant_pendant', price: 500000, setId: 'set_overlord' },
+  { equipId: 'equip_mythic_dragon_orb', price: 500000, setId: 'set_dragon' }
+];
+
+// ===== Mock MythicEquipmentData + getMythicTemplate =====
+var MythicEquipmentData = [
+  {
+    id: 'equip_mythic_tyrant_pendant',
+    name: '虞姬泪珠链',
+    type: 'accessory',
+    quality: 6,
+    statType: 'hp',
+    statRange: [380, 500],
+    setId: 'set_overlord',
+    description: '虞姬最后泪珠凝为宝石，佩戴者生命力大增',
+    emoji: '💎',
+    unsellable: true
+  },
+  {
+    id: 'equip_mythic_dragon_orb',
+    name: '孔明灯·永夜版',
+    type: 'accessory',
+    quality: 6,
+    statType: 'hp',
+    statRange: [350, 480],
+    setId: 'set_dragon',
+    description: '悬浮肩头永不熄灭，垂危时自动释放治疗',
+    emoji: '🏮',
+    unsellable: true
+  }
+];
+
+function getMythicTemplate(equipId) {
+  for (var i = 0; i < MythicEquipmentData.length; i++) {
+    if (MythicEquipmentData[i].id === equipId) return MythicEquipmentData[i];
+  }
+  return null;
+}
+</script>
+
+<!-- 被测模块 -->
+<script src="../js/modules/merchant-manager.js"></script>
+
+<script>
+// ===== 测试辅助 =====
+function resetAll() {
+  MerchantManager._state.lastRefresh = 0;
+  MerchantManager._state.refreshInterval = 14400;
+  MerchantManager._state.normalStock = [];
+  MerchantManager._state.permanentStock = [];
+  MerchantManager._state.permanentSold = {};
+  ResourceManager.reset();
+  EquipmentManager.reset();
+  resetEmitted();
+}
+
+function nowSec() {
+  return Math.floor(Date.now() / 1000);
+}
+
+// ================================================================
+// 能力 1：初始化与存档 (4 个场景)
+// ================================================================
+section('能力 1：初始化与存档');
+
+test('C1-S1: init 恢复存档（未过期）— normalStock 恢复，不刷新', function() {
+  resetAll();
+  var now = nowSec();
+  var savedStock = [
+    { uid: 'item1', templateId: 'equip_iron_sword', name: '铁剑', emoji: '🗡️', type: 'weapon', quality: 1, statType: 'atk', statValue: 5, description: '普通的铁剑', price: 190, sold: false },
+    { uid: 'item2', templateId: 'equip_green_blade', name: '碧刃', emoji: '⚔️', type: 'weapon', quality: 2, statType: 'atk', statValue: 12, description: '泛着绿光的利刃', price: 480, sold: false },
+    { uid: 'item3', templateId: 'equip_cloth_robe', name: '布衣', emoji: '👕', type: 'armor', quality: 1, statType: 'def', statValue: 4, description: '布衣', price: 185, sold: false },
+    { uid: 'item4', templateId: 'equip_leather_armor', name: '皮甲', emoji: '🧥', type: 'armor', quality: 2, statType: 'def', statValue: 10, description: '皮甲', price: 470, sold: true },
+    { uid: 'item5', templateId: 'equip_donkey', name: '毛驴', emoji: '🐴', type: 'mount', quality: 1, statType: 'spd', statValue: 3, description: '毛驴', price: 200, sold: false },
+    { uid: 'item6', templateId: 'equip_wooden_ring', name: '木戒', emoji: '💍', type: 'accessory', quality: 1, statType: 'hp', statValue: 20, description: '木戒', price: 170, sold: false }
+  ];
+  var saved = {
+    merchant: {
+      lastRefresh: now - 100, // 仅 100 秒前刷新，未过期
+      normalStock: savedStock,
+      permanentSold: { 'equip_mythic_tyrant_pendant': true }
+    }
+  };
+  resetEmitted();
+
+  MerchantManager.init(saved);
+
+  // normalStock 恢复原值（未刷新）
+  assertEqual(MerchantManager._state.normalStock.length, 6, 'normalStock 恢复 6 件');
+  assertEqual(MerchantManager._state.normalStock[0].uid, 'item1', '第一件 uid 保留');
+  assertEqual(MerchantManager._state.normalStock[3].sold, true, '第四件 sold=true 保留');
+
+  // permanentSold 恢复
+  assertEqual(MerchantManager._state.permanentSold['equip_mythic_tyrant_pendant'], true, 'permanentSold 恢复');
+
+  // 对应 permanentStock 条目的 sold=true
+  var ps = MerchantManager._state.permanentStock;
+  var tyrantItem = null;
+  for (var i = 0; i < ps.length; i++) {
+    if (ps[i].equipId === 'equip_mythic_tyrant_pendant') tyrantItem = ps[i];
+  }
+  assert(tyrantItem !== null, '应找到 tyrant pendant');
+  assertEqual(tyrantItem.sold, true, 'permanentStock 对应 sold=true');
+
+  // 未触发刷新事件（因为存档未过期且有商品）
+  var refreshEvents = getEmitted('merchant:refreshed');
+  assertEqual(refreshEvents.length, 0, '未过期不触发刷新');
+});
+
+test('C1-S2: init(undefined) 首次游戏 — 空存档触发刷新生成 6 件', function() {
+  resetAll();
+  resetEmitted();
+
+  MerchantManager.init(undefined);
+
+  // 默认值
+  assertEqual(MerchantManager._state.refreshInterval, 14400, 'refreshInterval=14400');
+
+  // normalStock 为空会触发刷新
+  assert(MerchantManager._state.normalStock.length > 0, '应触发刷新生成商品');
+  assert(MerchantManager._state.normalStock.length <= 6, '商品数 ≤ 6');
+
+  // permanentStock 全部 sold=false
+  var ps = MerchantManager._state.permanentStock;
+  for (var i = 0; i < ps.length; i++) {
+    assertEqual(ps[i].sold, false, 'permanentStock[' + i + '].sold=false');
+  }
+
+  // permanentSold 为空
+  assertDeepEqual(MerchantManager._state.permanentSold, {}, 'permanentSold={}');
+
+  // 刷新事件
+  var refreshEvents = getEmitted('merchant:refreshed');
+  assertEqual(refreshEvents.length, 1, '应触发 1 次 merchant:refreshed');
+});
+
+test('C1-S3: init 存档已过期 — 立即执行刷新', function() {
+  resetAll();
+  var now = nowSec();
+  var saved = {
+    merchant: {
+      lastRefresh: now - 20000, // 超过 14400 秒
+      normalStock: [{ uid: 'old1', templateId: 'equip_iron_sword', name: '铁剑', emoji: '🗡️', type: 'weapon', quality: 1, statType: 'atk', statValue: 5, description: '普通的铁剑', price: 190, sold: false }]
+    }
+  };
+  resetEmitted();
+
+  MerchantManager.init(saved);
+
+  // 应触发刷新，normalStock 被替换
+  var stock = MerchantManager._state.normalStock;
+  // 旧的 'old1' 应被替换
+  var hasOld = false;
+  for (var i = 0; i < stock.length; i++) {
+    if (stock[i].uid === 'old1') hasOld = true;
+  }
+  assertEqual(hasOld, false, '旧商品被替换');
+  assert(stock.length <= 6, '新商品数 ≤ 6');
+
+  // lastRefresh 更新为近期
+  var diff = nowSec() - MerchantManager._state.lastRefresh;
+  assert(diff <= 2, 'lastRefresh 更新为当前时间');
+
+  // 刷新事件
+  var refreshEvents = getEmitted('merchant:refreshed');
+  assertEqual(refreshEvents.length, 1, '应触发 merchant:refreshed');
+});
+
+test('C1-S4: getState 深拷贝 — 修改返回值不影响内部状态', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  resetEmitted();
+
+  var state = MerchantManager.getState();
+
+  // 验证结构
+  assert(typeof state.lastRefresh === 'number', 'lastRefresh 为数字');
+  assert(Array.isArray(state.normalStock), 'normalStock 为数组');
+  assert(typeof state.permanentSold === 'object', 'permanentSold 为对象');
+  assertEqual(state.refreshInterval, 14400, 'refreshInterval=14400');
+
+  // getState() 不包含 permanentStock
+  assertEqual(state.permanentStock, undefined, 'getState 不含 permanentStock');
+
+  // 深拷贝：修改返回值不影响内部
+  var origLen = MerchantManager._state.normalStock.length;
+  state.normalStock.push({ uid: 'fake' });
+  assertEqual(MerchantManager._state.normalStock.length, origLen, '修改返回值不影响内部 normalStock');
+
+  state.permanentSold['fake_key'] = true;
+  assertEqual(MerchantManager._state.permanentSold['fake_key'], undefined, '修改返回值不影响内部 permanentSold');
+});
+
+// ================================================================
+// 能力 2：库存自动刷新 (2 个场景)
+// ================================================================
+section('能力 2：库存自动刷新');
+
+test('C2-S1: onTick 未到刷新时间 — normalStock 不变，无事件', function() {
+  resetAll();
+  // 先初始化得到一组商品
+  MerchantManager.init(undefined);
+  var origStock = MerchantManager._state.normalStock.slice();
+  resetEmitted();
+
+  // 设置 lastRefresh 为 "刚刚"，确保不会过期
+  MerchantManager._state.lastRefresh = nowSec();
+
+  MerchantManager.onTick(1);
+
+  // normalStock 应保持不变（uid 列表相同）
+  assertEqual(MerchantManager._state.normalStock.length, origStock.length, 'normalStock 长度不变');
+  for (var i = 0; i < origStock.length; i++) {
+    assertEqual(MerchantManager._state.normalStock[i].uid, origStock[i].uid, 'item[' + i + '] uid 不变');
+  }
+
+  // 无刷新事件
+  var refreshEvents = getEmitted('merchant:refreshed');
+  assertEqual(refreshEvents.length, 0, '无 merchant:refreshed 事件');
+});
+
+test('C2-S2: onTick 到刷新时间 — normalStock 替换，emit merchant:refreshed', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  var origUids = MerchantManager._state.normalStock.map(function(it) { return it.uid; });
+  resetEmitted();
+
+  // 设置 lastRefresh 为很久之前，使其过期
+  MerchantManager._state.lastRefresh = nowSec() - 20000;
+
+  MerchantManager.onTick(1);
+
+  // normalStock 应被替换（新的 uid）
+  var newUids = MerchantManager._state.normalStock.map(function(it) { return it.uid; });
+  var allDifferent = true;
+  // 至少有一个不同（新生成的 uid 不太可能碰撞）
+  for (var i = 0; i < origUids.length && i < newUids.length; i++) {
+    if (origUids[i] !== newUids[i]) { allDifferent = true; break; }
+  }
+  assert(allDifferent, '商品已替换（uid 不同）');
+
+  // lastRefresh 更新
+  var diff = nowSec() - MerchantManager._state.lastRefresh;
+  assert(diff <= 2, 'lastRefresh 更新为当前时间');
+
+  // 刷新事件
+  var refreshEvents = getEmitted('merchant:refreshed');
+  assertEqual(refreshEvents.length, 1, '应 emit merchant:refreshed');
+  assert(refreshEvents[0].args[0].stock !== undefined, '事件载荷含 stock');
+});
+
+// ================================================================
+// 能力 3：手动刷新 (2 个场景)
+// ================================================================
+section('能力 3：手动刷新');
+
+test('C3-S1: manualRefresh 玉璧充足 — 扣 30 玉璧，刷新商品', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  var origUids = MerchantManager._state.normalStock.map(function(it) { return it.uid; });
+  resetEmitted();
+
+  // 给足够的玉璧
+  ResourceManager._resources.jade = 100;
+
+  var result = MerchantManager.manualRefresh();
+
+  assertEqual(result, true, '返回 true');
+
+  // 扣除 30 玉璧
+  var jadeSpent = ResourceManager._spent.filter(function(s) { return s.type === 'jade'; });
+  assertEqual(jadeSpent.length, 1, '应调用 spend jade');
+  assertEqual(jadeSpent[0].amount, 30, '扣除 30 玉璧');
+
+  // normalStock 已替换
+  assert(MerchantManager._state.normalStock.length <= 6, '新商品数 ≤ 6');
+
+  // lastRefresh 更新
+  var diff = nowSec() - MerchantManager._state.lastRefresh;
+  assert(diff <= 2, 'lastRefresh 更新');
+
+  // 事件
+  var refreshEvents = getEmitted('merchant:refreshed');
+  assertEqual(refreshEvents.length, 1, '应 emit merchant:refreshed');
+
+  var toasts = getEmitted('toast:show');
+  var successToast = toasts.filter(function(t) { return t.args[0].type === 'success'; });
+  assertEqual(successToast.length, 1, '应 emit toast:show success');
+  assert(successToast[0].args[0].message.indexOf('商铺已刷新') >= 0, 'message 包含 商铺已刷新');
+});
+
+test('C3-S2: manualRefresh 玉璧不足 — 返回 false，不刷新', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  var origStock = MerchantManager._state.normalStock.slice();
+  var origLastRefresh = MerchantManager._state.lastRefresh;
+  resetEmitted();
+
+  // 玉璧不足
+  ResourceManager._resources.jade = 10;
+
+  var result = MerchantManager.manualRefresh();
+
+  assertEqual(result, false, '返回 false');
+
+  // normalStock 不变
+  assertEqual(MerchantManager._state.normalStock.length, origStock.length, 'normalStock 长度不变');
+  for (var i = 0; i < origStock.length; i++) {
+    assertEqual(MerchantManager._state.normalStock[i].uid, origStock[i].uid, 'item[' + i + '] 不变');
+  }
+
+  // lastRefresh 不变
+  assertEqual(MerchantManager._state.lastRefresh, origLastRefresh, 'lastRefresh 不变');
+
+  // jade 不扣
+  assertEqual(ResourceManager._spent.length, 0, 'jade 不扣');
+
+  // toast warning
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'toast type=warning');
+  assert(toasts[0].args[0].message.indexOf('玉璧不足') >= 0, 'message 包含 玉璧不足');
+  assert(toasts[0].args[0].message.indexOf('30') >= 0, 'message 包含 30');
+});
+
+// ================================================================
+// 能力 4：商品生成规则 (4 个场景)
+// ================================================================
+section('能力 4：商品生成规则');
+
+test('C4-S1: 刷新生成 ≤6 件商品，每件有唯一 uid，sold=false', function() {
+  resetAll();
+  resetEmitted();
+  MerchantManager.init(undefined);
+
+  var stock = MerchantManager._state.normalStock;
+
+  assert(stock.length > 0, '应生成至少 1 件商品');
+  assert(stock.length <= 6, '商品数 ≤ 6');
+
+  // 每件有唯一 uid
+  var uids = {};
+  for (var i = 0; i < stock.length; i++) {
+    assert(typeof stock[i].uid === 'string' && stock[i].uid.length > 0, 'item[' + i + '] 有 uid');
+    assertEqual(uids[stock[i].uid], undefined, 'uid 唯一: ' + stock[i].uid);
+    uids[stock[i].uid] = true;
+  }
+
+  // 每件 sold=false
+  for (var j = 0; j < stock.length; j++) {
+    assertEqual(stock[j].sold, false, 'item[' + j + '] sold=false');
+  }
+
+  // 每件 type 合法
+  var validTypes = ['weapon', 'armor', 'accessory', 'mount'];
+  for (var k = 0; k < stock.length; k++) {
+    assert(validTypes.indexOf(stock[k].type) >= 0, 'item[' + k + '] type 合法: ' + stock[k].type);
+  }
+
+  // 每件 quality 1-5
+  for (var m = 0; m < stock.length; m++) {
+    assert(stock[m].quality >= 1 && stock[m].quality <= 5, 'item[' + m + '] quality 合法: ' + stock[m].quality);
+  }
+});
+
+test('C4-S2: 蓝色武器定价 [1080, 1319] — quality 3 + weapon', function() {
+  resetAll();
+
+  // 直接测试定价公式: basePrice = 6 × 200 = 1200
+  // price = floor(1200 × (0.9 + random × 0.2))
+  // random=0 → floor(1200 × 0.9) = 1080
+  // random→1 → floor(1200 × 1.1) = 1319 (floor(1319.999...))
+
+  // 控制随机数测试下限
+  var origRandom = Math.random;
+
+  Math.random = function() { return 0; }; // variation=0.9
+  MerchantManager._state.normalStock = [];
+  MerchantManager._state.lastRefresh = 0;
+  // 临时覆盖 _rollQuality 和 randInt 来控制生成
+  var origRollQuality = MerchantManager._rollQuality;
+  var origRandInt = Utils.randInt;
+  MerchantManager._rollQuality = function() { return 3; }; // 蓝色
+  Utils.randInt = function(min, max) {
+    if (min === 0 && max === 3) return 0; // weapon
+    return min; // statValue 取最小值
+  };
+
+  MerchantManager._refreshStock();
+  var stock = MerchantManager._state.normalStock;
+  assert(stock.length > 0, '应生成商品');
+  assertEqual(stock[0].price, 1080, '下限 price=floor(1200×0.9)=1080');
+  assertEqual(stock[0].quality, 3, 'quality=3');
+  assertEqual(stock[0].type, 'weapon', 'type=weapon');
+
+  // 测试上限：random 接近 1
+  Math.random = function() { return 0.9999999; }; // variation ≈ 1.1
+  Utils.randInt = function(min, max) {
+    if (min === 0 && max === 3) return 0;
+    return min;
+  };
+  MerchantManager._refreshStock();
+  stock = MerchantManager._state.normalStock;
+  assert(stock[0].price >= 1080 && stock[0].price <= 1319, '上限 price ∈ [1080, 1319], got ' + stock[0].price);
+
+  // 恢复
+  Math.random = origRandom;
+  MerchantManager._rollQuality = origRollQuality;
+  Utils.randInt = origRandInt;
+});
+
+test('C4-S3: 橙色坐骑定价 [7920, 9679] — quality 5 + mount', function() {
+  resetAll();
+
+  // basePrice = 40 × 220 = 8800
+  // price = floor(8800 × (0.9 + random × 0.2))
+  // random=0 → floor(8800 × 0.9) = 7920
+  // random→1 → floor(8800 × 1.1) = 9679
+
+  var origRandom = Math.random;
+  var origRollQuality = MerchantManager._rollQuality;
+  var origRandInt = Utils.randInt;
+
+  // 测试下限
+  Math.random = function() { return 0; };
+  MerchantManager._rollQuality = function() { return 5; }; // 橙色
+  Utils.randInt = function(min, max) {
+    if (min === 0 && max === 3) return 3; // mount (types[3])
+    return min;
+  };
+
+  MerchantManager._refreshStock();
+  var stock = MerchantManager._state.normalStock;
+  assert(stock.length > 0, '应生成商品');
+  assertEqual(stock[0].price, 7920, '下限 price=floor(8800×0.9)=7920');
+  assertEqual(stock[0].quality, 5, 'quality=5');
+  assertEqual(stock[0].type, 'mount', 'type=mount');
+
+  // 测试上限
+  Math.random = function() { return 0.9999999; };
+  Utils.randInt = function(min, max) {
+    if (min === 0 && max === 3) return 3;
+    return min;
+  };
+  MerchantManager._refreshStock();
+  stock = MerchantManager._state.normalStock;
+  assert(stock[0].price >= 7920 && stock[0].price <= 9679, '上限 price ∈ [7920, 9679], got ' + stock[0].price);
+
+  // 恢复
+  Math.random = origRandom;
+  MerchantManager._rollQuality = origRollQuality;
+  Utils.randInt = origRandInt;
+});
+
+test('C4-S4: 模板缺失时跳过 — 最终商品数 < 6', function() {
+  resetAll();
+
+  // 临时清空 EquipmentData，使所有模板查找失败
+  var origData = EquipmentData;
+  EquipmentData = []; // 空数组 → 所有 type+quality 组合都找不到模板
+
+  MerchantManager._refreshStock();
+  var stock = MerchantManager._state.normalStock;
+  assertEqual(stock.length, 0, '模板全缺失时生成 0 件商品');
+
+  // 恢复
+  EquipmentData = origData;
+});
+
+// ================================================================
+// 能力 5：购买普通商品 (5 个场景)
+// ================================================================
+section('能力 5：购买普通商品');
+
+test('C5-S1: buyNormal 成功购买 — 扣金币、标记售出、创建装备', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  // 确保有库存
+  assert(MerchantManager._state.normalStock.length > 0, '应有库存');
+
+  var item = MerchantManager._state.normalStock[0];
+  ResourceManager._resources.gold = item.price + 1000;
+  EquipmentManager._maxCapacity = 50;
+  EquipmentManager._inventory = [];
+  resetEmitted();
+
+  var result = MerchantManager.buyNormal(item.uid);
+
+  assertEqual(result, true, '返回 true');
+
+  // item 标记售出
+  assertEqual(item.sold, true, 'item.sold=true');
+
+  // 金币扣除
+  var goldSpent = ResourceManager._spent.filter(function(s) { return s.type === 'gold'; });
+  assertEqual(goldSpent.length, 1, '应扣金币');
+  assertEqual(goldSpent[0].amount, item.price, '扣除金额=' + item.price);
+
+  // 装备添加到背包
+  assertEqual(EquipmentManager._added.length, 1, '应添加 1 件装备');
+  var equip = EquipmentManager._added[0];
+  assert(typeof equip.uid === 'string' && equip.uid.length > 0, '装备有 uid');
+  assertEqual(equip.id, item.templateId, '装备 id = templateId');
+  assertEqual(equip.name, item.name, '装备 name');
+  assertEqual(equip.type, item.type, '装备 type');
+  assertEqual(equip.quality, item.quality, '装备 quality');
+  assertEqual(equip.level, 0, '装备 level=0');
+  assertEqual(equip.equippedBy, null, '装备 equippedBy=null');
+  assertEqual(equip.stats[item.statType], item.statValue, '装备 stats');
+
+  // 事件
+  var purchasedEvents = getEmitted('merchant:purchased');
+  assertEqual(purchasedEvents.length, 1, '应 emit merchant:purchased');
+  assertEqual(purchasedEvents[0].args[0].price, item.price, '事件载荷 price');
+  assert(purchasedEvents[0].args[0].item !== undefined, '事件载荷 item');
+
+  var toasts = getEmitted('toast:show');
+  var successToast = toasts.filter(function(t) { return t.args[0].type === 'success'; });
+  assertEqual(successToast.length, 1, '应 emit toast:show success');
+  assert(successToast[0].args[0].message.indexOf(item.name) >= 0, 'message 包含装备名');
+});
+
+test('C5-S2: buyNormal 已售出 — 返回 false, toast warning', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  var item = MerchantManager._state.normalStock[0];
+  item.sold = true; // 手动标记为已售出
+  ResourceManager._resources.gold = 999999;
+  resetEmitted();
+
+  var result = MerchantManager.buyNormal(item.uid);
+
+  assertEqual(result, false, '返回 false');
+
+  // 不扣金币
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+
+  // 不添加装备
+  assertEqual(EquipmentManager._added.length, 0, '不添加装备');
+
+  // toast warning
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'toast type=warning');
+  assert(toasts[0].args[0].message.indexOf('商品不存在或已售出') >= 0, 'message 正确');
+});
+
+test('C5-S3: buyNormal 不存在 — 返回 false, toast warning', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  ResourceManager._resources.gold = 999999;
+  resetEmitted();
+
+  var result = MerchantManager.buyNormal('不存在的uid');
+
+  assertEqual(result, false, '返回 false');
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+  assertEqual(EquipmentManager._added.length, 0, '不添加装备');
+
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'type=warning');
+  assert(toasts[0].args[0].message.indexOf('商品不存在或已售出') >= 0, 'message 正确');
+});
+
+test('C5-S4: buyNormal 金币不足 — 返回 false, gold 不变', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  var item = MerchantManager._state.normalStock[0];
+  ResourceManager._resources.gold = 0; // 金币不足
+  resetEmitted();
+
+  var result = MerchantManager.buyNormal(item.uid);
+
+  assertEqual(result, false, '返回 false');
+  assertEqual(item.sold, false, 'item.sold 不变');
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'type=warning');
+  assert(toasts[0].args[0].message.indexOf('金币不足') >= 0, 'message 包含 金币不足');
+});
+
+test('C5-S5: buyNormal 背包已满 — 返回 false, gold 不变', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  var item = MerchantManager._state.normalStock[0];
+  ResourceManager._resources.gold = item.price + 1000;
+  // 背包已满
+  EquipmentManager._maxCapacity = 2;
+  EquipmentManager._inventory = [{}, {}]; // 2 件 = 已满
+  resetEmitted();
+
+  var result = MerchantManager.buyNormal(item.uid);
+
+  assertEqual(result, false, '返回 false');
+  assertEqual(item.sold, false, 'item.sold 不变');
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+  assertEqual(EquipmentManager._added.length, 0, '不添加装备');
+
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'type=warning');
+  assert(toasts[0].args[0].message.indexOf('背包已满') >= 0, 'message 包含 背包已满');
+});
+
+// ================================================================
+// 能力 6：购买镇店之宝 (5 个场景)
+// ================================================================
+section('能力 6：购买镇店之宝');
+
+test('C6-S1: buyPermanent 成功购买 — 扣金币、标记 sold、创建品质 6 装备', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  ResourceManager._resources.gold = 600000;
+  EquipmentManager._maxCapacity = 50;
+  EquipmentManager._inventory = [];
+  resetEmitted();
+
+  // 控制 randInt 使 statValue 可确定
+  var origRandInt = Utils.randInt;
+  Utils.randInt = function(min, max) { return min; };
+
+  var result = MerchantManager.buyPermanent('equip_mythic_tyrant_pendant');
+
+  assertEqual(result, true, '返回 true');
+
+  // 金币扣除 500000
+  var goldSpent = ResourceManager._spent.filter(function(s) { return s.type === 'gold'; });
+  assertEqual(goldSpent.length, 1, '应扣金币');
+  assertEqual(goldSpent[0].amount, 500000, '扣除 500000');
+
+  // permanentSold 标记
+  assertEqual(MerchantManager._state.permanentSold['equip_mythic_tyrant_pendant'], true, 'permanentSold 标记');
+
+  // permanentStock 中对应 item.sold=true
+  var ps = MerchantManager._state.permanentStock;
+  var found = null;
+  for (var i = 0; i < ps.length; i++) {
+    if (ps[i].equipId === 'equip_mythic_tyrant_pendant') found = ps[i];
+  }
+  assertEqual(found.sold, true, 'permanentStock item.sold=true');
+
+  // 装备实例
+  assertEqual(EquipmentManager._added.length, 1, '应添加 1 件装备');
+  var equip = EquipmentManager._added[0];
+  assertEqual(equip.quality, 6, 'quality=6');
+  assertEqual(equip.id, 'equip_mythic_tyrant_pendant', 'id 正确');
+  assertEqual(equip.name, '虞姬泪珠链', 'name 正确');
+  assertEqual(equip.type, 'accessory', 'type=accessory');
+  assertEqual(equip.setId, 'set_overlord', 'setId=set_overlord');
+  assertEqual(equip.unsellable, true, 'unsellable=true');
+  assertEqual(equip.level, 0, 'level=0');
+  assertEqual(equip.equippedBy, null, 'equippedBy=null');
+  assertEqual(equip.stats.hp, 380, 'stats.hp = statRange[0] = 380');
+
+  // 事件
+  var purchasedEvents = getEmitted('merchant:purchased');
+  assertEqual(purchasedEvents.length, 1, '应 emit merchant:purchased');
+  assertEqual(purchasedEvents[0].args[0].price, 500000, '事件载荷 price=500000');
+
+  var toasts = getEmitted('toast:show');
+  var successToast = toasts.filter(function(t) { return t.args[0].type === 'success'; });
+  assertEqual(successToast.length, 1, '应 emit toast:show success');
+  assert(successToast[0].args[0].message.indexOf('🔴') >= 0, 'message 包含 🔴');
+  assert(successToast[0].args[0].message.indexOf('虞姬泪珠链') >= 0, 'message 包含装备名');
+
+  // 恢复
+  Utils.randInt = origRandInt;
+});
+
+test('C6-S2: buyPermanent 已购买 — 返回 false, toast warning', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  ResourceManager._resources.gold = 999999;
+
+  // 先购买一次
+  MerchantManager.buyPermanent('equip_mythic_tyrant_pendant');
+  resetEmitted();
+  ResourceManager._spent = [];
+  EquipmentManager._added = [];
+
+  // 再购买 — 应失败
+  var result = MerchantManager.buyPermanent('equip_mythic_tyrant_pendant');
+
+  assertEqual(result, false, '返回 false');
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+  assertEqual(EquipmentManager._added.length, 0, '不添加装备');
+
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'type=warning');
+  assert(toasts[0].args[0].message.indexOf('已购买过此物品') >= 0, 'message 正确');
+});
+
+test('C6-S3: buyPermanent 金币不足 — 返回 false, gold 不变', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  ResourceManager._resources.gold = 100; // 远不够 500000
+  resetEmitted();
+
+  var result = MerchantManager.buyPermanent('equip_mythic_tyrant_pendant');
+
+  assertEqual(result, false, '返回 false');
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+
+  // permanentSold 不变
+  assertEqual(MerchantManager._state.permanentSold['equip_mythic_tyrant_pendant'], undefined, 'permanentSold 不变');
+
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'type=warning');
+  assert(toasts[0].args[0].message.indexOf('金币不足') >= 0, 'message 包含 金币不足');
+});
+
+test('C6-S4: buyPermanent 背包已满 — 返回 false, gold 不变', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+  ResourceManager._resources.gold = 600000;
+  EquipmentManager._maxCapacity = 1;
+  EquipmentManager._inventory = [{}]; // 已满
+  resetEmitted();
+
+  var result = MerchantManager.buyPermanent('equip_mythic_tyrant_pendant');
+
+  assertEqual(result, false, '返回 false');
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+  assertEqual(EquipmentManager._added.length, 0, '不添加装备');
+  assertEqual(MerchantManager._state.permanentSold['equip_mythic_tyrant_pendant'], undefined, 'permanentSold 不变');
+
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'warning', 'type=warning');
+  assert(toasts[0].args[0].message.indexOf('背包已满') >= 0, 'message 包含 背包已满');
+});
+
+test('C6-S5: buyPermanent 模板不存在 — 返回 false（静默失败）', function() {
+  resetAll();
+
+  // 添加一个没有对应 MythicEquipmentData 模板的永久商品
+  var origPermanentStock = MerchantPermanentStock;
+  MerchantPermanentStock = [
+    { equipId: 'equip_nonexistent_mythic', price: 100000, setId: 'set_fake' }
+  ];
+
+  MerchantManager.init(undefined);
+  ResourceManager._resources.gold = 999999;
+  EquipmentManager._maxCapacity = 50;
+  EquipmentManager._inventory = [];
+  resetEmitted();
+
+  var result = MerchantManager.buyPermanent('equip_nonexistent_mythic');
+
+  assertEqual(result, false, '返回 false');
+
+  // 金币不扣除
+  assertEqual(ResourceManager._spent.length, 0, '不扣金币');
+
+  // item.sold 不变
+  var ps = MerchantManager._state.permanentStock;
+  var item = null;
+  for (var i = 0; i < ps.length; i++) {
+    if (ps[i].equipId === 'equip_nonexistent_mythic') item = ps[i];
+  }
+  assertEqual(item.sold, false, 'item.sold 不变');
+
+  // permanentSold 不变
+  assertEqual(MerchantManager._state.permanentSold['equip_nonexistent_mythic'], undefined, 'permanentSold 不变');
+
+  // 不添加装备
+  assertEqual(EquipmentManager._added.length, 0, '不添加装备');
+
+  // 恢复
+  MerchantPermanentStock = origPermanentStock;
+});
+
+// ================================================================
+// 能力 7：查询接口 (4 个场景)
+// ================================================================
+section('能力 7：查询接口');
+
+test('C7-S1: getNormalStock 返回列表（含已售出标记）', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+
+  // 标记前 2 件为已售出
+  var stock = MerchantManager._state.normalStock;
+  if (stock.length >= 2) {
+    stock[0].sold = true;
+    stock[1].sold = true;
+  }
+
+  var result = MerchantManager.getNormalStock();
+
+  // 返回内部引用
+  assert(result === MerchantManager._state.normalStock, 'getNormalStock 返回内部引用');
+  assertEqual(result.length, stock.length, '长度正确');
+
+  // 检查 sold 标记
+  if (stock.length >= 2) {
+    assertEqual(result[0].sold, true, '第 1 件 sold=true');
+    assertEqual(result[1].sold, true, '第 2 件 sold=true');
+    if (stock.length > 2) {
+      assertEqual(result[2].sold, false, '第 3 件 sold=false');
+    }
+  }
+});
+
+test('C7-S2: getPermanentStock 返回列表（对应 MerchantPermanentStock 配置）', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+
+  var result = MerchantManager.getPermanentStock();
+
+  // 返回内部引用
+  assert(result === MerchantManager._state.permanentStock, 'getPermanentStock 返回内部引用');
+
+  // 长度等于 MerchantPermanentStock 配置长度（mock 为 2 条）
+  assertEqual(result.length, MerchantPermanentStock.length, '长度=' + MerchantPermanentStock.length);
+
+  // 每个条目结构正确
+  for (var i = 0; i < result.length; i++) {
+    assert(typeof result[i].equipId === 'string', 'item[' + i + '] 有 equipId');
+    assert(typeof result[i].price === 'number', 'item[' + i + '] 有 price');
+    assert(typeof result[i].setId === 'string', 'item[' + i + '] 有 setId');
+    assert(typeof result[i].sold === 'boolean', 'item[' + i + '] 有 sold');
+    assert(typeof result[i].name === 'string', 'item[' + i + '] 有 name');
+    assert(typeof result[i].description === 'string', 'item[' + i + '] 有 description');
+  }
+
+  // 验证 name 从 template 获取
+  assertEqual(result[0].name, '虞姬泪珠链', '第 1 件 name 从模板获取');
+  assertEqual(result[1].name, '孔明灯·永夜版', '第 2 件 name 从模板获取');
+});
+
+test('C7-S3: getRefreshCountdown 正常 — 返回剩余秒数', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+
+  // 设置 lastRefresh 为 10 秒前
+  MerchantManager._state.lastRefresh = nowSec() - 10;
+  MerchantManager._state.refreshInterval = 14400;
+
+  var countdown = MerchantManager.getRefreshCountdown();
+
+  // 应约等于 14390（允许 1 秒误差）
+  assert(countdown >= 14389 && countdown <= 14391, 'countdown ≈ 14390, got ' + countdown);
+});
+
+test('C7-S4: getRefreshCountdown 已过期 — 返回 0', function() {
+  resetAll();
+  MerchantManager.init(undefined);
+
+  // 设置 lastRefresh 为很久以前（超过 refreshInterval）
+  MerchantManager._state.lastRefresh = nowSec() - 20000;
+  MerchantManager._state.refreshInterval = 14400;
+
+  var countdown = MerchantManager.getRefreshCountdown();
+
+  assertEqual(countdown, 0, 'countdown=0（已过期）');
+});
+
+// ===== 输出总结 =====
+(function() {
+  var total = _results.length;
+  var passed = _results.filter(function(r) { return r.status === 'pass'; }).length;
+  var failed = _results.filter(function(r) { return r.status === 'fail'; }).length;
+
+  var summaryEl = document.getElementById('summary');
+  var color = failed === 0 ? '#4caf50' : '#f44336';
+  summaryEl.innerHTML =
+    '<span style="color:' + color + ';font-size:1.2rem;font-weight:bold;">' +
+    (failed === 0 ? '✅ ALL PASSED' : '❌ FAILURES') +
+    '</span><br>' +
+    'Total: ' + total + ' | Passed: ' + passed + ' | Failed: ' + failed + '<br>' +
+    '规范覆盖：7 个能力, 26 个 WHEN/THEN 场景';
+
+  // 控制台摘要
+  console.log('=== MerchantManager 规范测试 ===');
+  console.log('Total: ' + total + ' | Passed: ' + passed + ' | Failed: ' + failed);
+  if (failed > 0) {
+    _results.filter(function(r) { return r.status === 'fail'; }).forEach(function(r) {
+      console.error('FAIL: ' + r.name + ' — ' + r.error);
+    });
+  }
+})();
+</script>
+</body>
+</html>

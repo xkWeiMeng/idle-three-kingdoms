@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>HeroManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+  .pass { color: #4caf50; }
+  .fail { color: #f44336; }
+  .skip { color: #ff9800; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #e94560; }
+  .summary { margin-top: 20px; padding: 12px; background: #16213e; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>HeroManager 规范测试</h1>
+<pre>规范引用：specs/services/hero-manager.md
+执行计划：specs/exec-plans/hero-manager.md (T2)</pre>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- 加载核心依赖 -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+<!-- 加载数据 -->
+<script src="../js/data/heroes.js"></script>
+
+<script>
+/**
+ * 规范引用：specs/services/hero-manager.md (Active)
+ * 执行计划：specs/exec-plans/hero-manager.md (T2)
+ *
+ * 测试策略：mock EventBus.emit + ResourceManager + EquipmentManager
+ * 覆盖：全部 6 个能力的 23 个 WHEN/THEN 场景
+ */
+
+// ===== 微型测试框架 =====
+var _results = [];
+var _log = document.getElementById('results');
+var _currentSection = '';
+
+function section(name) {
+  _currentSection = name;
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.textContent = '▸ ' + name;
+  _log.appendChild(el);
+}
+
+function test(name, fn) {
+  var entry = { section: _currentSection, name: name, status: 'pass', error: null };
+  try {
+    fn();
+  } catch (e) {
+    entry.status = 'fail';
+    entry.error = e.message || String(e);
+  }
+  _results.push(entry);
+  var el = document.createElement('div');
+  el.className = entry.status;
+  el.textContent = (entry.status === 'pass' ? '  ✓ ' : '  ✗ ') + name;
+  if (entry.error) el.textContent += ' — ' + entry.error;
+  _log.appendChild(el);
+}
+
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg || 'Assertion failed');
+}
+
+function assertEqual(actual, expected, msg) {
+  if (actual !== expected) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+function assertDeepEqual(actual, expected, msg) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error((msg || '') + ' expected=' + JSON.stringify(expected) + ' actual=' + JSON.stringify(actual));
+  }
+}
+
+// ===== Mock 依赖 =====
+
+// Mock EventBus — 拦截 emit，记录调用
+var _emitted = [];
+var _origEmit = EventBus.emit.bind(EventBus);
+EventBus.emit = function(event) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  _emitted.push({ event: event, args: args });
+};
+
+function getEmitted(eventName) {
+  return _emitted.filter(function(e) { return e.event === eventName; });
+}
+
+function resetEmitted() {
+  _emitted = [];
+}
+
+// Mock ResourceManager
+var ResourceManager = {
+  _resources: {},
+  _spent: [],
+  _added: [],
+  add: function(type, amount) {
+    this._resources[type] = (this._resources[type] || 0) + amount;
+    this._added.push({ type: type, amount: amount });
+  },
+  spend: function(type, amount) {
+    this._resources[type] = (this._resources[type] || 0) - amount;
+    this._spent.push({ type: type, amount: amount });
+  },
+  canAfford: function(type, amount) {
+    return (this._resources[type] || 0) >= amount;
+  },
+  get: function(type) {
+    return this._resources[type] || 0;
+  },
+  reset: function() {
+    this._resources = {};
+    this._spent = [];
+    this._added = [];
+  }
+};
+
+// Mock EquipmentManager
+var EquipmentManager = {
+  _equipment: {},
+  getEquipment: function(uid) {
+    return this._equipment[uid] || null;
+  },
+  reset: function() {
+    this._equipment = {};
+  }
+};
+
+// EquipTypeToStat (matches js/data/equipment.js)
+var EquipTypeToStat = {
+  weapon: 'atk',
+  armor: 'def',
+  accessory: 'hp',
+  mount: 'spd'
+};
+
+// ===== 加载被测模块 =====
+</script>
+<script src="../js/modules/hero-manager.js"></script>
+<script>
+
+// ===== 测试辅助 =====
+function resetAll() {
+  HeroManager._heroes = [];
+  HeroManager._team = [];
+  ResourceManager.reset();
+  EquipmentManager.reset();
+  resetEmitted();
+}
+
+// 快速创建武将实例辅助
+function addZhaoyun() {
+  resetEmitted();
+  return HeroManager.addHero('shu_zhaoyun');
+}
+
+// ===== 能力 1：获取武将 =====
+section('能力 1：获取武将 (addHero)');
+
+test('C1-S1: addHero 新武将 — 创建实例并 emit hero:added', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+
+  // 实例结构
+  assert(hero !== null, '应返回实例');
+  assert(typeof hero.uid === 'string' && hero.uid.length > 0, 'uid 应为非空字符串');
+  assertEqual(hero.id, 'shu_zhaoyun', 'id');
+  assertEqual(hero.level, 1, 'level=1');
+  assertEqual(hero.exp, 0, 'exp=0');
+  assertEqual(hero.equipment.weapon, null, 'weapon=null');
+  assertEqual(hero.equipment.armor, null, 'armor=null');
+  assertEqual(hero.equipment.accessory, null, 'accessory=null');
+  assertEqual(hero.equipment.mount, null, 'mount=null');
+
+  // _heroes 新增
+  assertEqual(HeroManager._heroes.length, 1, '_heroes 长度=1');
+  assertEqual(HeroManager._heroes[0].uid, hero.uid, '引用一致');
+
+  // 事件
+  var events = getEmitted('hero:added');
+  assertEqual(events.length, 1, '应 emit 1 次 hero:added');
+  assertEqual(events[0].args[0].uid, hero.uid, '事件载荷=实例');
+});
+
+test('C1-S2: addHero 重复武将 — 转换为经验', function() {
+  resetAll();
+  HeroManager.addHero('shu_zhaoyun'); // 先添加一次
+  resetEmitted();
+  ResourceManager.reset();
+
+  var result = HeroManager.addHero('shu_zhaoyun'); // 再次添加（重复）
+
+  // 赵云 quality=4, 4×100=400 EXP
+  assertEqual(result, null, '重复时返回 null');
+  assertEqual(HeroManager._heroes.length, 1, '不添加新实例');
+  assertEqual(ResourceManager._added.length, 1, '应调用 add');
+  assertEqual(ResourceManager._added[0].type, 'exp', '添加 exp');
+  assertEqual(ResourceManager._added[0].amount, 400, '4×100=400');
+
+  // toast 事件
+  var toasts = getEmitted('toast:show');
+  assertEqual(toasts.length, 1, '应 emit toast:show');
+  assertEqual(toasts[0].args[0].type, 'info', 'toast type=info');
+});
+
+test('C1-S3: addHero 无效 ID — 返回 null 不修改状态', function() {
+  resetAll();
+  var result = HeroManager.addHero('invalid_id');
+
+  assertEqual(result, null, '应返回 null');
+  assertEqual(HeroManager._heroes.length, 0, '不修改 _heroes');
+  assertEqual(_emitted.length, 0, '不触发任何事件');
+});
+
+// ===== 能力 2：查询武将 =====
+section('能力 2：查询武将 (getTemplate/getHeroByUid/getAll)');
+
+test('C2-S1: getTemplate 正常 — 返回模板数据', function() {
+  var tpl = HeroManager.getTemplate('shu_zhugeliang');
+
+  assert(tpl !== null && tpl !== undefined, '应返回模板');
+  assertEqual(tpl.id, 'shu_zhugeliang', 'id');
+  assertEqual(tpl.name, '诸葛亮', 'name');
+  assert(typeof tpl.baseAtk === 'number', 'baseAtk 应为数字');
+  assert(typeof tpl.baseDef === 'number', 'baseDef 应为数字');
+  assert(typeof tpl.baseHp === 'number', 'baseHp 应为数字');
+  assert(typeof tpl.baseSpd === 'number', 'baseSpd 应为数字');
+  assert(tpl.skill !== undefined, '应有 skill');
+});
+
+test('C2-S2: getHeroByUid 不存在 — 返回 undefined', function() {
+  resetAll();
+  var result = HeroManager.getHeroByUid('不存在的uid');
+  assertEqual(result, undefined, '应返回 undefined');
+});
+
+test('C2-S3: getAll 内部引用 — 返回正确长度', function() {
+  resetAll();
+  HeroManager.addHero('shu_zhaoyun');
+  HeroManager.addHero('shu_zhugeliang');
+  HeroManager.addHero('wei_caocao');
+
+  var all = HeroManager.getAll();
+  assertEqual(all.length, 3, '应返回 3 个武将');
+  // 验证是内部引用（同一对象）
+  assert(all === HeroManager._heroes, 'getAll 返回 _heroes 引用');
+});
+
+// ===== 能力 3：队伍管理 =====
+section('能力 3：队伍管理 (addToTeam/removeFromTeam/isInTeam)');
+
+test('C3-S1: addToTeam 成功 — 队伍增加并 emit', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  HeroManager.addHero('shu_zhugeliang');
+  HeroManager.addHero('wei_caocao');
+  HeroManager._team = [HeroManager._heroes[0].uid, HeroManager._heroes[1].uid, HeroManager._heroes[2].uid];
+  var hero4 = HeroManager.addHero('shu_liubei');
+  resetEmitted();
+
+  var result = HeroManager.addToTeam(hero4.uid);
+
+  assertEqual(result, true, '返回 true');
+  assertEqual(HeroManager._team.length, 4, '队伍=4人');
+
+  var events = getEmitted('hero:team_changed');
+  assertEqual(events.length, 1, '应 emit hero:team_changed');
+});
+
+test('C3-S2: addToTeam 队伍满 — 返回 false', function() {
+  resetAll();
+  // 添加 6 个武将
+  var heroes = [];
+  var ids = ['shu_zhaoyun', 'shu_zhugeliang', 'wei_caocao', 'shu_liubei', 'shu_guanyu', 'shu_zhangfei'];
+  for (var i = 0; i < ids.length; i++) {
+    heroes.push(HeroManager.addHero(ids[i]));
+  }
+  // 前 5 人上阵
+  HeroManager._team = heroes.slice(0, 5).map(function(h) { return h.uid; });
+  resetEmitted();
+
+  var result = HeroManager.addToTeam(heroes[5].uid);
+
+  assertEqual(result, false, '队伍满时返回 false');
+  assertEqual(HeroManager._team.length, 5, '队伍仍为 5 人');
+  assertEqual(_emitted.length, 0, '不触发事件');
+});
+
+test('C3-S3: addToTeam 重复 uid — 返回 false', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  HeroManager._team = [hero.uid];
+  resetEmitted();
+
+  var result = HeroManager.addToTeam(hero.uid);
+
+  assertEqual(result, false, '已在队伍返回 false');
+  assertEqual(HeroManager._team.length, 1, '队伍不变');
+  assertEqual(_emitted.length, 0, '不触发事件');
+});
+
+test('C3-S4: addToTeam 无效 uid — 返回 false', function() {
+  resetAll();
+  resetEmitted();
+
+  var result = HeroManager.addToTeam('non_existent_uid');
+
+  assertEqual(result, false, '无效 uid 返回 false');
+  assertEqual(HeroManager._team.length, 0, '队伍不变');
+  assertEqual(_emitted.length, 0, '不触发事件');
+});
+
+test('C3-S5: removeFromTeam 成功 — 队伍减少并 emit', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  HeroManager._team = [hero.uid];
+  resetEmitted();
+
+  var result = HeroManager.removeFromTeam(hero.uid);
+
+  assertEqual(result, true, '返回 true');
+  assertEqual(HeroManager._team.length, 0, '队伍减少');
+  assert(!HeroManager.isInTeam(hero.uid), '不再在队伍中');
+
+  var events = getEmitted('hero:team_changed');
+  assertEqual(events.length, 1, '应 emit hero:team_changed');
+});
+
+test('C3-S6: removeFromTeam 不在队伍 — 返回 false 队伍不变', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  // 不加入队伍
+  resetEmitted();
+
+  var result = HeroManager.removeFromTeam(hero.uid);
+
+  assertEqual(result, false, '不在队伍返回 false');
+  assertEqual(HeroManager._team.length, 0, '队伍不变');
+  assertEqual(_emitted.length, 0, '不触发事件');
+});
+
+// ===== 能力 4：武将升级 =====
+section('能力 4：武将升级 (levelUp/getExpCost)');
+
+test('C4-S1: levelUp 成功 — 等级+1, 扣 EXP, emit', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  ResourceManager._resources.exp = 100; // 充足（level 1 需要 50）
+  resetEmitted();
+
+  var result = HeroManager.levelUp(hero.uid);
+
+  assertEqual(result, true, '返回 true');
+  assertEqual(hero.level, 2, '等级=2');
+  assertEqual(ResourceManager._spent.length, 1, '应调用 spend');
+  assertEqual(ResourceManager._spent[0].type, 'exp', '扣除 exp');
+  assertEqual(ResourceManager._spent[0].amount, 50, 'level 1 费用=50');
+
+  var events = getEmitted('hero:levelup');
+  assertEqual(events.length, 1, '应 emit hero:levelup');
+  assertEqual(events[0].args[0].hero.uid, hero.uid, '载荷 hero');
+  assertEqual(events[0].args[0].newLevel, 2, '载荷 newLevel=2');
+});
+
+test('C4-S2: getExpCost 数值验证 — floor(50 × level^1.5)', function() {
+  // 规范参考表
+  assertEqual(HeroManager.getExpCost(1), 50, 'level 1 → 50');
+  assertEqual(HeroManager.getExpCost(5), Math.floor(50 * Math.pow(5, 1.5)), 'level 5 → ' + Math.floor(50 * Math.pow(5, 1.5)));
+  assertEqual(HeroManager.getExpCost(10), 1581, 'level 10 → 1581');
+  assertEqual(HeroManager.getExpCost(20), Math.floor(50 * Math.pow(20, 1.5)), 'level 20');
+  assertEqual(HeroManager.getExpCost(49), Math.floor(50 * Math.pow(49, 1.5)), 'level 49');
+});
+
+test('C4-S3: levelUp 满级 — 返回 false 不扣资源', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  hero.level = 50; // 手动设为满级
+  ResourceManager._resources.exp = 99999;
+  resetEmitted();
+
+  var result = HeroManager.levelUp(hero.uid);
+
+  assertEqual(result, false, '满级返回 false');
+  assertEqual(hero.level, 50, '等级不变');
+  assertEqual(ResourceManager._spent.length, 0, '不扣资源');
+  assertEqual(_emitted.length, 0, '不触发事件');
+});
+
+test('C4-S4: levelUp EXP 不足 — 返回 false 不变', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  hero.level = 5;
+  ResourceManager._resources.exp = 10; // 不足（level 5 需要 559）
+  resetEmitted();
+
+  var result = HeroManager.levelUp(hero.uid);
+
+  assertEqual(result, false, 'EXP 不足返回 false');
+  assertEqual(hero.level, 5, '等级不变');
+  assertEqual(ResourceManager._spent.length, 0, '不扣资源');
+});
+
+// ===== 能力 5：属性计算 =====
+section('能力 5：属性计算 (getHeroStats/getBattlePower)');
+
+test('C5-S1: getHeroStats 等级 1 无装备 — 返回基础属性', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  // 赵云: quality=4, baseAtk=50, baseDef=38, baseHp=300, baseSpd=42
+
+  var stats = HeroManager.getHeroStats(hero.uid);
+
+  assert(stats !== null, '应返回属性');
+  assertEqual(stats.atk, 50, 'atk=baseAtk=50 (level-1=0, 无成长)');
+  assertEqual(stats.def, 38, 'def=baseDef=38');
+  assertEqual(stats.hp, 300, 'hp=baseHp=300');
+  assertEqual(stats.spd, 42, 'spd=baseSpd=42');
+});
+
+test('C5-S2: getHeroStats 等级 10 无装备 — 含成长加成', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  hero.level = 10;
+  // 赵云 Q4: growth = { atk:5, def:4, hp:30, spd:1.2 }
+  // atk = floor(50 + 5 × 9) = 95
+  // def = floor(38 + 4 × 9) = 74
+  // hp  = floor(300 + 30 × 9) = 570
+  // spd = floor(42 + 1.2 × 9) = floor(52.8) = 52
+
+  var stats = HeroManager.getHeroStats(hero.uid);
+
+  assertEqual(stats.atk, Math.floor(50 + 5 * 9), 'atk=floor(50+5×9)=' + Math.floor(50 + 5 * 9));
+  assertEqual(stats.def, Math.floor(38 + 4 * 9), 'def=floor(38+4×9)=' + Math.floor(38 + 4 * 9));
+  assertEqual(stats.hp, Math.floor(300 + 30 * 9), 'hp=floor(300+30×9)=' + Math.floor(300 + 30 * 9));
+  assertEqual(stats.spd, Math.floor(42 + 1.2 * 9), 'spd=floor(42+1.2×9)=' + Math.floor(42 + 1.2 * 9));
+});
+
+test('C5-S3: getHeroStats 装备加成 — 含武器 atk+10', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  hero.level = 1;
+
+  // Mock 装备: weapon uid=w1, type=weapon, stats.atk=10, level=0
+  var weaponUid = 'test_weapon_001';
+  hero.equipment.weapon = weaponUid;
+  EquipmentManager._equipment[weaponUid] = {
+    uid: weaponUid,
+    type: 'weapon',
+    stats: { atk: 10 },
+    level: 0
+  };
+
+  var stats = HeroManager.getHeroStats(hero.uid);
+
+  // atk = floor(50 + 0 + 10 × (1 + 0×0.1)) = floor(60) = 60
+  assertEqual(stats.atk, 60, 'atk=floor(50+10)=60 (装备加成)');
+  assertEqual(stats.def, 38, 'def 不受武器影响');
+});
+
+test('C5-S4: getBattlePower 数值验证 — floor 公式', function() {
+  resetAll();
+  var hero = HeroManager.addHero('shu_zhaoyun');
+  hero.level = 10;
+
+  var stats = HeroManager.getHeroStats(hero.uid);
+  var expected = Math.floor(
+    (stats.atk * 1.5 + stats.def * 1.2 + stats.hp * 0.3 + stats.spd * 1.0) *
+    (1 + hero.level * 0.02)
+  );
+
+  var power = HeroManager.getBattlePower(hero.uid);
+
+  assertEqual(power, expected, 'battlePower=floor(公式)=' + expected);
+  assert(typeof power === 'number', '应为数字');
+  assertEqual(power, Math.floor(power), '应为整数（floor）');
+});
+
+test('C5-S5: getHeroStats 无效 uid — 返回 null', function() {
+  resetAll();
+  var result = HeroManager.getHeroStats('invalid_uid');
+  assertEqual(result, null, '无效 uid 应返回 null');
+});
+
+test('C5-S6: getBattlePower 无效 uid — 返回 0', function() {
+  resetAll();
+  var result = HeroManager.getBattlePower('invalid_uid');
+  assertEqual(result, 0, '无效 uid 应返回 0');
+});
+
+// ===== 能力 6：初始化与存档 =====
+section('能力 6：初始化与存档 (init/getState)');
+
+test('C6-S1: init(undefined) 首次游戏 — 赠送赵云并上阵', function() {
+  resetAll();
+  HeroManager.init(undefined);
+
+  assertEqual(HeroManager._heroes.length, 1, '_heroes 有 1 个武将');
+  assertEqual(HeroManager._heroes[0].id, 'shu_zhaoyun', '武将为赵云');
+  assertEqual(HeroManager._heroes[0].level, 1, 'level=1');
+  assertEqual(HeroManager._team.length, 1, '_team 有 1 人');
+  assertEqual(HeroManager._team[0], HeroManager._heroes[0].uid, '赵云在队伍中');
+});
+
+test('C6-S2: init(savedState) 恢复存档 — 恢复完整列表和队伍', function() {
+  resetAll();
+  var savedState = {
+    heroes: {
+      heroes: [
+        { uid: 'u1', id: 'shu_zhaoyun', level: 10, exp: 500, equipment: { weapon: null, armor: null, accessory: null, mount: null } },
+        { uid: 'u2', id: 'wei_caocao', level: 5, exp: 100, equipment: { weapon: null, armor: null, accessory: null, mount: null } }
+      ],
+      team: ['u1', 'u2']
+    }
+  };
+
+  HeroManager.init(savedState);
+
+  assertEqual(HeroManager._heroes.length, 2, '_heroes 恢复 2 个武将');
+  assertEqual(HeroManager._heroes[0].uid, 'u1', '第一个武将 uid=u1');
+  assertEqual(HeroManager._heroes[1].uid, 'u2', '第二个武将 uid=u2');
+  assertEqual(HeroManager._heroes[0].level, 10, '等级恢复');
+  assertDeepEqual(HeroManager._team, ['u1', 'u2'], '队伍顺序恢复');
+});
+
+test('C6-S3: getState 深拷贝 — 修改返回值不影响内部', function() {
+  resetAll();
+  HeroManager.addHero('shu_zhaoyun');
+
+  var state = HeroManager.getState();
+
+  // 验证结构
+  assert(Array.isArray(state.heroes), 'heroes 应为数组');
+  assert(Array.isArray(state.team), 'team 应为数组');
+  assertEqual(state.heroes.length, 1, 'heroes 长度=1');
+
+  // 验证深拷贝 — 修改不影响内部
+  state.heroes[0].level = 999;
+  assertEqual(HeroManager._heroes[0].level, 1, '修改返回值不影响内部 _heroes');
+
+  state.team.push('fake_uid');
+  assertEqual(HeroManager._team.length, 0, '修改返回值不影响内部 _team');
+});
+
+// ===== 输出总结 =====
+(function() {
+  var total = _results.length;
+  var passed = _results.filter(function(r) { return r.status === 'pass'; }).length;
+  var failed = _results.filter(function(r) { return r.status === 'fail'; }).length;
+
+  var summaryEl = document.getElementById('summary');
+  var color = failed === 0 ? '#4caf50' : '#f44336';
+  summaryEl.innerHTML =
+    '<span style="color:' + color + ';font-size:1.2rem;font-weight:bold;">' +
+    (failed === 0 ? '✅ ALL PASSED' : '❌ FAILURES') +
+    '</span><br>' +
+    'Total: ' + total + ' | Passed: ' + passed + ' | Failed: ' + failed + '<br>' +
+    '规范覆盖：6 个能力, 25 个 WHEN/THEN 场景';
+
+  // 控制台摘要
+  console.log('=== HeroManager 规范测试 ===');
+  console.log('Total: ' + total + ' | Passed: ' + passed + ' | Failed: ' + failed);
+  if (failed > 0) {
+    _results.filter(function(r) { return r.status === 'fail'; }).forEach(function(r) {
+      console.error('FAIL: ' + r.name + ' — ' + r.error);
+    });
+  }
+})();
+</script>
+</body>
+</html>

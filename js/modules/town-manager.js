@@ -30,7 +30,10 @@ var TownManager = {
       parking_lot:      { level: 0, buildEndTime: null }
     },
     placements: {},
-    roads: []
+    roads: [],
+    workers: 1,
+    firstBuildingCompleted: false,
+    buildQueue: []
   },
 
   /** 资源产出累加器（秒级精度 → 每分钟产出） */
@@ -61,7 +64,36 @@ var TownManager = {
     } else {
       this._state.roads = [];
     }
+
+    // ---- Worker system state ----
+    if (data.workers !== undefined) {
+      this._state.workers = data.workers;
+      this._state.firstBuildingCompleted = !!data.firstBuildingCompleted;
+      this._state.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
+    } else {
+      // Migration: compute workers from current game state
+      this._state.workers = 1;
+      this._state.firstBuildingCompleted = false;
+      for (var migId in this._state.buildings) {
+        if (migId !== 'town_hall' && this._state.buildings.hasOwnProperty(migId) && this._state.buildings[migId].level >= 1) {
+          this._state.firstBuildingCompleted = true;
+          this._state.workers = 2;
+          break;
+        }
+      }
+      var migTH = this._state.buildings.town_hall ? this._state.buildings.town_hall.level : 1;
+      if (migTH >= 3) this._state.workers = Math.max(this._state.workers, 3);
+      if (migTH >= 5) this._state.workers = Math.max(this._state.workers, 4);
+      if (migTH >= 7) this._state.workers = Math.max(this._state.workers, 5);
+      if (this._state.workers > WORKER_CONFIG.MAX_WORKERS) this._state.workers = WORKER_CONFIG.MAX_WORKERS;
+      this._state.buildQueue = [];
+    }
+
     this._productionAccum = { wood: 0, stone: 0, iron: 0, gold: 0 };
+
+    // Offline queue progression (complete expired builds + advance queue)
+    this._processOfflineBuilds();
+
     // Defer initial road calculation to after TownWorld is initialized
     var self = this;
     setTimeout(function () { self.recalcRoads(); }, 100);
@@ -102,12 +134,14 @@ var TownManager = {
     var now = Date.now();
 
     // 1. 检查施工完成
+    var buildCompleted = false;
     for (var id in this._state.buildings) {
       if (!this._state.buildings.hasOwnProperty(id)) continue;
       var b = this._state.buildings[id];
       if (b.buildEndTime && now >= b.buildEndTime) {
         b.level++;
         b.buildEndTime = null;
+        this._checkWorkerUnlock(id, b.level);
         EventBus.emit('town:building_upgraded', { buildingId: id, newLevel: b.level });
         EventBus.emit('toast:show', {
           type: 'success',
@@ -115,8 +149,10 @@ var TownManager = {
         });
         // Recalculate roads when a new building is constructed
         this.recalcRoads();
+        buildCompleted = true;
       }
     }
+    if (buildCompleted) this._processQueue();
 
     // 2. 资源产出（生产型建筑）
     var productionBuildings = ['lumber_camp', 'quarry', 'iron_mine', 'tax_office'];
@@ -205,9 +241,16 @@ var TownManager = {
     return count;
   },
 
+  getWorkerCount: function () {
+    return this._state.workers;
+  },
+
+  getBuildQueue: function () {
+    return this._state.buildQueue.slice();
+  },
+
   getMaxBuildSlots: function () {
-    // 城主府 lv5 解锁第 2 队列
-    return this.getBuildingLevel('town_hall') >= 5 ? 2 : 1;
+    return this._state.workers;
   },
 
   canUpgrade: function (buildingId) {
@@ -282,6 +325,13 @@ var TownManager = {
   },
 
   startUpgrade: function (buildingId) {
+    // Check if building is already in build queue
+    for (var qi = 0; qi < this._state.buildQueue.length; qi++) {
+      if (this._state.buildQueue[qi].buildingId === buildingId) {
+        return { ok: false, reason: '该建筑已在队列中' };
+      }
+    }
+
     var check = this.canUpgrade(buildingId);
     if (!check.ok) return check;
 
@@ -323,7 +373,316 @@ var TownManager = {
     return count;
   },
 
-  // ---------- 加成查询 ----------
+  // ---------- Worker & Queue System ----------
+
+  _checkWorkerUnlock: function (buildingId, newLevel, silent) {
+    var changed = false;
+    // First building completion → 2 workers
+    if (!this._state.firstBuildingCompleted && buildingId !== 'town_hall') {
+      this._state.firstBuildingCompleted = true;
+      if (this._state.workers < 2) {
+        this._state.workers = 2;
+        changed = true;
+        EventBus.emit('town:worker_unlocked', { count: 2 });
+        if (!silent) {
+          EventBus.emit('toast:show', { type: 'success', message: '🎉 完成第一个建筑！获得额外工人！' });
+        }
+      }
+    }
+    // Town hall level unlocks
+    if (buildingId === 'town_hall') {
+      var unlocks = WORKER_CONFIG.WORKER_UNLOCKS;
+      for (var i = 0; i < unlocks.length; i++) {
+        if (unlocks[i].trigger === 'town_hall_level' && newLevel >= unlocks[i].requirement) {
+          if (this._state.workers < unlocks[i].workerCount) {
+            this._state.workers = unlocks[i].workerCount;
+            changed = true;
+            EventBus.emit('town:worker_unlocked', { count: this._state.workers });
+            if (!silent) {
+              EventBus.emit('toast:show', { type: 'success', message: '获得新工人！当前工人数：' + this._state.workers });
+            }
+          }
+        }
+      }
+    }
+    return changed;
+  },
+
+  _canEnqueue: function (buildingId) {
+    var data = BuildingData[buildingId];
+    if (!data) return { ok: false, reason: '未知建筑' };
+
+    var bState = this._state.buildings[buildingId];
+    var currentLevel = bState ? bState.level : 0;
+
+    // Check: building is currently under construction
+    if (this.isBuilding(buildingId)) {
+      return { ok: false, reason: '正在施工中' };
+    }
+
+    // Check: building is already in queue
+    for (var i = 0; i < this._state.buildQueue.length; i++) {
+      if (this._state.buildQueue[i].buildingId === buildingId) {
+        return { ok: false, reason: '该建筑已在队列中' };
+      }
+    }
+
+    // Check max level
+    if (currentLevel >= data.maxLevel) {
+      return { ok: false, reason: '已达最大等级' };
+    }
+
+    // Check town hall level cap
+    var thLevel = this.getBuildingLevel('town_hall');
+    if (buildingId !== 'town_hall') {
+      var thData = BuildingData._townHallUnlocks[thLevel];
+      if (thData && currentLevel >= thData.levelCap) {
+        return { ok: false, reason: '需升级城主府解锁更高等级' };
+      }
+    }
+
+    // Check town hall upgrade prerequisite (stage clearing)
+    if (buildingId === 'town_hall') {
+      var nextTH = BuildingData._townHallUnlocks[currentLevel + 1];
+      if (nextTH && nextTH.unlockStage) {
+        if (typeof BattleManager !== 'undefined' && !BattleManager.isStageCleared(nextTH.unlockStage)) {
+          return { ok: false, reason: '需通关 ' + nextTH.unlockStage.replace('stage_', '').replace('_', '-') };
+        }
+      }
+    }
+
+    // Check building prerequisites
+    if (data.requires) {
+      for (var reqId in data.requires) {
+        if (data.requires.hasOwnProperty(reqId)) {
+          var reqLevel = data.requires[reqId];
+          if (this.getBuildingLevel(reqId) < reqLevel) {
+            var reqData = BuildingData[reqId];
+            return { ok: false, reason: '需要 ' + reqData.name + ' Lv.' + reqLevel };
+          }
+        }
+      }
+    }
+
+    // Check building slot for new buildings
+    if (buildingId !== 'town_hall' && currentLevel === 0) {
+      var thData2 = BuildingData._townHallUnlocks[thLevel];
+      var unlockedCount = this._getUnlockedBuildingCount();
+      if (thData2 && unlockedCount >= thData2.slots) {
+        return { ok: false, reason: '建筑槽不足，升级城主府解锁' };
+      }
+    }
+
+    return { ok: true };
+  },
+
+  enqueueUpgrade: function (buildingId) {
+    // Check queue capacity
+    if (this._state.buildQueue.length >= WORKER_CONFIG.MAX_QUEUE_SIZE) {
+      return { ok: false, reason: '建造队列已满（最多6项）' };
+    }
+
+    // Check enqueue prerequisites
+    var check = this._canEnqueue(buildingId);
+    if (!check.ok) return check;
+
+    // Check resources
+    var cost = this.getUpgradeCost(buildingId);
+    if (!ResourceManager.canAffordMultiple(cost)) {
+      return { ok: false, reason: '资源不足' };
+    }
+
+    // Reserve resources
+    ResourceManager.spendMultiple(cost, 'building', 'queue_reserve', buildingId);
+
+    // Create queue item
+    var currentLevel = this.getBuildingLevel(buildingId);
+    var targetLevel = currentLevel + 1;
+    if (buildingId === 'town_hall' && currentLevel === 0) targetLevel = 2;
+    var buildTime = this.getBuildTime(buildingId);
+    var queueItem = {
+      id: Utils.uid(),
+      buildingId: buildingId,
+      targetLevel: targetLevel,
+      cost: {},
+      buildTime: buildTime,
+      addedAt: Date.now()
+    };
+    // Only include cost entries > 0
+    for (var resType in cost) {
+      if (cost.hasOwnProperty(resType) && cost[resType] > 0) {
+        queueItem.cost[resType] = cost[resType];
+      }
+    }
+
+    this._state.buildQueue.push(queueItem);
+    EventBus.emit('town:queue_updated');
+
+    // Try to start immediately if workers available
+    this._processQueue();
+
+    return { ok: true, queueItem: queueItem };
+  },
+
+  _processQueue: function () {
+    var freeWorkers = this._state.workers - this.getActiveBuildCount();
+    var anyChanged = false;
+
+    while (freeWorkers > 0 && this._state.buildQueue.length > 0) {
+      var item = this._state.buildQueue[0];
+
+      // Secondary validation
+      if (!this._validateQueueItem(item)) {
+        // Refund reserved resources
+        ResourceManager.addMultiple(item.cost, 'building', 'queue_refund', item.buildingId);
+        this._state.buildQueue.shift();
+        var failData = BuildingData[item.buildingId];
+        EventBus.emit('toast:show', { type: 'warning', message: '建造任务已失效：' + (failData ? failData.name : item.buildingId) });
+        anyChanged = true;
+        continue;
+      }
+
+      // Start construction
+      var bState = this._state.buildings[item.buildingId];
+      bState.buildEndTime = Date.now() + item.buildTime * 1000;
+      this._state.buildQueue.shift();
+      freeWorkers--;
+      anyChanged = true;
+      EventBus.emit('town:building_started', { buildingId: item.buildingId, endTime: bState.buildEndTime });
+    }
+
+    if (anyChanged) {
+      EventBus.emit('town:queue_updated');
+    }
+  },
+
+  _validateQueueItem: function (item) {
+    var b = this._state.buildings[item.buildingId];
+    if (!b) return false;
+    // Level must match expected
+    if (b.level !== item.targetLevel - 1) return false;
+    // Must not already be building
+    if (b.buildEndTime) return false;
+    // Town hall level cap
+    var thLevel = this._state.buildings.town_hall ? this._state.buildings.town_hall.level : 1;
+    if (item.buildingId !== 'town_hall') {
+      var thData = BuildingData._townHallUnlocks[thLevel];
+      if (thData && b.level >= thData.levelCap) return false;
+    }
+    // Prerequisites
+    var data = BuildingData[item.buildingId];
+    if (data && data.requires) {
+      for (var reqId in data.requires) {
+        if (data.requires.hasOwnProperty(reqId)) {
+          var reqLv = this._state.buildings[reqId] ? this._state.buildings[reqId].level : 0;
+          if (reqLv < data.requires[reqId]) return false;
+        }
+      }
+    }
+    // Building slot check for new buildings
+    if (b.level === 0 && item.buildingId !== 'town_hall') {
+      var thData2 = BuildingData._townHallUnlocks[thLevel];
+      if (thData2 && this._getUnlockedBuildingCount() >= thData2.slots) return false;
+    }
+    return true;
+  },
+
+  cancelQueueItem: function (queueItemId) {
+    var idx = -1;
+    for (var i = 0; i < this._state.buildQueue.length; i++) {
+      if (this._state.buildQueue[i].id === queueItemId) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx === -1) return { ok: false, reason: '任务不存在' };
+
+    var item = this._state.buildQueue.splice(idx, 1)[0];
+    ResourceManager.addMultiple(item.cost, 'building', 'queue_refund', item.buildingId);
+    EventBus.emit('town:queue_updated');
+    return { ok: true, refunded: true };
+  },
+
+  cancelActiveBuilding: function (buildingId) {
+    var b = this._state.buildings[buildingId];
+    if (!b || !b.buildEndTime || Date.now() >= b.buildEndTime) {
+      return { ok: false, reason: '该建筑未在施工' };
+    }
+    b.buildEndTime = null;
+    EventBus.emit('town:building_cancelled', { buildingId: buildingId });
+    this._processQueue();
+    return { ok: true, refunded: false };
+  },
+
+  reorderQueue: function (queueItemId, newIndex) {
+    var idx = -1;
+    for (var i = 0; i < this._state.buildQueue.length; i++) {
+      if (this._state.buildQueue[i].id === queueItemId) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx === -1) return false;
+
+    // Clamp newIndex
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex >= this._state.buildQueue.length) newIndex = this._state.buildQueue.length - 1;
+
+    var item = this._state.buildQueue.splice(idx, 1)[0];
+    this._state.buildQueue.splice(newIndex, 0, item);
+    EventBus.emit('town:queue_updated');
+    return true;
+  },
+
+  _processOfflineBuilds: function () {
+    var now = Date.now();
+    var safety = 200;
+    while (safety-- > 0) {
+      // Find earliest expired build
+      var earliestId = null;
+      var earliestTime = Infinity;
+      for (var id in this._state.buildings) {
+        if (!this._state.buildings.hasOwnProperty(id)) continue;
+        var b = this._state.buildings[id];
+        if (b.buildEndTime && b.buildEndTime <= now) {
+          if (b.buildEndTime < earliestTime) {
+            earliestTime = b.buildEndTime;
+            earliestId = id;
+          }
+        }
+      }
+
+      if (!earliestId) break;
+
+      // Complete this build (silent — no toast for offline completions)
+      var bld = this._state.buildings[earliestId];
+      var completedAt = bld.buildEndTime;
+      bld.level++;
+      bld.buildEndTime = null;
+      this._checkWorkerUnlock(earliestId, bld.level, true);
+
+      // Start queue items using freed worker
+      var busy = 0;
+      for (var cid in this._state.buildings) {
+        if (this._state.buildings.hasOwnProperty(cid) && this._state.buildings[cid].buildEndTime) busy++;
+      }
+      var freeW = this._state.workers - busy;
+      while (freeW > 0 && this._state.buildQueue.length > 0) {
+        var qi = this._state.buildQueue[0];
+        if (!this._validateQueueItem(qi)) {
+          if (typeof ResourceManager !== 'undefined') {
+            ResourceManager.addMultiple(qi.cost, 'building', 'queue_refund', qi.buildingId);
+          }
+          this._state.buildQueue.shift();
+          continue;
+        }
+        var qb = this._state.buildings[qi.buildingId];
+        qb.buildEndTime = completedAt + qi.buildTime * 1000;
+        this._state.buildQueue.shift();
+        freeW--;
+      }
+    }
+  },
 
   getAtkBonus: function () {
     var bonus = 0;

@@ -117,7 +117,10 @@ var ForgeManager = {
     if (job.quality === 6) {
       // Generate mythic equipment
       var template = getMythicTemplate(job.recipeId);
-      if (!template) return;
+      if (!template) {
+        this._state.queue.splice(idx, 1);
+        return;
+      }
       var statValue = Utils.randInt(template.statRange[0], template.statRange[1]);
       equip = {
         uid: Utils.uid(),
@@ -140,7 +143,10 @@ var ForgeManager = {
       for (var i = 0; i < EquipmentData.length; i++) {
         if (EquipmentData[i].quality === job.quality) candidates.push(EquipmentData[i]);
       }
-      if (candidates.length === 0) return;
+      if (candidates.length === 0) {
+        this._state.queue.splice(idx, 1);
+        return;
+      }
       var tmpl = candidates[Utils.randInt(0, candidates.length - 1)];
       var sv = Utils.randInt(tmpl.statRange[0], tmpl.statRange[1]);
       equip = {
@@ -158,7 +164,7 @@ var ForgeManager = {
       equip.stats[tmpl.statType] = sv;
     }
 
-    EquipmentManager._inventory.push(equip);
+    EquipmentManager.addToInventory(equip);
     this._state.queue.splice(idx, 1);
 
     EventBus.emit('forge:completed', { equipment: equip });
@@ -245,6 +251,7 @@ var ForgeManager = {
 
     this._state.queue.push({
       recipeId: bpData.equipId,
+      blueprintId: blueprintId,
       quality: 6,
       label: bpData.name,
       totalTime: totalTime,
@@ -292,11 +299,11 @@ var ForgeManager = {
     var mythicForge = {};
     for (var i = 0; i < this._state.queue.length; i++) {
       var job = this._state.queue[i];
-      if (job.isMythic) {
+      if (job.quality === 6) {
         mythicForge = {
           blueprintId: job.blueprintId,
-          progress: job.progress || 0,
-          requiredTime: job.requiredTime || 86400,
+          progress: job.elapsedTime || 0,
+          requiredTime: job.totalTime || 86400,
           paused: job.paused || false
         };
         break;

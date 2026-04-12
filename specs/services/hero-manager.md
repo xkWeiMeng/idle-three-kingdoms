@@ -1,7 +1,7 @@
 ---
-status: Draft
+status: Active
 created: 2026-04-04
-updated: 2026-04-04
+updated: 2026-04-13
 author: AI (spec-architect)
 system-spec: specs/system/core-contracts.md
 ---
@@ -36,7 +36,7 @@ system-spec: specs/system/core-contracts.md
 WHEN addHero('shu_zhaoyun')
 AND 玩家当前没有赵云
 THEN 创建赵云实例（uid唯一, level=1, exp=0）
-AND _state.heroes 新增该实例
+AND _heroes 新增该实例
 AND emit hero:added(赵云实例)
 
 WHEN addHero('shu_zhaoyun')
@@ -59,12 +59,12 @@ THEN 返回 null，不修改状态
 **接口**：
 - `getTemplate(heroId)` → `object | undefined` — 从 `HeroData` 查询模板数据
 - `getHeroByUid(uid)` → `heroInstance | undefined` — 从玩家收藏中按 UID 查找
-- `getAllHeroes()` → `heroInstance[]` — 返回所有已获取武将的深拷贝
+- `getAll()` → `heroInstance[]` — 返回所有已获取武将的内部引用数组（调用方不应修改）
 
 **行为规则**：
 - `getTemplate()` 返回静态数据引用（不含实例数据）
 - `getHeroByUid()` 返回内部引用（UI 不应修改）
-- `getAllHeroes()` 返回深拷贝
+- `getAll()` 返回 `_heroes` 内部引用（与 `getHeroByUid()` 一致，调用方不应修改）
 
 **验收场景**：
 
@@ -76,8 +76,8 @@ WHEN getHeroByUid('不存在的uid')
 THEN 返回 undefined
 
 WHEN 玩家拥有 3 个武将
-AND getAllHeroes()
-THEN 返回长度为 3 的数组，每项为武将实例的深拷贝
+AND getAll()
+THEN 返回长度为 3 的数组（内部引用，调用方不应修改）
 ```
 
 ---
@@ -114,6 +114,9 @@ AND addToTeam(anotherUid)
 THEN 队伍不变，返回 false
 
 WHEN addToTeam(uid) 且该 uid 已在队伍中
+THEN 队伍不变，返回 false
+
+WHEN addToTeam(uid) 且该 uid 不在 _heroes 中（无效武将）
 THEN 队伍不变，返回 false
 
 WHEN removeFromTeam(uid) 且该 uid 在队伍中
@@ -191,12 +194,15 @@ finalStat = floor(baseStat + GrowthCoefficients[quality][stat] × (level - 1) + 
 ```
 - `baseStat` 来自武将模板（baseAtk, baseDef, baseHp, baseSpd）
 - `GrowthCoefficients` 定义在 [核心契约成长系数表](../system/core-contracts.md#成长系数表)
-- `equipBonus` 来自 `EquipmentManager.getEquipment(slotUid)` 各槽位加成之和
+- `equipBonus` 按槽位计算：
+  - `EquipTypeToStat` 映射：weapon→atk, armor→def, accessory→hp, mount→spd
+  - 每件装备的加成 = `equip.stats[statKey] × (1 + equipLevel × 0.1)`
+  - 仅有对应 `statKey` 的装备提供加成
 - 最终值使用 `Math.floor()` 取整
 
 **战力公式**：
 ```
-battlePower = (atk × 1.5 + def × 1.2 + hp × 0.3 + spd × 1.0) × (1 + level × 0.02)
+battlePower = floor((atk × 1.5 + def × 1.2 + hp × 0.3 + spd × 1.0) × (1 + level × 0.02))
 ```
 
 **验收场景**：
@@ -209,9 +215,9 @@ AND def = baseDef
 AND hp = baseHp
 AND spd = baseSpd
 
-WHEN 赵云（Q4, baseAtk=38）等级 10，无装备
+WHEN 赵云（Q4, baseAtk=50）等级 10，无装备
 AND getHeroStats(uid)
-THEN atk = floor(38 + 5 × 9) = floor(83) = 83
+THEN atk = floor(50 + 5 × 9) = floor(95) = 95
 （Q4 的 ATK 成长系数为 5，level-1=9）
 
 WHEN 武将有武器提供 atk+10
@@ -220,8 +226,14 @@ THEN atk = floor(baseStat + growth + 10)
 
 WHEN getHeroStats(uid) 返回 { atk:83, def:60, hp:300, spd:25 }
 AND 等级为 10
-THEN getBattlePower = (83×1.5 + 60×1.2 + 300×0.3 + 25×1.0) × (1 + 10×0.02)
-   = (124.5 + 72 + 90 + 25) × 1.2 = 311.5 × 1.2 = 373.8
+THEN getBattlePower = floor((83×1.5 + 60×1.2 + 300×0.3 + 25×1.0) × (1 + 10×0.02))
+   = floor((124.5 + 72 + 90 + 25) × 1.2) = floor(311.5 × 1.2) = floor(373.8) = 373
+
+WHEN getHeroStats(无效uid)
+THEN 返回 null
+
+WHEN getBattlePower(无效uid)
+THEN 返回 0
 ```
 
 ---
@@ -231,7 +243,7 @@ THEN getBattlePower = (83×1.5 + 60×1.2 + 300×0.3 + 25×1.0) × (1 + 10×0.02)
 **描述**：从存档恢复状态或初始化新游戏默认状态。
 
 **接口**：
-- `init(saved)` → `void` — 初始化，`saved` 为存档中的 `heroes` 片段
+- `init(saved)` → `void` — 初始化，`saved` 为完整存档对象（从 `SaveManager.load()` 返回），内部从 `saved.heroes` 提取武将状态；`saved` 为 `undefined` 时为新游戏
 - `getState()` → `{ heroes, team }` — 导出可序列化状态
 
 **行为规则**：
@@ -243,12 +255,12 @@ THEN getBattlePower = (83×1.5 + 60×1.2 + 300×0.3 + 25×1.0) × (1 + 10×0.02)
 
 ```
 WHEN init(undefined)（首次游戏）
-THEN _state.heroes 包含 1 个赵云实例（level=1）
-AND _state.team = [赵云的uid]
+THEN _heroes 包含 1 个赵云实例（level=1）
+AND _team = [赵云的uid]
 
-WHEN init({ heroes: [...], team: ['uid1', 'uid2'] })
-THEN _state.heroes 恢复完整列表
-AND _state.team 保持 ['uid1', 'uid2'] 顺序
+WHEN init({ heroes: { heroes: [...], team: ['uid1', 'uid2'] }, ... })（恢复存档）
+THEN _heroes 恢复完整列表
+AND _team 保持 ['uid1', 'uid2'] 顺序
 
 WHEN getState()
 THEN 返回 { heroes: deepClone(武将数组), team: [uid列表] }

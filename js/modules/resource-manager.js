@@ -197,7 +197,11 @@ const ResourceManager = {
 
   // —— 统计 ——
   addBattleCount() { this._stats.totalBattles++; },
-  setHighestStage(stageId) { this._stats.highestStage = stageId; },
+  setHighestStage(stageId) {
+    if (!this._stats.highestStage || stageId > this._stats.highestStage) {
+      this._stats.highestStage = stageId;
+    }
+  },
   getStats() {
     return {
       totalGoldEarned: this._stats.totalGoldEarned,
