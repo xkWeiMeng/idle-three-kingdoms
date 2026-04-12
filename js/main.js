@@ -27,6 +27,8 @@
       farm: FarmManager.getState(),
       parking: ParkingManager.getState(),
       towerDefense: TowerDefenseManager.getState(),
+      quest: QuestManager.getState(),
+      achievement: AchievementManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
@@ -51,6 +53,8 @@
     FarmManager.init(saved);
     ParkingManager.init(saved);
     TowerDefenseManager.init(saved);
+    QuestManager.init(saved);
+    AchievementManager.init(saved);
 
     // 初始化 UI
     Toast.init();
@@ -70,12 +74,15 @@
     EconomyPanel.init();
     TownWorld.init();
     TownCharacters.init();
+    BuildQueueWidget.init();
     MerchantPanel.init();
     ForgePanel.init();
     AbyssPanel.init();
     FarmPanel.init();
     ParkingPanel.init();
     TowerDefensePanel.init();
+    QuestPanel.init();
+    AchievementPanel.init();
 
     // 注册 tick 回调
     EventBus.on('game:tick', (dt) => {
@@ -91,6 +98,7 @@
       FarmManager.onTick(dt);
       ParkingManager.onTick(dt);
       TowerDefenseManager.onTick(dt);
+      QuestManager.onTick(dt);
     });
 
     // 离线收益计算

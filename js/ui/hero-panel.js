@@ -14,6 +14,7 @@ const HeroPanel = {
     var self = this;
     EventBus.on('hero:added', function () { self._render(); });
     EventBus.on('hero:levelup', function () { self._render(); });
+    EventBus.on('hero:ascended', function () { self._render(); });
     EventBus.on('hero:team_changed', function () { self._render(); });
     EventBus.on('equip:changed', function () { self._render(); });
     EventBus.on('resource:changed', function () { self._render(); });
@@ -73,7 +74,7 @@ const HeroPanel = {
           html += 'transition:opacity 0.2s;" title="点击移出队伍">';
           html += '<div style="font-size:1.2rem;">' + (template.emoji || '🧑') + '</div>';
           html += '<div style="font-size:0.7rem;color:' + color + ';margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + template.name + '</div>';
-          html += '<div style="font-size:0.6rem;color:var(--color-text-dim);">Lv.' + hero.level + '</div>';
+          html += '<div style="font-size:0.6rem;color:var(--color-text-dim);">Lv.' + hero.level + (hero.stars ? ' ★' + hero.stars : '') + '</div>';
           html += '</div>';
         } else {
           html += '<div style="flex:1;text-align:center;padding:8px;border-radius:6px;background:var(--color-secondary);border:2px dashed var(--color-text-dim);opacity:0.5;">';
@@ -102,8 +103,10 @@ const HeroPanel = {
     var inTeam = HeroManager.isInTeam(hero.uid);
     var expCost = HeroManager.getExpCost(hero.level);
     var currentExp = ResourceManager.get(CONSTANTS.RESOURCE.EXP);
-    var canLevel = hero.level < 50 && currentExp >= expCost;
-    var isMaxLevel = hero.level >= 50;
+    var maxLevel = HeroManager.getMaxLevel(hero.uid);
+    var ascendInfo = HeroManager.getAscendInfo(hero.uid);
+    var canLevel = hero.level < maxLevel && currentExp >= expCost;
+    var isMaxLevel = hero.level >= maxLevel;
 
     // Quality glow for epic/legendary
     var glowStyle = '';
@@ -124,6 +127,9 @@ const HeroPanel = {
     html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
     html += '<span style="font-size:1.1rem;">' + (template.emoji || '🧑') + '</span>';
     html += '<span style="font-weight:bold;color:' + color + ';">' + template.name + '</span>';
+    if (ascendInfo && ascendInfo.stars > 0) {
+      html += '<span style="font-size:0.7rem;color:var(--color-gold);">' + '★'.repeat(ascendInfo.stars) + '</span>';
+    }
     html += '<span style="font-size:0.65rem;padding:1px 5px;border-radius:3px;background:' + color + '22;color:' + color + ';border:1px solid ' + color + '55;">' + qName + '</span>';
     html += '<span style="font-size:0.8rem;color:var(--color-gold);">Lv.' + hero.level + '</span>';
     html += '<span style="margin-left:auto;font-size:0.75rem;color:var(--color-text-dim);">⚡' + Utils.formatNumber(power) + '</span>';
@@ -167,7 +173,11 @@ const HeroPanel = {
       html += '</div>';
       html += '</div>';
     } else {
-      html += '<div style="font-size:0.72rem;color:var(--color-gold);margin-bottom:8px;">🏆 已达满级</div>';
+      if (ascendInfo && ascendInfo.stars < ascendInfo.maxStars) {
+        html += '<div style="font-size:0.72rem;color:var(--color-gold);margin-bottom:8px;">🏆 已达满级 — 可突破！</div>';
+      } else {
+        html += '<div style="font-size:0.72rem;color:var(--color-gold);margin-bottom:8px;">🏆 已达最终满级</div>';
+      }
     }
 
     // Row 6: Equipment slots
@@ -212,6 +222,12 @@ const HeroPanel = {
       html += 'style="flex:1;font-size:0.78rem;background:var(--color-gold);color:#111;"';
       if (!canLevel) html += ' disabled';
       html += '>升级 ⭐' + Utils.formatNumber(expCost) + '</button>';
+    } else if (ascendInfo && ascendInfo.stars < ascendInfo.maxStars) {
+      var aCost = ascendInfo.cost;
+      html += '<button class="btn hero-btn-ascend" data-uid="' + hero.uid + '" ';
+      html += 'style="flex:1;font-size:0.78rem;background:linear-gradient(135deg,#c0392b,#d4a849);color:#fff;"';
+      if (!ascendInfo.canAscend) html += ' disabled';
+      html += '>突破 ⭐→' + (ascendInfo.stars + 1) + '星</button>';
     }
 
     html += '</div>';
@@ -250,10 +266,42 @@ const HeroPanel = {
         if (uid) self._onLevelUp(uid);
       });
     }
+
+    // Ascend buttons
+    var ascBtns = this._container.querySelectorAll('.hero-btn-ascend');
+    for (var m = 0; m < ascBtns.length; m++) {
+      ascBtns[m].addEventListener('click', function () {
+        var uid = this.getAttribute('data-uid');
+        if (uid) self._onAscend(uid);
+      });
+    }
   },
 
   _onLevelUp: function (uid) {
     HeroManager.levelUp(uid);
+  },
+
+  _onAscend: function (uid) {
+    var info = HeroManager.getAscendInfo(uid);
+    if (!info || !info.cost) return;
+    var hero = HeroManager.getHeroByUid(uid);
+    var template = hero ? HeroManager.getTemplate(hero.id) : null;
+    var name = template ? template.name : '武将';
+
+    Modal.show({
+      title: '⭐ 突破确认',
+      content: '<div style="text-align:center;line-height:2;">' +
+        '<p>确定让 <b style="color:var(--color-gold);">' + name + '</b> 突破至 <b>' + (info.stars + 1) + '星</b>？</p>' +
+        '<p style="font-size:0.85rem;color:var(--color-text-dim);">等级将重置为1级，基础属性永久提升15%</p>' +
+        '<hr style="border-color:var(--color-secondary);margin:8px 0;">' +
+        '<p>💰 金币 ×' + Utils.formatNumber(info.cost.gold) + '</p>' +
+        '<p>💎 玉石 ×' + info.cost.jade + '</p>' +
+        '</div>',
+      confirmText: '突破！',
+      onConfirm: function () {
+        HeroManager.ascend(uid);
+      }
+    });
   },
 
   _onToggleTeam: function (uid) {

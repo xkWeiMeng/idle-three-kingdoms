@@ -13,6 +13,7 @@ var BottomNav = {
   ],
   _moreItems: [
     { id: 'adventure', icon: '🗺️', label: '冒险' },
+    { id: 'quest',     icon: '📋', label: '任务' },
     { id: 'equipment', icon: '🛡️', label: '装备' },
     { id: 'merchant',  icon: '🏪', label: '商人' },
     { id: 'forge',     icon: '🔨', label: '锻造' },
@@ -20,6 +21,7 @@ var BottomNav = {
     { id: 'abyss',     icon: '🔥', label: '深渊' },
     { id: 'farm',      icon: '🥬', label: '菜园' },
     { id: 'parking',   icon: '🅿️', label: '停车' },
+    { id: 'achievement', icon: '🏆', label: '成就' },
     { id: 'economy',   icon: '📊', label: '经济' },
     { id: 'story',     icon: '📜', label: '剧情' },
     { id: 'settings',  icon: '⚙️', label: '设置' }
@@ -117,6 +119,12 @@ var BottomNav = {
     }
     if (panelId === 'td' && typeof TowerDefensePanel !== 'undefined') {
       TowerDefensePanel.showChapterSelect(); return;
+    }
+    if (panelId === 'quest' && typeof QuestPanel !== 'undefined') {
+      QuestPanel.show(); return;
+    }
+    if (panelId === 'achievement' && typeof AchievementPanel !== 'undefined') {
+      AchievementPanel.show(); return;
     }
 
     var titles = {

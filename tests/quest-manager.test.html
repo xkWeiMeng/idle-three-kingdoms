@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>QuestManager 规范测试</title>
+<style>
+  body { font-family: monospace; background: #1a1410; color: #e8dcc8; padding: 20px; }
+  .pass { color: #5d8a48; }
+  .fail { color: #b33a3a; }
+  .section { margin: 16px 0 4px; font-weight: bold; color: #c0392b; }
+  .summary { margin-top: 20px; padding: 12px; background: #2a2018; border-radius: 6px; }
+  pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>QuestManager 测试</h1>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<!-- Core dependencies -->
+<script src="../js/core/constants.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/utils.js"></script>
+
+<!-- Data -->
+<script src="../js/data/quests.js"></script>
+
+<!-- Mock ResourceManager -->
+<script>
+var ResourceManager = {
+  _added: {},
+  add: function (type, amount, category, source) {
+    if (!this._added[type]) this._added[type] = 0;
+    this._added[type] += amount;
+  },
+  canAfford: function () { return true; },
+  spend: function () {},
+  reset: function () { this._added = {}; }
+};
+</script>
+
+<!-- Module under test -->
+<script src="../js/modules/quest-manager.js"></script>
+
+<script>
+(function () {
+  var results = document.getElementById('results');
+  var total = 0, passed = 0, failed = 0;
+
+  function assert(condition, name) {
+    total++;
+    if (condition) {
+      passed++;
+      results.innerHTML += '<div class="pass">[PASS] ' + name + '</div>';
+    } else {
+      failed++;
+      results.innerHTML += '<div class="fail">[FAIL] ' + name + '</div>';
+    }
+  }
+
+  function section(name) {
+    results.innerHTML += '<div class="section">--- ' + name + ' ---</div>';
+  }
+
+  // ===== Tests =====
+
+  section('Init & Refresh');
+
+  QuestManager.init({});
+  var quests = QuestManager.getQuests();
+  assert(quests.length === DAILY_QUEST_COUNT, 'Init generates ' + DAILY_QUEST_COUNT + ' quests (got ' + quests.length + ')');
+
+  var allHaveIds = quests.every(function (q) { return q.id && q.title && q.desc; });
+  assert(allHaveIds, 'All quests have id, title, desc');
+
+  var allZeroProgress = quests.every(function (q) { return q.progress === 0 && !q.claimed; });
+  assert(allZeroProgress, 'All quests start at 0 progress, unclaimed');
+
+  // Deterministic refresh: same day = same quests
+  var state1 = QuestManager.getState();
+  QuestManager.init({});
+  var state2 = QuestManager.getState();
+  var sameQuests = state1.quests.map(function (q) { return q.id; }).join(',') ===
+                   state2.quests.map(function (q) { return q.id; }).join(',');
+  assert(sameQuests, 'Same day produces same quest selection (deterministic)');
+
+  section('Progress Tracking');
+
+  // Find a battle quest
+  QuestManager.init({});
+  quests = QuestManager.getQuests();
+  var battleQuest = quests.find(function (q) { return q.event === 'battle:ended' && !q.hasFilter; });
+  if (battleQuest) {
+    var initialProgress = battleQuest.progress;
+    EventBus.emit('battle:ended', { result: 'victory', stageId: 'stage_1_1' });
+    quests = QuestManager.getQuests();
+    battleQuest = quests.find(function (q) { return q.id === battleQuest.id; });
+    assert(battleQuest.progress === initialProgress + 1, 'battle:ended increments battle quest progress');
+  } else {
+    results.innerHTML += '<div class="pass">[SKIP] No unfiltered battle quest today</div>';
+  }
+
+  section('Claim Reward');
+
+  // Set up a quest that's almost complete
+  QuestManager.init({});
+  quests = QuestManager.getQuests();
+  var testQuest = quests[0];
+  // Manually set progress to target
+  QuestManager._state.quests[0].progress = testQuest.target;
+  ResourceManager.reset();
+
+  var claimed = QuestManager.claimReward(testQuest.id);
+  assert(claimed === true, 'claimReward returns true for completed quest');
+
+  quests = QuestManager.getQuests();
+  assert(quests[0].claimed === true, 'Quest marked as claimed');
+
+  var hasReward = Object.keys(ResourceManager._added).length > 0;
+  assert(hasReward, 'Resources were granted');
+
+  // Can't claim twice
+  var claimedAgain = QuestManager.claimReward(testQuest.id);
+  assert(claimedAgain === false, 'Cannot claim same quest twice');
+
+  // Can't claim incomplete quest
+  var incompleteQuest = quests.find(function (q) { return !q.claimed; });
+  if (incompleteQuest) {
+    var claimedIncomplete = QuestManager.claimReward(incompleteQuest.id);
+    assert(claimedIncomplete === false, 'Cannot claim incomplete quest');
+  }
+
+  section('Bonus Chest');
+
+  assert(QuestManager.isAllComplete() === false, 'Not all complete before claiming all');
+
+  // Complete and claim all quests
+  for (var i = 0; i < QuestManager._state.quests.length; i++) {
+    QuestManager._state.quests[i].progress = QuestManager._state.quests[i].target;
+    QuestManager._state.quests[i].claimed = true;
+  }
+
+  assert(QuestManager.isAllComplete() === true, 'All complete after claiming all');
+
+  ResourceManager.reset();
+  var bonusClaimed = QuestManager.claimBonus();
+  assert(bonusClaimed === true, 'Bonus chest claimed successfully');
+  assert(QuestManager.isBonusClaimed() === true, 'Bonus marked as claimed');
+
+  var bonusAgain = QuestManager.claimBonus();
+  assert(bonusAgain === false, 'Cannot claim bonus twice');
+
+  section('State Persistence');
+
+  var savedState = QuestManager.getState();
+  assert(savedState.quests.length === DAILY_QUEST_COUNT, 'getState includes quests');
+  assert(savedState.bonusClaimed === true, 'getState includes bonusClaimed');
+  assert(typeof savedState.lastRefreshDate === 'string', 'getState includes lastRefreshDate');
+  assert(typeof savedState.totalCompleted === 'number', 'getState includes totalCompleted');
+
+  // Restore from save
+  QuestManager.init({ quest: savedState });
+  var restored = QuestManager.getState();
+  assert(restored.quests.length === savedState.quests.length, 'Restored quest count matches');
+  assert(restored.bonusClaimed === savedState.bonusClaimed, 'Restored bonusClaimed matches');
+
+  section('Completion Counter');
+
+  QuestManager.init({});
+  var prevTotal = QuestManager.getTotalCompleted();
+  QuestManager._state.quests[0].progress = QuestManager._state.quests[0].target;
+  QuestManager.claimReward(QuestManager._state.quests[0].id);
+  assert(QuestManager.getTotalCompleted() === prevTotal + 1, 'Total completed increments on claim');
+
+  // ===== Summary =====
+  var summaryEl = document.getElementById('summary');
+  summaryEl.innerHTML = '<strong>=== Test Results ===</strong><br>' +
+    'Total: ' + total + '<br>' +
+    'Passed: ' + passed + '<br>' +
+    'Failed: ' + failed + '<br><br>' +
+    (failed === 0 ? '<span class="pass">ALL TESTS PASSED!</span>' : '<span class="fail">SOME TESTS FAILED</span>');
+})();
+</script>
+</body>
+</html>

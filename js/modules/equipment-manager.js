@@ -176,6 +176,7 @@ const EquipmentManager = {
     equip.level++;
 
     EventBus.emit('toast:show', { type: 'success', message: `${equip.name} 强化至 +${equip.level}` });
+    EventBus.emit('equip:reinforce', { equipment: equip });
     return true;
   },
 
@@ -213,6 +214,7 @@ const EquipmentManager = {
     this._inventory.splice(idx, 1);
 
     EventBus.emit('toast:show', { type: 'success', message: `出售 ${equip.name} 获得💰×${price}` });
+    EventBus.emit('equip:sold', { equipment: equip, price: price });
     return true;
   },
 

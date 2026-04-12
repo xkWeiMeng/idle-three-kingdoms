@@ -846,6 +846,7 @@ const BattleManager = {
     if (state.log.length > 50) {
       state.log.shift();
     }
+    EventBus.emit('battle:log', text);
   },
 
   // ---------- 公共 API ----------

@@ -139,7 +139,6 @@ var TownWorld = {
 
     // Listen to game events for re-render
     EventBus.on('town:building_upgraded', this._onBuildingChanged.bind(this));
-    EventBus.on('town:building_complete', this._onBuildingChanged.bind(this));
   },
 
   _resizeCanvas: function () {

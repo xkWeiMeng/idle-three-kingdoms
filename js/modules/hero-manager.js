@@ -1,14 +1,32 @@
 /**
- * 武将管理器 — 武将获取、队伍编成、升级、属性计算
+ * 武将管理器 — 武将获取、队伍编成、升级、突破、属性计算
  */
 const HeroManager = {
   _heroes: [],   // 已拥有的武将实例
   _team: [],     // 上阵武将 uid 列表（最多5人）
 
+  // 突破配置
+  ASCEND_MAX_STAR: 5,
+  ASCEND_COSTS: [
+    { gold: 5000,  jade: 50  },  // 0→1星
+    { gold: 15000, jade: 100 },  // 1→2星
+    { gold: 40000, jade: 200 },  // 2→3星
+    { gold: 80000, jade: 350 },  // 3→4星
+    { gold: 150000, jade: 500 }  // 4→5星
+  ],
+  ASCEND_STAT_BONUS: 0.15, // 每次突破基础属性提升15%
+
   init(saved) {
     const data = (saved && saved.heroes) ? saved.heroes : (saved || {});
     this._heroes = data.heroes || [];
     this._team = data.team || [];
+
+    // 兼容旧存档：补充 stars 字段
+    for (var i = 0; i < this._heroes.length; i++) {
+      if (this._heroes[i].stars === undefined) {
+        this._heroes[i].stars = 0;
+      }
+    }
 
     // 新游戏赠送赵云
     if (this._heroes.length === 0) {
@@ -49,6 +67,7 @@ const HeroManager = {
       id: heroId,
       level: 1,
       exp: 0,
+      stars: 0,
       equipment: { weapon: null, armor: null, accessory: null, mount: null }
     };
     this._heroes.push(hero);
@@ -91,10 +110,19 @@ const HeroManager = {
   /** 是否上阵 */
   isInTeam(uid) { return this._team.includes(uid); },
 
+  /** 获取武将当前最大等级（每颗星+10级） */
+  getMaxLevel(uid) {
+    var hero = this._heroes.find(function (h) { return h.uid === uid; });
+    if (!hero) return 50;
+    return 50 + (hero.stars || 0) * 10;
+  },
+
   /** 升级武将（消耗经验） */
   levelUp(uid) {
     var hero = this._heroes.find(function (h) { return h.uid === uid; });
-    if (!hero || hero.level >= 50) return false;
+    if (!hero) return false;
+    var maxLevel = this.getMaxLevel(uid);
+    if (hero.level >= maxLevel) return false;
 
     var cost = this.getExpCost(hero.level);
     if (!ResourceManager.canAfford('exp', cost)) return false;
@@ -108,6 +136,69 @@ const HeroManager = {
   /** 升级所需经验：floor(50 × level^1.5) */
   getExpCost(level) {
     return Math.floor(50 * Math.pow(level, 1.5));
+  },
+
+  /** 突破武将（需满级，消耗金币+玉石，星级+1，等级归1） */
+  ascend(uid) {
+    var hero = this._heroes.find(function (h) { return h.uid === uid; });
+    if (!hero) return false;
+
+    var stars = hero.stars || 0;
+    if (stars >= this.ASCEND_MAX_STAR) {
+      EventBus.emit('toast:show', { type: 'warning', message: '已达最高星级！' });
+      return false;
+    }
+
+    var maxLevel = this.getMaxLevel(uid);
+    if (hero.level < maxLevel) {
+      EventBus.emit('toast:show', { type: 'warning', message: '需要达到满级才能突破！' });
+      return false;
+    }
+
+    var cost = this.ASCEND_COSTS[stars];
+    if (!cost) return false;
+
+    if (!ResourceManager.canAfford('gold', cost.gold)) {
+      EventBus.emit('toast:show', { type: 'warning', message: '金币不足！需要💰×' + cost.gold });
+      return false;
+    }
+    if (!ResourceManager.canAfford('jade', cost.jade)) {
+      EventBus.emit('toast:show', { type: 'warning', message: '玉石不足！需要💎×' + cost.jade });
+      return false;
+    }
+
+    ResourceManager.spend('gold', cost.gold);
+    ResourceManager.spend('jade', cost.jade);
+    hero.stars = stars + 1;
+    hero.level = 1;
+    hero.exp = 0;
+
+    var template = this.getTemplate(hero.id);
+    var heroName = template ? template.name : hero.id;
+    EventBus.emit('toast:show', {
+      type: 'success',
+      message: heroName + ' 突破成功！⭐' + '★'.repeat(hero.stars)
+    });
+    EventBus.emit('hero:ascended', { hero: hero, newStars: hero.stars });
+    EventBus.emit('hero:levelup', { hero: hero, newLevel: hero.level });
+    return true;
+  },
+
+  /** 获取突破费用信息 */
+  getAscendInfo(uid) {
+    var hero = this._heroes.find(function (h) { return h.uid === uid; });
+    if (!hero) return null;
+    var stars = hero.stars || 0;
+    var maxLevel = this.getMaxLevel(uid);
+    var canAscend = stars < this.ASCEND_MAX_STAR && hero.level >= maxLevel;
+    var cost = stars < this.ASCEND_MAX_STAR ? this.ASCEND_COSTS[stars] : null;
+    return {
+      stars: stars,
+      maxStars: this.ASCEND_MAX_STAR,
+      maxLevel: maxLevel,
+      cost: cost,
+      canAscend: canAscend
+    };
   },
 
   /**
@@ -127,6 +218,13 @@ const HeroManager = {
       hp:  template.baseHp  + growth.hp  * (hero.level - 1),
       spd: template.baseSpd + growth.spd * (hero.level - 1)
     };
+
+    // 突破星级加成（每颗星+15%基础属性）
+    var starBonus = 1 + (hero.stars || 0) * this.ASCEND_STAT_BONUS;
+    stats.atk *= starBonus;
+    stats.def *= starBonus;
+    stats.hp  *= starBonus;
+    stats.spd *= starBonus;
 
     // 装备加成
     if (hero.equipment && typeof EquipmentManager !== 'undefined' &&
