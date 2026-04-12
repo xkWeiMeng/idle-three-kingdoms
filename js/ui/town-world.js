@@ -24,6 +24,11 @@ var TownWorld = {
   _moveOrigPos: null,  // {gx, gy} - original position before move
   _escHandler: null,   // keydown handler for ESC cancel
 
+  // TD placement mode
+  _tdPlacementType: null,
+  _tdPlacementGX: -1,
+  _tdPlacementGY: -1,
+
   // Collision grid (true = blocked)
   _collisionGrid: null,
 
@@ -287,6 +292,42 @@ var TownWorld = {
         }
       }
     }
+    // Include TD towers in collision grid
+    if (typeof TowerDefenseManager !== 'undefined') {
+      var tdState = TowerDefenseManager.getState();
+      if (tdState && tdState.towers) {
+        for (var tdi = 0; tdi < tdState.towers.length; tdi++) {
+          var tdt = tdState.towers[tdi];
+          var tdSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(tdt.type) : { w: 1, h: 1 };
+          for (var tdy = 0; tdy < tdSize.h; tdy++) {
+            for (var tdx = 0; tdx < tdSize.w; tdx++) {
+              var tgx = tdt.gridX + tdx;
+              var tgy = tdt.gridY + tdy;
+              if (tgy >= 0 && tgy < this.MAP_H && tgx >= 0 && tgx < this.MAP_W) {
+                grid[tgy][tgx] = true;
+              }
+            }
+          }
+        }
+      }
+    }
+    // Include pending TD builds in collision grid
+    if (typeof TownManager !== 'undefined' && TownManager.getTDBuildPending) {
+      var tdPending = TownManager.getTDBuildPending();
+      for (var tpi = 0; tpi < tdPending.length; tpi++) {
+        var tpItem = tdPending[tpi];
+        var tpSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(tpItem.tdType) : { w: 1, h: 1 };
+        for (var tpy = 0; tpy < tpSize.h; tpy++) {
+          for (var tpx = 0; tpx < tpSize.w; tpx++) {
+            var tpgx = tpItem.gridX + tpx;
+            var tpgy = tpItem.gridY + tpy;
+            if (tpgy >= 0 && tpgy < this.MAP_H && tpgx >= 0 && tpgx < this.MAP_W) {
+              grid[tpgy][tpgx] = true;
+            }
+          }
+        }
+      }
+    }
     this._collisionGrid = grid;
   },
 
@@ -473,6 +514,51 @@ var TownWorld = {
     return null;
   },
 
+  // ========== TD Placement ==========
+
+  startTDPlacement: function (typeId) {
+    this._tdPlacementType = typeId;
+    this._tdPlacementGX = -1;
+    this._tdPlacementGY = -1;
+    this._editMode = true;
+    EventBus.emit('toast:show', { type: 'info', message: '点击地图选择放置位置，再次点击确认' });
+  },
+
+  cancelTDPlacement: function () {
+    this._tdPlacementType = null;
+    this._tdPlacementGX = -1;
+    this._tdPlacementGY = -1;
+    this._editMode = false;
+  },
+
+  _confirmTDPlacement: function () {
+    if (!this._tdPlacementType) return;
+    var typeId = this._tdPlacementType;
+    var gx = this._tdPlacementGX;
+    var gy = this._tdPlacementGY;
+
+    if (typeof TowerDefenseManager !== 'undefined') {
+      var check = TowerDefenseManager.canBuildTower(typeId, gx, gy);
+      if (!check.ok) {
+        EventBus.emit('toast:show', { type: 'warning', message: check.reason });
+        return;
+      }
+    }
+
+    if (typeof TownManager !== 'undefined' && TownManager.enqueueTDBuilding) {
+      var result = TownManager.enqueueTDBuilding(typeId, gx, gy);
+      if (result.ok) {
+        var tdData = typeof TDTowerData !== 'undefined' ? TDTowerData[typeId] : null;
+        EventBus.emit('toast:show', { type: 'success', message: '🔨 开始建造 ' + (tdData ? tdData.name : typeId) + '！' });
+      } else {
+        EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+        return;
+      }
+    }
+
+    this.cancelTDPlacement();
+  },
+
   _onPointerDown: function (e) {
     e.preventDefault();
     var pos = this._getPointerPos(e);
@@ -611,6 +697,19 @@ var TownWorld = {
       }
       var world = this._screenToWorld(pos.x, pos.y);
 
+      // TD placement mode
+      if (this._tdPlacementType) {
+        var tdGrid = this._worldToGrid(world.x, world.y);
+        if (this._tdPlacementGX === tdGrid.gx && this._tdPlacementGY === tdGrid.gy) {
+          this._confirmTDPlacement();
+        } else {
+          this._tdPlacementGX = tdGrid.gx;
+          this._tdPlacementGY = tdGrid.gy;
+        }
+        this._drag = null;
+        return;
+      }
+
       // 优先检测角色点击
       var charHit = (typeof TownCharacters !== 'undefined')
         ? TownCharacters.hitTest(world.x, world.y)
@@ -624,9 +723,28 @@ var TownWorld = {
           this._selectedBuilding = hit;
           this._showBuildingDetail(hit);
         } else {
-          this._selectedBuilding = null;
-          if (typeof OverlayPanel !== 'undefined') {
-            OverlayPanel.close();
+          // Check TD building click
+          var tdClicked = false;
+          if (typeof TowerDefenseManager !== 'undefined') {
+            var tdState2 = TowerDefenseManager.getState();
+            var tg = this._worldToGrid(world.x, world.y);
+            if (tdState2 && tdState2.towers) {
+              for (var tci = tdState2.towers.length - 1; tci >= 0; tci--) {
+                var tct = tdState2.towers[tci];
+                var tcSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(tct.type) : { w: 1, h: 1 };
+                if (tg.gx >= tct.gridX && tg.gx < tct.gridX + tcSize.w && tg.gy >= tct.gridY && tg.gy < tct.gridY + tcSize.h) {
+                  if (typeof BuildMenu !== 'undefined') BuildMenu._showTDTowerInfo(tct);
+                  tdClicked = true;
+                  break;
+                }
+              }
+            }
+          }
+          if (!tdClicked) {
+            this._selectedBuilding = null;
+            if (typeof OverlayPanel !== 'undefined') {
+              OverlayPanel.close();
+            }
           }
         }
       }
@@ -1142,8 +1260,7 @@ var TownWorld = {
     this._drawRoads(ctx);
     this._drawDecorations(ctx);
     this._drawBuildings(ctx);
-
-    // 绘制角色
+    this._drawTDBuildings(ctx);
     if (typeof TownCharacters !== 'undefined') {
       TownCharacters.draw(ctx);
     }
@@ -1632,6 +1749,125 @@ var TownWorld = {
     }
   },
 
+  _drawTDBuildings: function (ctx) {
+    if (typeof TowerDefenseManager === 'undefined') return;
+    if (typeof TDRenderer === 'undefined') return;
+    var state = TowerDefenseManager.getState();
+    if (!state.unlocked) return;
+
+    var CELL = this.CELL;
+
+    // Draw placed towers
+    var towers = state.towers;
+    for (var i = 0; i < towers.length; i++) {
+      var t = towers[i];
+      var tData = typeof TDTowerData !== 'undefined' ? TDTowerData[t.type] : null;
+      if (!tData) continue;
+      var tSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(t.type) : { w: 1, h: 1 };
+      var centerX = t.gridX * CELL + tSize.w * CELL / 2;
+      var centerY = t.gridY * CELL + tSize.h * CELL / 2;
+
+      TDRenderer.drawTower(ctx, t.type, centerX, centerY, t.level, {});
+
+      // Level badge
+      if (t.level > 1) {
+        ctx.font = 'bold 9px sans-serif';
+        ctx.fillStyle = '#f5c518';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('Lv' + t.level, centerX, t.gridY * CELL - 2);
+      }
+    }
+
+    // Draw pending TD builds (construction animation)
+    if (typeof TownManager !== 'undefined' && TownManager.getTDBuildPending) {
+      var pending = TownManager.getTDBuildPending();
+      var now = Date.now();
+      for (var j = 0; j < pending.length; j++) {
+        var p = pending[j];
+        var pSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(p.tdType) : { w: 1, h: 1 };
+        var px = p.gridX * CELL;
+        var py = p.gridY * CELL;
+        var pw = pSize.w * CELL;
+        var ph = pSize.h * CELL;
+
+        // Semi-transparent placeholder
+        ctx.save();
+        ctx.globalAlpha = 0.4 + 0.2 * Math.sin(now / 400);
+        var pCenterX = px + pw / 2;
+        var pCenterY = py + ph / 2;
+        TDRenderer.drawTower(ctx, p.tdType, pCenterX, pCenterY, 1, {});
+        ctx.restore();
+
+        // Construction progress bar
+        if (p.buildEndTime) {
+          var elapsed = now - (p.buildEndTime - p.buildTime * 1000);
+          var progress = Math.min(1, elapsed / (p.buildTime * 1000));
+          var barW = pw - 8;
+          var barH = 4;
+          var barX = px + 4;
+          var barY = py + ph + 2;
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.fillRect(barX, barY, barW, barH);
+          ctx.fillStyle = '#f5c518';
+          ctx.fillRect(barX, barY, barW * progress, barH);
+        }
+
+        // "建造中" label
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#f5c518';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('⏱ 建造中', px + pw / 2, py + ph + 8);
+      }
+    }
+
+    // Draw TD placement preview
+    if (this._tdPlacementType && this._tdPlacementGX >= 0) {
+      var ptSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(this._tdPlacementType) : { w: 1, h: 1 };
+      var ppx = this._tdPlacementGX * CELL;
+      var ppy = this._tdPlacementGY * CELL;
+      var ppw = ptSize.w * CELL;
+      var pph = ptSize.h * CELL;
+
+      var valid = true;
+      if (typeof TowerDefenseManager !== 'undefined') {
+        var vCheck = TowerDefenseManager.canBuildTower(this._tdPlacementType, this._tdPlacementGX, this._tdPlacementGY);
+        valid = vCheck.ok;
+      }
+
+      // Preview outline
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = valid ? '#4caf50' : '#f44336';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 3]);
+      ctx.strokeRect(ppx + 1, ppy + 1, ppw - 2, pph - 2);
+      ctx.setLineDash([]);
+
+      // Preview tower image
+      var pvCenterX = ppx + ppw / 2;
+      var pvCenterY = ppy + pph / 2;
+      TDRenderer.drawTower(ctx, this._tdPlacementType, pvCenterX, pvCenterY, 1, {});
+      ctx.restore();
+
+      // Confirm hint
+      if (valid) {
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = '#4caf50';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('点击确认放置', ppx + ppw / 2, ppy + pph + 4);
+      } else {
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = '#f44336';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('无法放置', ppx + ppw / 2, ppy + pph + 4);
+      }
+    }
+  },
+
   _drawHUD: function (ctx, w, h) {
     // Edit mode indicator + confirm/cancel buttons
     if (this._editMode) {
@@ -1646,7 +1882,7 @@ var TownWorld = {
       ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('📐 移动模式 — 拖拽建筑到新位置', w / 2, barH / 2);
+      ctx.fillText(this._tdPlacementType ? '🏰 放置防御建筑 — 点击选择位置' : '📐 移动模式 — 拖拽建筑到新位置', w / 2, barH / 2);
     }
 
     // Upgradeable building notification bar

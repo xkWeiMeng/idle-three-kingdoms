@@ -294,6 +294,30 @@ var TowerDefenseManager = {
     return { ok: true, tower: tower };
   },
 
+  // 由 TownManager 建造完成后调用 — 跳过资源检查（已在排队时扣除）
+  buildTowerDirect: function (typeId, gridX, gridY) {
+    var towerData = TDTowerData[typeId];
+    if (!towerData) return { ok: false, reason: '未知塔类型' };
+
+    var tower = {
+      uid: Utils.uid(),
+      type: typeId,
+      level: 1,
+      gridX: gridX,
+      gridY: gridY
+    };
+    this._state.towers.push(tower);
+
+    this._towerRuntime[tower.uid] = {
+      currentTarget: null,
+      lastAttackTime: 0,
+      kills: 0
+    };
+
+    EventBus.emit('td:tower_built', { tower: { uid: tower.uid, type: typeId, gridX: gridX, gridY: gridY } });
+    return { ok: true, tower: tower };
+  },
+
   canUpgradeTower: function (towerUid) {
     var tower = this._findTower(towerUid);
     if (!tower) return { ok: false, reason: '塔不存在' };

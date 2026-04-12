@@ -70,6 +70,7 @@ var TownManager = {
       this._state.workers = data.workers;
       this._state.firstBuildingCompleted = !!data.firstBuildingCompleted;
       this._state.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
+      this._state.tdBuildPending = Array.isArray(data.tdBuildPending) ? data.tdBuildPending : [];
     } else {
       // Migration: compute workers from current game state
       this._state.workers = 1;
@@ -87,6 +88,7 @@ var TownManager = {
       if (migTH >= 7) this._state.workers = Math.max(this._state.workers, 5);
       if (this._state.workers > WORKER_CONFIG.MAX_WORKERS) this._state.workers = WORKER_CONFIG.MAX_WORKERS;
       this._state.buildQueue = [];
+      this._state.tdBuildPending = [];
     }
 
     this._productionAccum = { wood: 0, stone: 0, iron: 0, gold: 0 };
@@ -153,6 +155,28 @@ var TownManager = {
       }
     }
     if (buildCompleted) this._processQueue();
+
+    // 1b. 检查 TD 建造完成
+    if (this._state.tdBuildPending && this._state.tdBuildPending.length > 0) {
+      var tdCompleted = false;
+      for (var tdi = this._state.tdBuildPending.length - 1; tdi >= 0; tdi--) {
+        var tdItem = this._state.tdBuildPending[tdi];
+        if (tdItem.buildEndTime && now >= tdItem.buildEndTime) {
+          if (typeof TowerDefenseManager !== 'undefined') {
+            TowerDefenseManager.buildTowerDirect(tdItem.tdType, tdItem.gridX, tdItem.gridY);
+          }
+          var tdData = typeof TDTowerData !== 'undefined' ? TDTowerData[tdItem.tdType] : null;
+          var tdName = tdData ? tdData.name : tdItem.tdType;
+          EventBus.emit('toast:show', { type: 'success', message: '🏰 ' + tdName + ' 建造完成！' });
+          this._state.tdBuildPending.splice(tdi, 1);
+          tdCompleted = true;
+        }
+      }
+      if (tdCompleted) {
+        this._processTDQueue();
+        EventBus.emit('town:queue_updated');
+      }
+    }
 
     // 2. 资源产出（生产型建筑）
     var productionBuildings = ['lumber_camp', 'quarry', 'iron_mine', 'tax_office'];
@@ -525,7 +549,7 @@ var TownManager = {
   },
 
   _processQueue: function () {
-    var freeWorkers = this._state.workers - this.getActiveBuildCount();
+    var freeWorkers = this._state.workers - this.getActiveBuildCount() - this._getActiveTDBuildCount();
     var anyChanged = false;
 
     while (freeWorkers > 0 && this._state.buildQueue.length > 0) {
@@ -680,6 +704,18 @@ var TownManager = {
         qb.buildEndTime = completedAt + qi.buildTime * 1000;
         this._state.buildQueue.shift();
         freeW--;
+      }
+    }
+    // Process offline TD builds
+    if (this._state.tdBuildPending) {
+      for (var otdi = this._state.tdBuildPending.length - 1; otdi >= 0; otdi--) {
+        var otdItem = this._state.tdBuildPending[otdi];
+        if (otdItem.buildEndTime && otdItem.buildEndTime <= now) {
+          if (typeof TowerDefenseManager !== 'undefined') {
+            TowerDefenseManager.buildTowerDirect(otdItem.tdType, otdItem.gridX, otdItem.gridY);
+          }
+          this._state.tdBuildPending.splice(otdi, 1);
+        }
       }
     }
   },
@@ -1128,6 +1164,108 @@ var TownManager = {
       return TownWorld.getCollisionGrid();
     }
     return null;
+  },
+
+  // ========== TD Building Integration ==========
+
+  enqueueTDBuilding: function (typeId, gridX, gridY) {
+    if (typeof TDTowerData === 'undefined') return { ok: false, reason: '塔防数据未加载' };
+    var towerData = TDTowerData[typeId];
+    if (!towerData) return { ok: false, reason: '未知的防御建筑类型' };
+
+    // Check TD placement validity
+    if (typeof TowerDefenseManager !== 'undefined') {
+      var check = TowerDefenseManager.canBuildTower(typeId, gridX, gridY);
+      if (!check.ok) return check;
+    }
+
+    // Check queue capacity
+    if (this._state.buildQueue.length + (this._state.tdBuildPending ? this._state.tdBuildPending.length : 0) >= WORKER_CONFIG.MAX_QUEUE_SIZE) {
+      return { ok: false, reason: '建造队列已满（最多6项）' };
+    }
+
+    // Check and spend resources
+    if (typeof ResourceManager !== 'undefined') {
+      if (!ResourceManager.canAffordMultiple(towerData.cost)) {
+        return { ok: false, reason: '资源不足' };
+      }
+      ResourceManager.spendMultiple(towerData.cost, 'tower_defense', 'build_td', typeId);
+    }
+
+    // Build time based on tower cost
+    var costTotal = (towerData.cost.gold || 0) + (towerData.cost.wood || 0) * 2 + (towerData.cost.stone || 0) * 2 + (towerData.cost.iron || 0) * 3;
+    var buildTime = Math.max(5, Math.floor(costTotal / 10));
+
+    var pendingItem = {
+      id: Utils.uid(),
+      tdType: typeId,
+      gridX: gridX,
+      gridY: gridY,
+      cost: {},
+      buildTime: buildTime,
+      buildEndTime: null,
+      addedAt: Date.now()
+    };
+    for (var resType in towerData.cost) {
+      if (towerData.cost.hasOwnProperty(resType) && towerData.cost[resType] > 0) {
+        pendingItem.cost[resType] = towerData.cost[resType];
+      }
+    }
+
+    if (!this._state.tdBuildPending) this._state.tdBuildPending = [];
+    this._state.tdBuildPending.push(pendingItem);
+
+    this._processTDQueue();
+
+    EventBus.emit('town:queue_updated');
+    return { ok: true, pendingItem: pendingItem };
+  },
+
+  _processTDQueue: function () {
+    if (!this._state.tdBuildPending) return;
+    var freeWorkers = this._state.workers - this.getActiveBuildCount() - this._getActiveTDBuildCount();
+    var now = Date.now();
+
+    for (var i = 0; i < this._state.tdBuildPending.length; i++) {
+      if (freeWorkers <= 0) break;
+      var item = this._state.tdBuildPending[i];
+      if (!item.buildEndTime) {
+        item.buildEndTime = now + item.buildTime * 1000;
+        freeWorkers--;
+        EventBus.emit('town:building_started', { buildingId: 'td_' + item.tdType, endTime: item.buildEndTime });
+      }
+    }
+  },
+
+  _getActiveTDBuildCount: function () {
+    if (!this._state.tdBuildPending) return 0;
+    var count = 0;
+    var now = Date.now();
+    for (var i = 0; i < this._state.tdBuildPending.length; i++) {
+      if (this._state.tdBuildPending[i].buildEndTime && this._state.tdBuildPending[i].buildEndTime > now) {
+        count++;
+      }
+    }
+    return count;
+  },
+
+  getTDBuildPending: function () {
+    return (this._state.tdBuildPending || []).slice();
+  },
+
+  cancelTDBuild: function (pendingId) {
+    if (!this._state.tdBuildPending) return false;
+    for (var i = 0; i < this._state.tdBuildPending.length; i++) {
+      if (this._state.tdBuildPending[i].id === pendingId) {
+        var item = this._state.tdBuildPending.splice(i, 1)[0];
+        if (typeof ResourceManager !== 'undefined') {
+          ResourceManager.addMultiple(item.cost, 'tower_defense', 'td_build_refund', item.tdType);
+        }
+        EventBus.emit('town:queue_updated');
+        return true;
+      }
+    }
+    return false;
   },
 
   getState: function () {
