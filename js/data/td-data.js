@@ -1,154 +1,176 @@
 /**
- * 塔防系统静态数据表
+ * 塔防系统静态数据表 — 三国主题版
+ *
+ * 取消科技时代系统，改为城主府等级解锁制（requiredTownHall）。
+ * 全部建筑/敌人/关卡三国化，参考部落冲突玩法。
  */
 
-// --- 防御建筑数据（16 种，4 时代 × 4 种） ---
+// ============================================================
+//  防御建筑数据（13 种：6 攻击/支援 + 3 城墙 + 4 陷阱）
+// ============================================================
 var TDTowerData = {
-  // 时代 1：中世纪
-  td_palisade: {
-    id: 'td_palisade', name: '木栅栏', era: 1, category: 'wall',
-    size: { w: 1, h: 1 },
-    atk: 0, range: 0, attackSpeed: 0, hp: 200,
-    targets: ['ground', 'underground'],
-    special: null,
-    cost: { gold: 50, wood: 20 }
-  },
+
+  // ── 攻击型建筑 ──
+
   td_arrow_tower: {
-    id: 'td_arrow_tower', name: '箭塔', era: 1, category: 'attack',
+    id: 'td_arrow_tower', name: '箭塔', category: 'attack',
     size: { w: 2, h: 2 },
-    atk: 20, range: 3, attackSpeed: 1.0, hp: 0,
+    atk: 20, range: 3.5, attackSpeed: 1.2, hp: 0,
     targets: ['ground', 'air'],
     special: null,
-    cost: { gold: 100, wood: 30 }
+    cost: { gold: 100, wood: 30 },
+    requiredTownHall: 3
   },
-  td_watchtower: {
-    id: 'td_watchtower', name: '瞭望塔', era: 1, category: 'support',
+  td_crossbow: {
+    id: 'td_crossbow', name: '弩车台', category: 'attack',
     size: { w: 2, h: 2 },
-    atk: 5, range: 5, attackSpeed: 0.5, hp: 0,
+    atk: 50, range: 5, attackSpeed: 0.4, hp: 0,
+    targets: ['ground', 'air'],
+    special: 'armor_pierce_30',
+    cost: { gold: 400, wood: 60, iron: 20 },
+    requiredTownHall: 4
+  },
+  td_catapult: {
+    id: 'td_catapult', name: '投石车台', category: 'attack',
+    size: { w: 2, h: 2 },
+    atk: 80, range: 5, attackSpeed: 0.25, hp: 0,
+    targets: ['ground'],
+    special: 'splash_1.5',
+    cost: { gold: 600, wood: 80, stone: 60 },
+    requiredTownHall: 5
+  },
+  td_beacon: {
+    id: 'td_beacon', name: '烽火台', category: 'support',
+    size: { w: 2, h: 2 },
+    atk: 5, range: 6, attackSpeed: 0.5, hp: 0,
     targets: ['ground', 'underground', 'air'],
-    special: 'detect',
-    cost: { gold: 150, wood: 40, stone: 20 }
+    special: 'detect_atk_buff_15',
+    cost: { gold: 300, wood: 40, stone: 30 },
+    requiredTownHall: 4
   },
-  td_caltrops: {
-    id: 'td_caltrops', name: '拒马', era: 1, category: 'trap',
-    size: { w: 1, h: 1 },
-    atk: 10, range: 0, attackSpeed: 0, hp: 0,
-    targets: ['ground'],
-    special: 'slow_50_3s',
-    cost: { gold: 30, wood: 15 }
-  },
-
-  // 时代 2：火药时代
-  td_stone_wall: {
-    id: 'td_stone_wall', name: '石墙', era: 2, category: 'wall',
-    size: { w: 1, h: 1 },
-    atk: 0, range: 0, attackSpeed: 0, hp: 500,
-    targets: ['ground', 'underground'],
-    special: null,
-    cost: { gold: 150, stone: 50 }
-  },
-  td_cannon: {
-    id: 'td_cannon', name: '火炮塔', era: 2, category: 'attack',
+  td_oil_tower: {
+    id: 'td_oil_tower', name: '火油塔', category: 'attack',
     size: { w: 2, h: 2 },
-    atk: 60, range: 4, attackSpeed: 0.33, hp: 0,
+    atk: 35, range: 2.5, attackSpeed: 0.5, hp: 0,
     targets: ['ground'],
-    special: 'splash_1',
-    cost: { gold: 400, wood: 60, stone: 50, iron: 20 }
+    special: 'burn_area_3s',
+    cost: { gold: 500, wood: 50, stone: 40 },
+    requiredTownHall: 5
   },
-  td_rocket_cart: {
-    id: 'td_rocket_cart', name: '火箭车', era: 2, category: 'attack',
-    size: { w: 2, h: 2 },
-    atk: 35, range: 3.5, attackSpeed: 0.5, hp: 0,
-    targets: ['ground', 'air'],
-    special: null,
-    cost: { gold: 300, wood: 40, stone: 30, iron: 15 }
-  },
-  td_oil_pool: {
-    id: 'td_oil_pool', name: '火油池', era: 2, category: 'trap',
-    size: { w: 1, h: 1 },
-    atk: 25, range: 1, attackSpeed: 0, hp: 0,
-    targets: ['ground', 'underground'],
-    special: 'burn_5s_cd15',
-    cost: { gold: 200, wood: 30, stone: 20 }
-  },
-
-  // 时代 3：工业时代
-  td_iron_wall: {
-    id: 'td_iron_wall', name: '铁壁', era: 3, category: 'wall',
-    size: { w: 1, h: 1 },
-    atk: 0, range: 0, attackSpeed: 0, hp: 1200,
-    targets: ['ground', 'underground'],
-    special: null,
-    cost: { gold: 300, stone: 100, iron: 50 }
-  },
-  td_gatling: {
-    id: 'td_gatling', name: '加特林塔', era: 3, category: 'attack',
+  td_repeater: {
+    id: 'td_repeater', name: '连弩塔', category: 'attack',
     size: { w: 2, h: 2 },
     atk: 15, range: 3, attackSpeed: 3.0, hp: 0,
     targets: ['ground', 'air'],
     special: 'multi_2',
-    cost: { gold: 600, wood: 80, stone: 60, iron: 40 }
-  },
-  td_minefield: {
-    id: 'td_minefield', name: '地雷阵', era: 3, category: 'trap',
-    size: { w: 1, h: 1 },
-    atk: 80, range: 1, attackSpeed: 0, hp: 0,
-    targets: ['ground', 'underground'],
-    special: 'aoe_1',
-    cost: { gold: 250, stone: 40, iron: 30 }
-  },
-  td_steam_ballista: {
-    id: 'td_steam_ballista', name: '蒸汽弩炮', era: 3, category: 'attack',
-    size: { w: 2, h: 2 },
-    atk: 100, range: 5, attackSpeed: 0.2, hp: 0,
-    targets: ['air'],
-    special: 'armor_pierce_50',
-    cost: { gold: 800, wood: 100, stone: 80, iron: 50 }
+    cost: { gold: 700, wood: 100, iron: 50 },
+    requiredTownHall: 6
   },
 
-  // 时代 4：现代科技
-  td_electric_fence: {
-    id: 'td_electric_fence', name: '电网围栏', era: 4, category: 'wall',
+  // ── 防御型建筑（城墙） ──
+
+  td_wood_fence: {
+    id: 'td_wood_fence', name: '木栅栏', category: 'wall',
     size: { w: 1, h: 1 },
-    atk: 15, range: 0, attackSpeed: 0, hp: 800,
+    atk: 0, range: 0, attackSpeed: 0, hp: 200,
     targets: ['ground', 'underground'],
-    special: 'contact_damage',
-    cost: { gold: 500, stone: 100, iron: 80 }
+    special: null,
+    cost: { gold: 50, wood: 20 },
+    requiredTownHall: 3
   },
-  td_missile_tower: {
-    id: 'td_missile_tower', name: '导弹塔', era: 4, category: 'attack',
-    size: { w: 2, h: 2 },
-    atk: 120, range: 6, attackSpeed: 0.25, hp: 0,
-    targets: ['ground', 'air'],
-    special: 'homing_splash_1',
-    cost: { gold: 1200, wood: 100, stone: 100, iron: 80 }
+  td_stone_wall: {
+    id: 'td_stone_wall', name: '城墙', category: 'wall',
+    size: { w: 1, h: 1 },
+    atk: 0, range: 0, attackSpeed: 0, hp: 500,
+    targets: ['ground', 'underground'],
+    special: null,
+    cost: { gold: 200, stone: 50 },
+    requiredTownHall: 4
   },
-  td_radar: {
-    id: 'td_radar', name: '雷达站', era: 4, category: 'support',
-    size: { w: 2, h: 2 },
-    atk: 0, range: 6, attackSpeed: 0, hp: 0,
-    targets: [],
-    special: 'detect_atk_buff_20',
-    cost: { gold: 600, stone: 50, iron: 60 }
+  td_iron_wall: {
+    id: 'td_iron_wall', name: '铁壁', category: 'wall',
+    size: { w: 1, h: 1 },
+    atk: 0, range: 0, attackSpeed: 0, hp: 1200,
+    targets: ['ground', 'underground'],
+    special: null,
+    cost: { gold: 400, stone: 100, iron: 50 },
+    requiredTownHall: 6
   },
-  td_laser: {
-    id: 'td_laser', name: '激光炮', era: 4, category: 'attack',
-    size: { w: 2, h: 2 },
-    atk: 200, range: 7, attackSpeed: 0.15, hp: 0,
-    targets: ['ground', 'air'],
-    special: 'pierce_beam',
-    cost: { gold: 2000, stone: 150, iron: 120 }
+
+  // ── 陷阱 ──
+
+  td_spike: {
+    id: 'td_spike', name: '拒马', category: 'trap',
+    size: { w: 1, h: 1 },
+    atk: 15, range: 0, attackSpeed: 0, hp: 0,
+    targets: ['ground'],
+    special: 'slow_50_3s',
+    cost: { gold: 30, wood: 15 },
+    requiredTownHall: 3
+  },
+  td_pitfall: {
+    id: 'td_pitfall', name: '陷坑', category: 'trap',
+    size: { w: 1, h: 1 },
+    atk: 100, range: 0, attackSpeed: 0, hp: 0,
+    targets: ['ground'],
+    special: 'single_use',
+    cost: { gold: 150, stone: 30 },
+    requiredTownHall: 4
+  },
+  td_oil_pool: {
+    id: 'td_oil_pool', name: '火油池', category: 'trap',
+    size: { w: 1, h: 1 },
+    atk: 25, range: 0, attackSpeed: 0, hp: 0,
+    targets: ['ground', 'underground'],
+    special: 'burn_5s_cd15',
+    cost: { gold: 200, wood: 30, stone: 20 },
+    requiredTownHall: 5
+  },
+  td_trip_rope: {
+    id: 'td_trip_rope', name: '绊马索', category: 'trap',
+    size: { w: 1, h: 1 },
+    atk: 0, range: 0, attackSpeed: 0, hp: 0,
+    targets: ['ground'],
+    special: 'stun_cavalry_2s',
+    cost: { gold: 80, wood: 20 },
+    requiredTownHall: 4
   }
 };
 
-// --- 获取塔尺寸（格子数） ---
+// ── 旧存档兼容：已移除塔 ID → 降级映射 ──
+// tower-defense-manager 初始化时可查此表，将旧 ID 替换为新 ID
+var TDLegacyTowerMap = {
+  'td_palisade':        'td_wood_fence',
+  'td_watchtower':      'td_beacon',
+  'td_caltrops':        'td_spike',
+  'td_cannon':          'td_catapult',
+  'td_rocket_cart':     'td_crossbow',
+  'td_gatling':         'td_repeater',
+  'td_minefield':       'td_pitfall',
+  'td_steam_ballista':  'td_crossbow',
+  'td_electric_fence':  'td_iron_wall',
+  'td_missile_tower':   'td_catapult',
+  'td_radar':           'td_beacon',
+  'td_laser':           'td_repeater'
+};
+
+// ============================================================
+//  获取塔尺寸（格子数）
+// ============================================================
 function TDGetTowerSize(typeId) {
   var td = TDTowerData[typeId];
   if (td && td.size) return td.size;
+  // 旧 ID 降级查找
+  if (TDLegacyTowerMap[typeId]) {
+    td = TDTowerData[TDLegacyTowerMap[typeId]];
+    if (td && td.size) return td.size;
+  }
   return { w: 1, h: 1 };
 }
 
-// --- 升级倍率表（Lv1-5） ---
+// ============================================================
+//  升级倍率表（Lv1-5）— 保持不变
+// ============================================================
 var TD_UPGRADE_TABLE = [
   null,
   { statMul: 1.00, hpMul: 1.00, costMul: 0 },
@@ -158,79 +180,129 @@ var TD_UPGRADE_TABLE = [
   { statMul: 2.00, hpMul: 2.50, costMul: 3.0 }
 ];
 
-// --- 敌人类型数据（9 种） ---
+// ============================================================
+//  敌人类型数据（12 种三国兵种）
+// ============================================================
 var TDEnemyData = {
-  td_infantry: {
-    id: 'td_infantry', name: '步兵', category: 'ground',
-    hpMul: 1.0, atkMul: 1.0, defMul: 1.0, speed: 1.0,
+
+  // ── 地面兵种 ──
+
+  td_militia: {
+    id: 'td_militia', name: '黄巾兵', category: 'ground',
+    hpMul: 0.8, atkMul: 0.8, defMul: 0.6, speed: 1.0,
+    special: null
+  },
+  td_spearman: {
+    id: 'td_spearman', name: '长枪兵', category: 'ground',
+    hpMul: 1.0, atkMul: 1.0, defMul: 1.0, speed: 0.9,
+    special: null
+  },
+  td_heavy_infantry: {
+    id: 'td_heavy_infantry', name: '重甲兵', category: 'ground',
+    hpMul: 2.0, atkMul: 0.8, defMul: 2.0, speed: 0.5,
     special: null
   },
   td_cavalry: {
-    id: 'td_cavalry', name: '骑兵', category: 'ground',
-    hpMul: 0.7, atkMul: 0.8, defMul: 0.6, speed: 1.8,
+    id: 'td_cavalry', name: '轻骑兵', category: 'ground',
+    hpMul: 0.7, atkMul: 0.9, defMul: 0.5, speed: 2.0,
     special: null
   },
-  td_heavy: {
-    id: 'td_heavy', name: '重步兵', category: 'ground',
-    hpMul: 2.0, atkMul: 0.8, defMul: 2.0, speed: 0.6,
-    special: null
-  },
-  td_siege_ram: {
-    id: 'td_siege_ram', name: '攻城车', category: 'ground',
-    hpMul: 3.0, atkMul: 1.5, defMul: 1.5, speed: 0.4,
+  td_iron_cavalry: {
+    id: 'td_iron_cavalry', name: '铁骑', category: 'ground',
+    hpMul: 1.5, atkMul: 1.2, defMul: 1.5, speed: 1.5,
     special: 'wall_damage_x2'
   },
-  td_tunneler: {
-    id: 'td_tunneler', name: '掘进兵', category: 'underground',
-    hpMul: 1.0, atkMul: 1.0, defMul: 0.8, speed: 0.8,
+
+  // ── 攻城器械 ──
+
+  td_siege_ram: {
+    id: 'td_siege_ram', name: '攻城车', category: 'ground',
+    hpMul: 3.0, atkMul: 1.5, defMul: 2.0, speed: 0.3,
+    special: 'wall_damage_x3'
+  },
+  td_siege_ladder: {
+    id: 'td_siege_ladder', name: '云梯', category: 'ground',
+    hpMul: 1.0, atkMul: 0.5, defMul: 0.8, speed: 0.8,
+    special: 'ignore_wall'
+  },
+  td_siege_catapult: {
+    id: 'td_siege_catapult', name: '投石车', category: 'ground',
+    hpMul: 2.0, atkMul: 2.0, defMul: 1.0, speed: 0.3,
+    special: 'ranged_attack_building'
+  },
+  td_battering_ram: {
+    id: 'td_battering_ram', name: '冲城锤', category: 'ground',
+    hpMul: 4.0, atkMul: 2.0, defMul: 2.5, speed: 0.2,
+    special: 'townhall_damage_x5'
+  },
+
+  // ── 特殊兵种 ──
+
+  td_assassin: {
+    id: 'td_assassin', name: '刺客', category: 'underground',
+    hpMul: 0.8, atkMul: 1.5, defMul: 0.5, speed: 1.3,
     special: 'stealth'
   },
-  td_burrower: {
-    id: 'td_burrower', name: '穿甲鼠', category: 'underground',
-    hpMul: 0.6, atkMul: 1.2, defMul: 0.5, speed: 1.5,
-    special: 'stealth'
+  td_horse_archer: {
+    id: 'td_horse_archer', name: '弓骑兵', category: 'ground',
+    hpMul: 0.7, atkMul: 1.0, defMul: 0.4, speed: 1.8,
+    special: 'ranged_move_attack'
   },
-  td_sky_rider: {
-    id: 'td_sky_rider', name: '飞骑', category: 'air',
-    hpMul: 0.8, atkMul: 0.9, defMul: 0.5, speed: 1.5,
-    special: 'flying'
-  },
-  td_bomber: {
-    id: 'td_bomber', name: '轰炸者', category: 'air',
-    hpMul: 1.5, atkMul: 1.5, defMul: 0.8, speed: 0.7,
-    special: 'flying_tower_damage_x2'
-  },
-  td_final_boss: {
-    id: 'td_final_boss', name: '终极统帅', category: 'ground',
+  td_enemy_general: {
+    id: 'td_enemy_general', name: '敌将', category: 'ground',
     hpMul: 1.0, atkMul: 1.0, defMul: 1.0, speed: 0.5,
-    special: 'summon_infantry'
+    special: 'boss'
   }
 };
 
-// --- 波次表（20 波，公式生成基础属性） ---
+// ── 旧存档兼容：旧敌人 ID 别名 ──
+// tower-defense-manager 中硬编码引用了 td_infantry 用于召唤，保留别名
+TDEnemyData.td_infantry = TDEnemyData.td_militia;
+TDEnemyData.td_heavy = TDEnemyData.td_heavy_infantry;
+TDEnemyData.td_tunneler = TDEnemyData.td_assassin;
+TDEnemyData.td_burrower = TDEnemyData.td_assassin;
+TDEnemyData.td_final_boss = TDEnemyData.td_enemy_general;
+
+// ============================================================
+//  波次表（20 波，公式生成基础属性）
+// ============================================================
 var TDWaveTable = (function () {
+
+  // 波次敌人组合：三国主题
+  // 1-5: 黄巾兵、长枪兵为主
+  // 6-10: 加入骑兵、重甲兵、攻城车
+  // 11-15: 加入刺客、弓骑兵、投石车
+  // 16-19: 加入铁骑、云梯、冲城锤
+  // 20: 终极Boss + 全兵种
   var compositions = [
     null,
-    [{ type: 'td_infantry', count: 3 }],
-    [{ type: 'td_infantry', count: 3 }],
-    [{ type: 'td_infantry', count: 2 }, { type: 'td_cavalry', count: 1 }],
-    [{ type: 'td_infantry', count: 2 }, { type: 'td_heavy', count: 1 }],
-    [{ type: 'td_siege_ram', count: 1 }],
-    [{ type: 'td_infantry', count: 3 }, { type: 'td_cavalry', count: 1 }],
-    [{ type: 'td_infantry', count: 2 }, { type: 'td_cavalry', count: 1 }, { type: 'td_tunneler', count: 1 }],
-    [{ type: 'td_infantry', count: 3 }, { type: 'td_tunneler', count: 1 }],
-    [{ type: 'td_infantry', count: 2 }, { type: 'td_tunneler', count: 2 }, { type: 'td_cavalry', count: 1 }],
-    [{ type: 'td_burrower', count: 1 }],
-    [{ type: 'td_infantry', count: 3 }, { type: 'td_cavalry', count: 1 }, { type: 'td_sky_rider', count: 1 }],
-    [{ type: 'td_infantry', count: 2 }, { type: 'td_sky_rider', count: 2 }, { type: 'td_tunneler', count: 1 }],
-    [{ type: 'td_cavalry', count: 2 }, { type: 'td_tunneler', count: 2 }, { type: 'td_sky_rider', count: 2 }],
-    [{ type: 'td_heavy', count: 3 }, { type: 'td_sky_rider', count: 2 }, { type: 'td_tunneler', count: 1 }],
-    [{ type: 'td_bomber', count: 1 }],
-    [{ type: 'td_infantry', count: 3 }, { type: 'td_heavy', count: 2 }, { type: 'td_siege_ram', count: 1 }],
-    [{ type: 'td_cavalry', count: 2 }, { type: 'td_tunneler', count: 2 }, { type: 'td_sky_rider', count: 2 }, { type: 'td_bomber', count: 1 }],
-    [{ type: 'td_heavy', count: 3 }, { type: 'td_tunneler', count: 2 }, { type: 'td_sky_rider', count: 2 }],
-    [{ type: 'td_siege_ram', count: 2 }, { type: 'td_burrower', count: 2 }, { type: 'td_bomber', count: 2 }, { type: 'td_cavalry', count: 1 }],
-    [{ type: 'td_final_boss', count: 1 }, { type: 'td_heavy', count: 2 }, { type: 'td_sky_rider', count: 2 }]
+    // ── 第一阶段：黄巾之乱（波次 1-5） ──
+    [{ type: 'td_militia', count: 3 }],
+    [{ type: 'td_militia', count: 3 }, { type: 'td_spearman', count: 1 }],
+    [{ type: 'td_militia', count: 2 }, { type: 'td_spearman', count: 2 }],
+    [{ type: 'td_spearman', count: 3 }, { type: 'td_militia', count: 2 }],
+    [{ type: 'td_enemy_general', count: 1 }, { type: 'td_spearman', count: 2 }],
+
+    // ── 第二阶段：诸侯讨董（波次 6-10） ──
+    [{ type: 'td_militia', count: 3 }, { type: 'td_cavalry', count: 2 }],
+    [{ type: 'td_spearman', count: 2 }, { type: 'td_heavy_infantry', count: 1 }, { type: 'td_cavalry', count: 1 }],
+    [{ type: 'td_heavy_infantry', count: 2 }, { type: 'td_cavalry', count: 2 }],
+    [{ type: 'td_cavalry', count: 2 }, { type: 'td_siege_ram', count: 1 }, { type: 'td_spearman', count: 2 }],
+    [{ type: 'td_enemy_general', count: 1 }, { type: 'td_iron_cavalry', count: 1 }, { type: 'td_heavy_infantry', count: 2 }],
+
+    // ── 第三阶段：赤壁烽火（波次 11-15） ──
+    [{ type: 'td_spearman', count: 2 }, { type: 'td_horse_archer', count: 2 }, { type: 'td_militia', count: 2 }],
+    [{ type: 'td_cavalry', count: 2 }, { type: 'td_assassin', count: 2 }, { type: 'td_spearman', count: 1 }],
+    [{ type: 'td_heavy_infantry', count: 2 }, { type: 'td_horse_archer', count: 2 }, { type: 'td_siege_catapult', count: 1 }],
+    [{ type: 'td_cavalry', count: 2 }, { type: 'td_assassin', count: 2 }, { type: 'td_siege_catapult', count: 1 }, { type: 'td_horse_archer', count: 1 }],
+    [{ type: 'td_enemy_general', count: 1 }, { type: 'td_horse_archer', count: 2 }, { type: 'td_siege_catapult', count: 1 }],
+
+    // ── 第四阶段：荆州争夺 / 五丈原（波次 16-20） ──
+    [{ type: 'td_iron_cavalry', count: 2 }, { type: 'td_siege_ladder', count: 2 }, { type: 'td_spearman', count: 2 }],
+    [{ type: 'td_iron_cavalry', count: 2 }, { type: 'td_battering_ram', count: 1 }, { type: 'td_heavy_infantry', count: 2 }, { type: 'td_siege_ladder', count: 1 }],
+    [{ type: 'td_iron_cavalry', count: 2 }, { type: 'td_assassin', count: 2 }, { type: 'td_horse_archer', count: 2 }, { type: 'td_battering_ram', count: 1 }],
+    [{ type: 'td_siege_ram', count: 1 }, { type: 'td_siege_ladder', count: 2 }, { type: 'td_battering_ram', count: 1 }, { type: 'td_iron_cavalry', count: 2 }],
+    [{ type: 'td_enemy_general', count: 1 }, { type: 'td_iron_cavalry', count: 2 }, { type: 'td_siege_catapult', count: 1 }, { type: 'td_assassin', count: 1 }, { type: 'td_battering_ram', count: 1 }]
   ];
 
   var table = [null];
@@ -254,20 +326,34 @@ var TDWaveTable = (function () {
   return table;
 })();
 
-// --- 科技树（4 个时代） ---
+// ============================================================
+//  城主府等级解锁表（替代旧科技时代系统）
+// ============================================================
+var TDTownHallUnlockTable = {
+  3: ['td_arrow_tower', 'td_wood_fence', 'td_spike'],
+  4: ['td_crossbow', 'td_beacon', 'td_stone_wall', 'td_pitfall', 'td_trip_rope'],
+  5: ['td_catapult', 'td_oil_tower', 'td_oil_pool'],
+  6: ['td_repeater', 'td_iron_wall']
+};
+
+// ── 旧存档兼容：保留 TDTechTree 作为 shim，防止引用崩溃 ──
+// tower-defense-manager.js / tower-defense-panel.js 中仍有对 TDTechTree 的引用，
+// 此处提供最小兼容结构。新代码应使用 TDTownHallUnlockTable。
 var TDTechTree = [
   null,
-  { era: 1, name: '中世纪', cost: null, time: 0, requires: null },
-  { era: 2, name: '火药时代', cost: { gold: 2000, wood: 200, stone: 150 }, time: 1800, requires: { era: 1, wave: 5 } },
-  { era: 3, name: '工业时代', cost: { gold: 5000, wood: 400, stone: 300, iron: 100 }, time: 3600, requires: { era: 2, wave: 10 } },
-  { era: 4, name: '现代科技', cost: { gold: 10000, wood: 600, stone: 500, iron: 200 }, time: 7200, requires: { era: 3, wave: 15 } }
+  { era: 1, name: '基础城防', cost: null, time: 0, requires: null },
+  { era: 2, name: '高级城防', cost: null, time: 0, requires: { era: 1, wave: 5 } },
+  { era: 3, name: '精锐城防', cost: null, time: 0, requires: { era: 2, wave: 10 } },
+  { era: 4, name: '传奇城防', cost: null, time: 0, requires: { era: 3, wave: 15 } }
 ];
 
-// --- 常量 ---
+// ============================================================
+//  常量
+// ============================================================
 var TD_CONSTANTS = {
   MAX_TOWER_LEVEL: 5,
   MAX_WAVE: 20,
-  MAX_ASSIGNED_HEROES: 2,
+  MAX_ASSIGNED_HEROES: 3,
   PREP_TIME: 15,
   SELL_RATE_IDLE: 0.5,
   SELL_RATE_ACTIVE: 0.3,
@@ -282,7 +368,9 @@ var TD_CONSTANTS = {
   DAILY_CHALLENGE_LIMIT: 3
 };
 
-// --- 波次奖励函数 ---
+// ============================================================
+//  波次奖励函数 — 保持不变
+// ============================================================
 function TDWaveRewards(n) {
   var isBoss = n % 5 === 0;
   var gold = Math.floor(50 * Math.pow(1.15, n - 1));
@@ -310,80 +398,96 @@ function TDWaveRewards(n) {
   return result;
 }
 
-// --- 塔防章节/关卡数据（5 章 × 5 关） ---
+// ============================================================
+//  塔防章节/关卡数据（5 章 × 5 关）— 三国主题
+// ============================================================
 // 每章5关，每关=一个波次战斗，章内难度递增，第5关为Boss关
-// 章节间有大跨度难度提升，需要升级塔和科技
+// 章节间有大跨度难度提升，需要升级建筑和城主府
 var TDChapterData = [
   null,
-  // 第一章：黄巾之乱（中世纪，解锁即可挑战）
+
+  // 第一章：黄巾之乱（城主府 Lv3 即可挑战）
   {
-    id: 1, name: '黄巾之乱', era: 1, description: '各地黄巾军蜂拥而至，保卫城池！',
-    unlockCondition: null, // 解锁城防即可
+    id: 1, name: '黄巾之乱', description: '各地黄巾军蜂拥而至，保卫城池！',
+    unlockCondition: null,
+    bossName: '张角', bossSkill: '召唤术',
     stages: [
-      { stage: 1, name: '散兵入侵', difficulty: 1.0, waves: [1] },
-      { stage: 2, name: '骑兵突袭', difficulty: 1.2, waves: [2, 3] },
-      { stage: 3, name: '重甲兵团', difficulty: 1.5, waves: [3, 4] },
-      { stage: 4, name: '攻城先锋', difficulty: 1.8, waves: [4, 5] },
+      { stage: 1, name: '散兵游勇', difficulty: 1.0, waves: [1] },
+      { stage: 2, name: '黄巾先锋', difficulty: 1.2, waves: [2, 3] },
+      { stage: 3, name: '长枪方阵', difficulty: 1.5, waves: [3, 4] },
+      { stage: 4, name: '蛾贼攻城', difficulty: 1.8, waves: [4, 5] },
       { stage: 5, name: 'Boss: 张角', difficulty: 2.2, waves: [5], isBoss: true }
     ]
   },
-  // 第二章：群雄割据（中世纪→火药过渡）
+
+  // 第二章：诸侯讨董（通关第一章解锁）
   {
-    id: 2, name: '群雄割据', era: 1, description: '诸侯混战，敌军日渐强大',
+    id: 2, name: '诸侯讨董', description: '十八路诸侯聚义，虎牢关前鏖战！',
     unlockCondition: { chapter: 1 },
+    bossName: '吕布', bossSkill: '高攻高速',
     stages: [
-      { stage: 1, name: '联军压境', difficulty: 2.5, waves: [6] },
-      { stage: 2, name: '暗夜掘进', difficulty: 3.0, waves: [7, 8] },
-      { stage: 3, name: '地道战', difficulty: 3.5, waves: [8, 9] },
-      { stage: 4, name: '穿甲鼠群', difficulty: 4.0, waves: [9, 10] },
+      { stage: 1, name: '联军先锋', difficulty: 2.5, waves: [6] },
+      { stage: 2, name: '铁骑冲阵', difficulty: 3.0, waves: [7, 8] },
+      { stage: 3, name: '重甲压境', difficulty: 3.5, waves: [8, 9] },
+      { stage: 4, name: '攻城号角', difficulty: 4.0, waves: [9, 10] },
       { stage: 5, name: 'Boss: 吕布', difficulty: 5.0, waves: [10], isBoss: true }
     ]
   },
-  // 第三章：烽火连天（火药时代）
+
+  // 第三章：赤壁烽火（通关第二章解锁）
   {
-    id: 3, name: '烽火连天', era: 2, description: '火药武器登场，天空也不安全了',
-    unlockCondition: { chapter: 2, era: 2 },
+    id: 3, name: '赤壁烽火', description: '火烧连营，暗杀横行，弓骑呼啸！',
+    unlockCondition: { chapter: 2 },
+    bossName: '曹操', bossSkill: '全军buff',
     stages: [
-      { stage: 1, name: '飞骑骚扰', difficulty: 5.5, waves: [11] },
-      { stage: 2, name: '空地协同', difficulty: 6.5, waves: [11, 12] },
+      { stage: 1, name: '弓骑骚扰', difficulty: 5.5, waves: [11] },
+      { stage: 2, name: '暗夜刺客', difficulty: 6.5, waves: [11, 12] },
       { stage: 3, name: '三面夹击', difficulty: 7.5, waves: [13] },
-      { stage: 4, name: '重甲天际', difficulty: 8.5, waves: [13, 14] },
-      { stage: 5, name: 'Boss: 轰炸者', difficulty: 10.0, waves: [15], isBoss: true }
+      { stage: 4, name: '乱石穿空', difficulty: 8.5, waves: [13, 14] },
+      { stage: 5, name: 'Boss: 曹操', difficulty: 10.0, waves: [15], isBoss: true }
     ]
   },
-  // 第四章：工业之怒（工业时代）
+
+  // 第四章：荆州争夺（通关第三章解锁）
   {
-    id: 4, name: '工业之怒', era: 3, description: '工业力量全面碾压城防',
-    unlockCondition: { chapter: 3, era: 3 },
+    id: 4, name: '荆州争夺', description: '铁骑纵横，云梯攀城，冲城锤破门！',
+    unlockCondition: { chapter: 3 },
+    bossName: '关羽', bossSkill: '无双斩',
     stages: [
-      { stage: 1, name: '机械浪潮', difficulty: 11.0, waves: [16] },
-      { stage: 2, name: '陆空齐进', difficulty: 13.0, waves: [17] },
+      { stage: 1, name: '铁骑先锋', difficulty: 11.0, waves: [16] },
+      { stage: 2, name: '云梯攻城', difficulty: 13.0, waves: [17] },
       { stage: 3, name: '全面围攻', difficulty: 15.0, waves: [18] },
-      { stage: 4, name: '末日前夕', difficulty: 18.0, waves: [19] },
-      { stage: 5, name: 'Boss: 铁甲军团', difficulty: 22.0, waves: [19, 20], isBoss: true }
+      { stage: 4, name: '破城前夕', difficulty: 18.0, waves: [19] },
+      { stage: 5, name: 'Boss: 关羽', difficulty: 22.0, waves: [19], isBoss: true }
     ]
   },
-  // 第五章：终极决战（现代科技）
+
+  // 第五章：决战五丈原（通关第四章解锁）
   {
-    id: 5, name: '终极决战', era: 4, description: '史上最强敌人，决一死战！',
-    unlockCondition: { chapter: 4, era: 4 },
+    id: 5, name: '决战五丈原', description: '全兵种倾巢而出，决一死战！',
+    unlockCondition: { chapter: 4 },
+    bossName: '司马懿', bossSkill: '分身术',
     stages: [
-      { stage: 1, name: '精锐先锋', difficulty: 25.0, waves: [18, 19] },
-      { stage: 2, name: '空袭风暴', difficulty: 30.0, waves: [19, 20] },
-      { stage: 3, name: '地狱围城', difficulty: 35.0, waves: [17, 18, 19] },
-      { stage: 4, name: '末日审判', difficulty: 42.0, waves: [19, 20] },
-      { stage: 5, name: 'Boss: 终极统帅', difficulty: 50.0, waves: [20], isBoss: true }
+      { stage: 1, name: '精锐合围', difficulty: 25.0, waves: [18, 19] },
+      { stage: 2, name: '铁壁攻防', difficulty: 30.0, waves: [19, 20] },
+      { stage: 3, name: '孤城血战', difficulty: 35.0, waves: [17, 18, 19] },
+      { stage: 4, name: '天命之战', difficulty: 42.0, waves: [19, 20] },
+      { stage: 5, name: 'Boss: 司马懿', difficulty: 50.0, waves: [20], isBoss: true }
     ]
   }
 ];
 
-// --- 主城等级 → 防御塔容量 ---
+// ============================================================
+//  主城等级 → 防御塔容量 — 保持不变
+// ============================================================
 // town_hall Lv3 解锁城防，每升一级多3个塔位
 var TDTowerCapacity = {
   3: 8, 4: 11, 5: 14, 6: 17, 7: 20, 8: 23, 9: 26, 10: 30
 };
 
-// --- NPC 战时台词 ---
+// ============================================================
+//  NPC 战时台词
+// ============================================================
 var TDWarDialogues = [
   '打仗了，快跑啊！',
   '敌人来了！快回城！',
@@ -397,4 +501,8 @@ var TDWarDialogues = [
   '大家快撤退！',
   '别挡路，让我先跑！',
   '呜呜，我好怕…',
+  '报——！敌军压境！',
+  '将军，敌人攻城了！',
+  '弓箭手准备！',
+  '放箭！放箭！'
 ];

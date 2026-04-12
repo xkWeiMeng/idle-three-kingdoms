@@ -26,19 +26,18 @@ var TowerDefensePanel = {
 
   // 塔类型 emoji 映射
   _towerEmoji: {
-    td_palisade: '🏰', td_arrow_tower: '🏹', td_watchtower: '👁',
-    td_caltrops: '⚔', td_stone_wall: '🧱', td_cannon: '💣',
-    td_rocket_cart: '🚀', td_oil_pool: '🔥', td_iron_wall: '🛡',
-    td_gatling: '🔫', td_minefield: '💥', td_steam_ballista: '⚙',
-    td_electric_fence: '⚡', td_missile_tower: '🎯', td_radar: '📡',
-    td_laser: '🔬'
+    td_arrow_tower: '🏹', td_crossbow: '⚔', td_catapult: '🪨',
+    td_beacon: '🔥', td_oil_tower: '🫕', td_repeater: '🏹',
+    td_wood_fence: '🪵', td_stone_wall: '🧱', td_iron_wall: '🛡',
+    td_spike: '⚔', td_pitfall: '🕳', td_oil_pool: '🔥', td_trip_rope: '🪢'
   },
 
   // 敌人 emoji 映射
   _enemyEmoji: {
-    td_infantry: '🗡', td_cavalry: '🐴', td_heavy: '🛡',
-    td_siege_ram: '🔨', td_tunneler: '⛏', td_burrower: '🐀',
-    td_sky_rider: '🦅', td_bomber: '💣', td_final_boss: '👑'
+    td_militia: '⚔', td_spearman: '🗡', td_heavy_infantry: '🛡',
+    td_cavalry: '🐴', td_iron_cavalry: '🐎', td_siege_ram: '🔨',
+    td_siege_ladder: '🪜', td_siege_catapult: '🪨', td_battering_ram: '🔨',
+    td_assassin: '🗡', td_horse_archer: '🏹', td_enemy_general: '👑'
   },
 
   // ========== T13: init + 事件注册 ==========
@@ -60,8 +59,6 @@ var TowerDefensePanel = {
     EventBus.on('td:tower_sold', function () { self._selectedTowerUid = null; self._updateToolbar(); });
     EventBus.on('td:enemy_killed', function () { self._updateStatusBar(); });
     EventBus.on('td:hero_assigned', function () { self._updateStatusBar(); });
-    EventBus.on('td:research_started', function () { self._updateStatusBar(); });
-    EventBus.on('td:era_unlocked', function () { self._updateToolbar(); });
 
     // 监听 overlay 关闭以刷新
     EventBus.on('overlay:closed', function () {
@@ -97,14 +94,13 @@ var TowerDefensePanel = {
     // 塔防管理按钮行
     html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
     html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTowerManagement()">🏗 防御塔管理</button>';
-    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTechPanel()">🔬 科技研究</button>';
+    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTechPanel()">🏗 建筑解锁</button>';
     html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showHeroPanel()">⚔ 武将派驻</button>';
     html += '</div>';
 
     // 章节列表
     for (var c = 0; c < chapters.length; c++) {
       var ch = chapters[c];
-      var eraNames = { 1: '中世纪', 2: '火药时代', 3: '工业时代', 4: '现代科技' };
       var starsTotal = 0;
       var starsMax = ch.stages.length * 3;
       for (var s = 0; s < ch.stages.length; s++) {
@@ -115,7 +111,9 @@ var TowerDefensePanel = {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
       html += '<div>';
       html += '<b style="color:var(--color-gold);font-size:14px;">第' + ch.id + '章: ' + ch.name + '</b>';
-      html += '<span style="font-size:11px;color:var(--color-text-dim);margin-left:6px;">(' + eraNames[ch.era] + ')</span>';
+      if (ch.description) {
+        html += '<div style="font-size:11px;color:var(--color-text-dim);margin-top:2px;">' + ch.description + '</div>';
+      }
       html += '</div>';
       html += '<div style="font-size:12px;">';
       if (ch.cleared) {
@@ -189,9 +187,8 @@ var TowerDefensePanel = {
       if (!wd) continue;
       for (var e = 0; e < wd.enemies.length; e++) {
         var en = wd.enemies[e];
-        var ed = TDEnemyData[en.type];
-        var emoji = this._enemyEmoji[en.type] || '👤';
-        enemyPreview.push(en.count + '×' + emoji + (ed ? ed.name : en.type));
+        var enemyName = TDEnemyData[en.type] ? TDEnemyData[en.type].name : en.type;
+        enemyPreview.push(en.count + '×' + enemyName);
       }
     }
 
@@ -355,6 +352,12 @@ var TowerDefensePanel = {
     this._drawTowers(ctx);
     // 绘制敌人
     this._drawEnemies(ctx);
+    // 绘制武将
+    this._drawHeroes(ctx);
+    // 绘制弹道
+    this._drawProjectiles(ctx);
+    // 绘制技能特效
+    this._drawSkillEffects(ctx);
     // 绘制射程指示器
     this._drawRangeIndicator(ctx);
     // 绘制放置预览
@@ -405,42 +408,23 @@ var TowerDefensePanel = {
       if (!data) continue;
 
       var tSize = TDGetTowerSize(t.type);
-      var x = t.gridX * TILE;
-      var y = t.gridY * TILE;
-      var tw = tSize.w * TILE;
-      var th = tSize.h * TILE;
+      var centerX = t.gridX * TILE + tSize.w * TILE / 2;
+      var centerY = t.gridY * TILE + tSize.h * TILE / 2;
 
-      // 背景
-      var bgColor = 'rgba(22,33,62,0.7)';
-      if (data.category === 'wall') bgColor = 'rgba(80,60,40,0.7)';
-      else if (data.category === 'trap') bgColor = 'rgba(100,40,40,0.6)';
-      else if (data.category === 'support') bgColor = 'rgba(40,60,100,0.7)';
+      // 选中高亮
+      if (this._selectedTowerUid === t.uid) {
+        ctx.strokeStyle = '#f5c518';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(t.gridX * TILE + 1, t.gridY * TILE + 1, tSize.w * TILE - 2, tSize.h * TILE - 2);
+      }
 
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(x + 2, y + 2, tw - 4, th - 4);
-
-      // 边框
-      var borderColor = '#666';
-      if (this._selectedTowerUid === t.uid) borderColor = '#f5c518';
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = this._selectedTowerUid === t.uid ? 2 : 1;
-      ctx.strokeRect(x + 2, y + 2, tw - 4, th - 4);
-
-      // Emoji
-      var emoji = this._towerEmoji[t.type] || '🔷';
-      var emojiSize = tSize.w > 1 ? 28 : 20;
-      ctx.font = emojiSize + 'px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(emoji, x + tw / 2, y + th / 2 - 4);
-
-      // 等级标识
-      if (t.level > 1) {
-        ctx.font = 'bold 10px sans-serif';
-        ctx.fillStyle = '#f5c518';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText('Lv' + t.level, x + tw - 4, y + th - 2);
+      // 使用 TDRenderer 绘制
+      if (typeof TDRenderer !== 'undefined') {
+        TDRenderer.drawTower(ctx, t.type, centerX, centerY, t.level, {});
+      } else {
+        // Fallback: 简单矩形
+        ctx.fillStyle = 'rgba(22,33,62,0.7)';
+        ctx.fillRect(t.gridX * TILE + 2, t.gridY * TILE + 2, tSize.w * TILE - 4, tSize.h * TILE - 4);
       }
     }
   },
@@ -455,26 +439,84 @@ var TowerDefensePanel = {
       var e = enemies[i];
       if (e.status === 'dead') continue;
 
-      // Emoji
-      var emoji = this._enemyEmoji[e.type] || '👤';
-      ctx.font = '18px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(emoji, e.x, e.y - 4);
-
-      // HP 血条
-      var barW = TILE * 0.7;
-      var barH = 4;
-      var barX = e.x - barW / 2;
-      var barY = e.y - TILE / 2 + 2;
-
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(barX, barY, barW, barH);
-
       var hpRatio = Math.max(0, e.hp / e.maxHp);
-      var hpColor = hpRatio > 0.5 ? '#4caf50' : (hpRatio > 0.25 ? '#ff9800' : '#f44336');
-      ctx.fillStyle = hpColor;
-      ctx.fillRect(barX, barY, barW * hpRatio, barH);
+
+      if (typeof TDRenderer !== 'undefined') {
+        TDRenderer.drawEnemy(ctx, e.type, e.x, e.y, hpRatio, {
+          detected: e.detected,
+          slow: e.slowTimer > 0,
+          burn: e.burnTimer > 0,
+          facingLeft: false
+        });
+        // HP 血条
+        TDRenderer.drawHpBar(ctx, e.x, e.y - TILE / 2 - 2, hpRatio, TILE * 0.7, 4);
+      } else {
+        // Fallback: emoji
+        var emoji = this._enemyEmoji[e.type] || '👤';
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, e.x, e.y - 4);
+      }
+
+      // 状态效果
+      if (typeof TDRenderer !== 'undefined') {
+        if (e.slowTimer > 0) TDRenderer.drawStatusEffect(ctx, 'slow', e.x, e.y);
+        if (e.burnTimer > 0) TDRenderer.drawStatusEffect(ctx, 'burn', e.x, e.y);
+      }
+    }
+  },
+
+  _drawHeroes: function (ctx) {
+    if (typeof TDRenderer === 'undefined') return;
+    var heroes = TowerDefenseManager.getHeroRuntime();
+
+    for (var i = 0; i < heroes.length; i++) {
+      var h = heroes[i];
+      if (h.status === 'retreated') continue;
+
+      var hpRatio = h.maxHp > 0 ? h.hp / h.maxHp : 1;
+      var skillCdRatio = 0;
+      if (h.skillCooldown > 0) {
+        skillCdRatio = h.skillCooldown / 3; // assume 3s base cooldown
+      }
+
+      TDRenderer.drawHero(ctx, {
+        name: h.name,
+        faction: h.faction,
+        level: h.level
+      }, h.x, h.y, hpRatio, skillCdRatio, {});
+
+      // HP 条
+      TDRenderer.drawHpBar(ctx, h.x, h.y - TD_CONSTANTS.TILE_SIZE * 0.8, hpRatio, 40, 5);
+    }
+  },
+
+  _drawProjectiles: function (ctx) {
+    if (typeof TDRenderer === 'undefined') return;
+    if (!TowerDefenseManager._battle) return;
+    var projectiles = TowerDefenseManager._battle.projectiles;
+    if (!projectiles) return;
+
+    for (var i = 0; i < projectiles.length; i++) {
+      var p = projectiles[i];
+      TDRenderer.drawProjectile(ctx, p.type, p.x, p.y, p.targetX, p.targetY, p.progress);
+    }
+  },
+
+  _drawSkillEffects: function (ctx) {
+    if (typeof TDRenderer === 'undefined') return;
+    if (!TowerDefenseManager._battle) return;
+    var effects = TowerDefenseManager._battle.skillEffects;
+    if (!effects) return;
+
+    for (var i = 0; i < effects.length; i++) {
+      var e = effects[i];
+      TDRenderer.drawSkillEffect(ctx, e.type, e.targetX || e.x, e.targetY || e.y, e.progress, {
+        radius: e.radius,
+        startX: e.x,
+        startY: e.y
+      });
     }
   },
 
@@ -575,6 +617,12 @@ var TowerDefensePanel = {
     var gridPos = TownWorld._worldToGrid(world.x, world.y);
     var gx = gridPos.gx;
     var gy = gridPos.gy;
+
+    // 武将部署模式
+    if (this._heroDeployUid) {
+      this._onCanvasClickForHeroDeploy(gx, gy);
+      return;
+    }
 
     // 放置模式：点击空格放置塔
     if (this._placementMode && this._selectedTowerType) {
@@ -716,7 +764,7 @@ var TowerDefensePanel = {
 
     // 功能按钮行
     html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;gap:8px;">';
-    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTechPanel()">🔬 科技</button>';
+    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTechPanel()">🏗 建筑</button>';
     html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showHeroPanel()">⚔ 武将</button>';
 
     if (!isActive) {
@@ -748,7 +796,12 @@ var TowerDefensePanel = {
     for (var i = 0; i < towerIds.length; i++) {
       var id = towerIds[i];
       var data = TDTowerData[id];
-      if (data.era > state.era) continue; // 未解锁的时代不显示
+      // 检查城主府等级解锁
+      var thLevel = 0;
+      if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
+        thLevel = TownManager.getBuildingLevel('town_hall');
+      }
+      if (data.requiredTownHall && thLevel < data.requiredTownHall) continue;
 
       var canAfford = true;
       if (typeof ResourceManager !== 'undefined' && !ResourceManager.canAffordMultiple(data.cost)) {
@@ -980,104 +1033,60 @@ var TowerDefensePanel = {
   // ========== T16: 科技面板 ==========
 
   _showTechPanel: function () {
-    var state = TowerDefenseManager.getState();
+    var thLevel = 0;
+    if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
+      thLevel = TownManager.getBuildingLevel('town_hall');
+    }
+    
     var html = '<div style="padding:8px;">';
-
-    for (var era = 1; era <= 4; era++) {
-      var tech = TDTechTree[era];
-      if (!tech) continue;
-
-      var statusIcon = '';
-      var statusText = '';
-      var canResearch = false;
-
-      if (era <= state.era) {
-        statusIcon = '✅';
-        statusText = '已解锁';
-      } else {
-        var key = 'era_' + era;
-        var research = state.research[key];
-        if (research && research.completed) {
-          statusIcon = '✅';
-          statusText = '已解锁';
-        } else if (research && research.startTime) {
-          statusIcon = '🔄';
-          var progress = TowerDefenseManager.getResearchProgress(era);
-          var remaining = progress ? progress.remaining : 0;
-          statusText = '研究中 ' + this._formatTime(remaining);
-        } else {
-          statusIcon = '🔒';
-          var check = TowerDefenseManager.canStartResearch(era);
-          if (check.ok) {
-            canResearch = true;
-            statusText = '可研究';
-          } else {
-            statusText = check.reason;
-          }
-        }
-      }
-
-      html += '<div class="card" style="margin:8px 0;padding:12px;">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<div>';
-      html += '<span style="font-size:16px;margin-right:6px;">' + statusIcon + '</span>';
-      html += '<b style="color:var(--color-gold);">时代' + era + ': ' + tech.name + '</b>';
+    html += '<div style="text-align:center;margin-bottom:12px;">';
+    html += '<span style="font-size:16px;color:var(--color-gold);">🏯 城主府等级: Lv.' + thLevel + '</span>';
+    html += '</div>';
+    
+    // 按城主府等级分组显示建筑
+    var unlockLevels = typeof TDTownHallUnlockTable !== 'undefined' ? TDTownHallUnlockTable : {};
+    var levels = Object.keys(unlockLevels).sort(function(a,b){ return parseInt(a)-parseInt(b); });
+    
+    for (var li = 0; li < levels.length; li++) {
+      var level = parseInt(levels[li]);
+      var towerIds = unlockLevels[level];
+      var isUnlocked = thLevel >= level;
+      
+      html += '<div class="card" style="margin:8px 0;padding:12px;' + (!isUnlocked ? 'opacity:0.5;' : '') + '">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+      html += '<b style="color:var(--color-gold);">城主府 Lv.' + level + '</b>';
+      html += '<span style="font-size:12px;color:' + (isUnlocked ? 'var(--color-success)' : 'var(--color-text-dim)') + ';">' + (isUnlocked ? '✅ 已解锁' : '🔒 未解锁') + '</span>';
       html += '</div>';
-
-      if (canResearch) {
-        var costStr = this._formatCost(tech.cost);
-        html += '<button class="btn" style="font-size:11px;padding:4px 10px;" onclick="TowerDefensePanel._startResearch(' + era + ')">研究 (' + costStr + ')</button>';
-      } else {
-        html += '<span style="font-size:11px;color:var(--color-text-dim);">' + statusText + '</span>';
-      }
-
-      html += '</div>';
-
-      // 解锁建筑预览
-      var buildings = [];
-      var towerIds = Object.keys(TDTowerData);
+      
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
       for (var t = 0; t < towerIds.length; t++) {
-        if (TDTowerData[towerIds[t]].era === era) {
-          buildings.push(TDTowerData[towerIds[t]]);
-        }
-      }
-
-      if (buildings.length > 0) {
-        html += '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
-        for (var b = 0; b < buildings.length; b++) {
-          var bd = buildings[b];
-          var emoji = this._towerEmoji[bd.id] || '🔷';
-          html += '<div style="text-align:center;min-width:48px;">';
-          html += '<div style="font-size:18px;">' + emoji + '</div>';
-          html += '<div style="font-size:10px;color:var(--color-text-dim);">' + bd.name + '</div>';
-          html += '</div>';
-        }
+        var td = TDTowerData[towerIds[t]];
+        if (!td) continue;
+        html += '<div style="text-align:center;min-width:60px;padding:4px;">';
+        html += '<div style="width:48px;height:48px;border:1px solid #4a3728;border-radius:4px;display:flex;align-items:center;justify-content:center;margin:0 auto;">';
+        // 用 emoji fallback 或 canvas 缩略图（这里用文字标识）
+        html += '<span style="font-size:11px;color:#ccc;">' + td.name.substring(0,2) + '</span>';
+        html += '</div>';
+        html += '<div style="font-size:10px;color:var(--color-text);margin-top:2px;">' + td.name + '</div>';
+        var costText = '';
+        if (td.cost.gold) costText = td.cost.gold + '金';
+        html += '<div style="font-size:9px;color:var(--color-text-dim);">' + costText + '</div>';
         html += '</div>';
       }
-
-      html += '</div>';
+      html += '</div></div>';
     }
-
+    
     html += '</div>';
-
+    
     OverlayPanel.show({
-      title: '🔬 科技研究',
+      title: '🏗 建筑解锁',
       content: html,
       panelId: 'td-tech',
       height: 'full'
     });
   },
 
-  _startResearch: function (era) {
-    var result = TowerDefenseManager.startResearch(era);
-    if (result.ok) {
-      EventBus.emit('toast:show', { type: 'success', message: '开始研究 ' + TDTechTree[era].name + '！' });
-      OverlayPanel.close();
-      this._showTechPanel(); // 刷新
-    } else {
-      EventBus.emit('toast:show', { type: 'warning', message: result.reason });
-    }
-  },
+  // _startResearch removed — replaced by town hall unlock system
 
   // ========== T16: 武将面板 ==========
 
@@ -1139,7 +1148,7 @@ var TowerDefensePanel = {
       if (isInTeam) {
         html += '<span style="font-size:11px;color:var(--color-danger);">出征中(不可用)</span>';
       } else {
-        html += '<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="TowerDefensePanel._assignHero(\'' + hero.uid + '\')">派驻</button>';
+        html += '<button class="btn" style="font-size:11px;padding:4px 8px;" onclick="TowerDefensePanel._startHeroDeploy(\'' + hero.uid + '\')">📌 部署</button>';
       }
       html += '</div>';
     }
@@ -1193,6 +1202,29 @@ var TowerDefensePanel = {
     TowerDefenseManager.removeHero(heroUid);
     EventBus.emit('toast:show', { type: 'info', message: '武将已撤回' });
     this._showHeroPanel(); // 刷新
+  },
+
+  _heroDeployUid: null,
+
+  _startHeroDeploy: function (heroUid) {
+    this._heroDeployUid = heroUid;
+    this._placementMode = false;
+    this._selectedTowerType = null;
+    OverlayPanel.close();
+    EventBus.emit('toast:show', { type: 'info', message: '点击地图选择武将部署位置' });
+  },
+
+  _onCanvasClickForHeroDeploy: function (gx, gy) {
+    if (!this._heroDeployUid) return false;
+
+    var result = TowerDefenseManager.deployHero(this._heroDeployUid, gx, gy);
+    if (result.ok) {
+      EventBus.emit('toast:show', { type: 'success', message: '武将已部署！' });
+    } else {
+      EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+    }
+    this._heroDeployUid = null;
+    return true;
   },
 
   // ========== T17: 波次结算弹窗 ==========

@@ -22,15 +22,10 @@ var TowerDefenseManager = {
   _defaultState: function () {
     return {
       unlocked: false,
-      era: 1,
-      research: {
-        era_2: { completed: false, startTime: null },
-        era_3: { completed: false, startTime: null },
-        era_4: { completed: false, startTime: null }
-      },
       towers: [],
       wave: { current: 1, highest: 0, townHallHp: 0, townHallMaxHp: 0 },
       assignedHeroes: [],
+      heroDeployments: [],
       stats: { totalWavesCleared: 0, totalKills: 0, totalGoldEarned: 0 },
       tutorialSeen: false,
       // 章节/关卡进度
@@ -46,25 +41,16 @@ var TowerDefenseManager = {
     if (data) {
       this._state = {
         unlocked: !!data.unlocked,
-        era: data.era || 1,
-        research: data.research || {
-          era_2: { completed: false, startTime: null },
-          era_3: { completed: false, startTime: null },
-          era_4: { completed: false, startTime: null }
-        },
         towers: data.towers || [],
         wave: data.wave || { current: 1, highest: 0, townHallHp: 0, townHallMaxHp: 0 },
         assignedHeroes: data.assignedHeroes || [],
+        heroDeployments: data.heroDeployments || [],
         stats: data.stats || { totalWavesCleared: 0, totalKills: 0, totalGoldEarned: 0 },
         tutorialSeen: !!data.tutorialSeen,
         chapter: data.chapter || { current: 1, highestCleared: 0 },
         stageProgress: data.stageProgress || {},
         dailyChallenges: data.dailyChallenges || { date: null, used: 0 }
       };
-      // §11.2: 存档恢复 — 补全 research 字段
-      if (!this._state.research.era_2) this._state.research.era_2 = { completed: false, startTime: null };
-      if (!this._state.research.era_3) this._state.research.era_3 = { completed: false, startTime: null };
-      if (!this._state.research.era_4) this._state.research.era_4 = { completed: false, startTime: null };
     } else {
       this._state = this._defaultState();
     }
@@ -78,9 +64,6 @@ var TowerDefenseManager = {
 
     // 初始化城主府 HP
     this._initTownHallHp();
-
-    // 离线科技研究补偿
-    this._checkOfflineResearch();
 
     // 注册解锁事件监听（只注册一次）
     if (!this._unlockListenersRegistered) {
@@ -201,8 +184,14 @@ var TowerDefenseManager = {
     var towerData = TDTowerData[typeId];
     if (!towerData) return { ok: false, reason: '未知的塔类型' };
 
-    // 检查科技时代
-    if (towerData.era > this._state.era) return { ok: false, reason: '需要先研究 ' + TDTechTree[towerData.era].name + ' 科技' };
+    // 检查城主府等级解锁
+    var townHallLevel = 0;
+    if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
+      townHallLevel = TownManager.getBuildingLevel('town_hall');
+    }
+    if (towerData.requiredTownHall && townHallLevel < towerData.requiredTownHall) {
+      return { ok: false, reason: '需要城主府 Lv.' + towerData.requiredTownHall + '（当前 Lv.' + townHallLevel + '）' };
+    }
 
     // 检查容量
     if (this._state.towers.length >= this.getMaxTowers()) {
@@ -448,118 +437,6 @@ var TowerDefenseManager = {
     };
   },
 
-  // ========== T6: 科技研究 ==========
-
-  canStartResearch: function (era) {
-    if (era < 2 || era > 4) return { ok: false, reason: '无效的时代' };
-
-    var key = 'era_' + era;
-    if (this._state.research[key].completed) return { ok: false, reason: '该时代已研究完成' };
-    if (this._state.research[key].startTime !== null) return { ok: false, reason: '正在研究中' };
-
-    var techData = TDTechTree[era];
-    if (!techData || !techData.requires) return { ok: false, reason: '科技数据不存在' };
-
-    // 检查前置时代
-    if (this._state.era < techData.requires.era) {
-      return { ok: false, reason: '需要先解锁 ' + TDTechTree[techData.requires.era].name };
-    }
-
-    // 检查波次要求
-    if (this._state.wave.highest < techData.requires.wave) {
-      return { ok: false, reason: '需要通关波次 ' + techData.requires.wave };
-    }
-
-    // 检查资源
-    if (techData.cost && typeof ResourceManager !== 'undefined' && !ResourceManager.canAffordMultiple(techData.cost)) {
-      return { ok: false, reason: '资源不足' };
-    }
-
-    return { ok: true };
-  },
-
-  startResearch: function (era) {
-    var check = this.canStartResearch(era);
-    if (!check.ok) return check;
-
-    var techData = TDTechTree[era];
-    var key = 'era_' + era;
-
-    // 扣资源
-    if (techData.cost && typeof ResourceManager !== 'undefined') {
-      ResourceManager.spendMultiple(techData.cost, 'tower_defense', 'research', key);
-    }
-
-    this._state.research[key].startTime = Date.now();
-
-    var endTime = this._state.research[key].startTime + this._getResearchDuration(era) * 1000;
-    EventBus.emit('td:research_started', { era: era, endTime: endTime });
-
-    return { ok: true };
-  },
-
-  getResearchProgress: function (era) {
-    if (era < 2 || era > 4) return null;
-    var key = 'era_' + era;
-    var research = this._state.research[key];
-
-    if (research.completed) return { completed: true, remaining: 0 };
-    if (research.startTime === null) return { completed: false, remaining: null };
-
-    var duration = this._getResearchDuration(era) * 1000; // ms
-    var elapsed = Date.now() - research.startTime;
-    var remaining = Math.max(0, duration - elapsed);
-
-    return { completed: false, remaining: Math.ceil(remaining / 1000) };
-  },
-
-  _getResearchDuration: function (era) {
-    var techData = TDTechTree[era];
-    if (!techData) return 0;
-    var townHallLevel = 0;
-    if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
-      townHallLevel = TownManager.getBuildingLevel('town_hall');
-    }
-    return techData.time / (1 + townHallLevel * 0.05);
-  },
-
-  _tickResearch: function (dt) {
-    for (var era = 2; era <= 4; era++) {
-      var key = 'era_' + era;
-      var research = this._state.research[key];
-      if (research.completed || research.startTime === null) continue;
-
-      var duration = this._getResearchDuration(era) * 1000;
-      var elapsed = Date.now() - research.startTime;
-
-      if (elapsed >= duration) {
-        research.completed = true;
-        research.startTime = null;
-        this._state.era = era;
-        EventBus.emit('td:era_unlocked', { era: era });
-        EventBus.emit('toast:show', { type: 'success', message: TDTechTree[era].name + ' 科技解锁！' });
-      }
-    }
-  },
-
-  _checkOfflineResearch: function () {
-    for (var era = 2; era <= 4; era++) {
-      var key = 'era_' + era;
-      var research = this._state.research[key];
-      if (research.completed || research.startTime === null) continue;
-
-      var duration = this._getResearchDuration(era) * 1000;
-      var elapsed = Date.now() - research.startTime;
-
-      if (elapsed >= duration) {
-        research.completed = true;
-        research.startTime = null;
-        this._state.era = era;
-        // 不emit事件，init中不触发UI（UI可能还没初始化）
-      }
-    }
-  },
-
   // ========== T7: 武将派驻 ==========
 
   assignHero: function (heroUid) {
@@ -645,6 +522,381 @@ var TowerDefenseManager = {
     return all.filter(function (h) {
       return teamUids.indexOf(h.uid) === -1 && assignedHeroes.indexOf(h.uid) === -1;
     });
+  },
+
+  // ========== 武将主动战斗系统 ==========
+
+  // 武将运行时状态（非持久化）
+  _heroRuntime: {},  // heroUid -> { x, y, hp, maxHp, targetEnemy, lastAttackTime, skillCooldown, status }
+
+  // 部署武将到地图位置
+  deployHero: function (heroUid, gridX, gridY) {
+    if (!this._state.unlocked) return { ok: false, reason: '城防系统未解锁' };
+
+    if (typeof HeroManager === 'undefined' || !HeroManager.getHeroStats) {
+      return { ok: false, reason: '武将系统不可用' };
+    }
+    var heroStats = HeroManager.getHeroStats(heroUid);
+    if (!heroStats) return { ok: false, reason: '武将不存在' };
+
+    // 检查是否在出征队伍
+    if (typeof HeroManager !== 'undefined' && HeroManager.isInTeam && HeroManager.isInTeam(heroUid)) {
+      return { ok: false, reason: '该武将在出征队伍中' };
+    }
+
+    // 检查上限
+    var isAlreadyAssigned = this._state.assignedHeroes.indexOf(heroUid) !== -1;
+    if (!isAlreadyAssigned && this._state.assignedHeroes.length >= TD_CONSTANTS.MAX_ASSIGNED_HEROES) {
+      return { ok: false, reason: '防守武将已满（最多' + TD_CONSTANTS.MAX_ASSIGNED_HEROES + '名）' };
+    }
+
+    // 添加到 assignedHeroes
+    if (!isAlreadyAssigned) {
+      this._state.assignedHeroes.push(heroUid);
+    }
+
+    // 记录部署位置
+    var deployment = null;
+    for (var i = 0; i < this._state.heroDeployments.length; i++) {
+      if (this._state.heroDeployments[i].uid === heroUid) {
+        deployment = this._state.heroDeployments[i];
+        break;
+      }
+    }
+    if (deployment) {
+      deployment.gridX = gridX;
+      deployment.gridY = gridY;
+    } else {
+      this._state.heroDeployments.push({ uid: heroUid, gridX: gridX, gridY: gridY });
+    }
+
+    // 初始化运行时状态
+    var TILE = TD_CONSTANTS.TILE_SIZE;
+    this._heroRuntime[heroUid] = {
+      x: gridX * TILE + TILE / 2,
+      y: gridY * TILE + TILE / 2,
+      homeX: gridX * TILE + TILE / 2,
+      homeY: gridY * TILE + TILE / 2,
+      hp: heroStats.hp * 2,
+      maxHp: heroStats.hp * 2,
+      targetEnemy: null,
+      lastAttackTime: 0,
+      skillCooldown: 0,
+      status: 'idle',
+      patrolRange: 4 * TILE
+    };
+    this._heroSkillTimers[heroUid] = 0;
+
+    EventBus.emit('td:hero_assigned', { heroUid: heroUid, gridX: gridX, gridY: gridY });
+    return { ok: true };
+  },
+
+  // 获取武将的运行时数据（用于渲染）
+  getHeroRuntime: function () {
+    var result = [];
+    for (var i = 0; i < this._state.assignedHeroes.length; i++) {
+      var uid = this._state.assignedHeroes[i];
+      var runtime = this._heroRuntime[uid];
+      if (!runtime) continue;
+
+      var heroStats = null;
+      var heroTemplate = null;
+      if (typeof HeroManager !== 'undefined' && HeroManager.getHeroStats) {
+        heroStats = HeroManager.getHeroStats(uid);
+      }
+      if (typeof HeroManager !== 'undefined' && HeroManager.getAll) {
+        var all = HeroManager.getAll();
+        for (var j = 0; j < all.length; j++) {
+          if (all[j].uid === uid) {
+            if (typeof HeroManager.getTemplate === 'function') {
+              heroTemplate = HeroManager.getTemplate(all[j].id);
+            }
+            break;
+          }
+        }
+      }
+
+      result.push({
+        uid: uid,
+        x: runtime.x,
+        y: runtime.y,
+        hp: runtime.hp,
+        maxHp: runtime.maxHp,
+        status: runtime.status,
+        skillCooldown: runtime.skillCooldown,
+        name: heroStats ? heroStats.name : '武将',
+        faction: heroTemplate ? heroTemplate.faction : 'other',
+        level: heroStats ? heroStats.level : 1
+      });
+    }
+    return result;
+  },
+
+  // 初始化所有武将的运行时状态（进入防守模式/开始波次时调用）
+  _initHeroRuntime: function () {
+    var TILE = TD_CONSTANTS.TILE_SIZE;
+    for (var i = 0; i < this._state.assignedHeroes.length; i++) {
+      var uid = this._state.assignedHeroes[i];
+      var deploy = null;
+      for (var d = 0; d < this._state.heroDeployments.length; d++) {
+        if (this._state.heroDeployments[d].uid === uid) {
+          deploy = this._state.heroDeployments[d];
+          break;
+        }
+      }
+
+      var heroStats = null;
+      if (typeof HeroManager !== 'undefined' && HeroManager.getHeroStats) {
+        heroStats = HeroManager.getHeroStats(uid);
+      }
+
+      var gx = deploy ? deploy.gridX : 16;
+      var gy = deploy ? deploy.gridY : 16;
+      var heroHp = heroStats ? heroStats.hp * 2 : 500;
+
+      this._heroRuntime[uid] = {
+        x: gx * TILE + TILE / 2,
+        y: gy * TILE + TILE / 2,
+        homeX: gx * TILE + TILE / 2,
+        homeY: gy * TILE + TILE / 2,
+        hp: heroHp,
+        maxHp: heroHp,
+        targetEnemy: null,
+        lastAttackTime: 0,
+        skillCooldown: 0,
+        status: 'idle',
+        patrolRange: 4 * TILE
+      };
+      this._heroSkillTimers[uid] = 0;
+    }
+  },
+
+  // 武将战斗 Tick
+  _tickHeroCombat: function (dt) {
+    for (var i = 0; i < this._state.assignedHeroes.length; i++) {
+      var uid = this._state.assignedHeroes[i];
+      var hero = this._heroRuntime[uid];
+      if (!hero || hero.status === 'retreated') continue;
+
+      var heroStats = null;
+      if (typeof HeroManager !== 'undefined' && HeroManager.getHeroStats) {
+        heroStats = HeroManager.getHeroStats(uid);
+      }
+      if (!heroStats) continue;
+
+      // 减少技能冷却
+      if (hero.skillCooldown > 0) hero.skillCooldown -= dt;
+
+      // 寻找最近的敌人（在巡逻范围内）
+      var target = this._findNearestEnemy(hero.x, hero.y, hero.patrolRange);
+
+      if (target) {
+        hero.targetEnemy = target.uid;
+        var dx = target.x - hero.x;
+        var dy = target.y - hero.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+
+        var attackRange = 1.5 * TD_CONSTANTS.TILE_SIZE;
+
+        if (dist > attackRange) {
+          // 移动向目标
+          hero.status = 'moving';
+          var moveSpeed = 2 * TD_CONSTANTS.TILE_SIZE; // 2格/秒
+          var moveAmount = moveSpeed * dt;
+          if (moveAmount < dist) {
+            hero.x += (dx / dist) * moveAmount;
+            hero.y += (dy / dist) * moveAmount;
+          } else {
+            hero.x = target.x;
+            hero.y = target.y;
+          }
+        } else {
+          // 攻击
+          hero.status = 'attacking';
+          hero.lastAttackTime += dt;
+
+          // 普通攻击每秒1次
+          if (hero.lastAttackTime >= 1.0) {
+            hero.lastAttackTime -= 1.0;
+            var damage = this._calcDamage(heroStats.atk, target.def);
+            target.hp -= damage;
+
+            // 添加弹道效果
+            if (!this._battle.projectiles) this._battle.projectiles = [];
+            this._battle.projectiles.push({
+              type: 'hero_attack',
+              x: hero.x, y: hero.y,
+              targetX: target.x, targetY: target.y,
+              progress: 0, speed: 5
+            });
+
+            if (target.hp <= 0) {
+              this._killEnemy(target, null);
+              hero.targetEnemy = null;
+            }
+          }
+
+          // 技能释放
+          if (hero.skillCooldown <= 0) {
+            this._heroUseSkill(uid, hero, heroStats, target);
+          }
+        }
+      } else {
+        // 没有敌人 — 返回巡逻点
+        hero.targetEnemy = null;
+        var homeDx = hero.homeX - hero.x;
+        var homeDy = hero.homeY - hero.y;
+        var homeDist = Math.sqrt(homeDx * homeDx + homeDy * homeDy);
+
+        if (homeDist > TD_CONSTANTS.TILE_SIZE * 0.5) {
+          hero.status = 'moving';
+          var homeSpeed = 1.5 * TD_CONSTANTS.TILE_SIZE;
+          var homeMove = homeSpeed * dt;
+          if (homeMove < homeDist) {
+            hero.x += (homeDx / homeDist) * homeMove;
+            hero.y += (homeDy / homeDist) * homeMove;
+          } else {
+            hero.x = hero.homeX;
+            hero.y = hero.homeY;
+          }
+        } else {
+          hero.status = 'idle';
+        }
+      }
+
+      // 敌人对武将的伤害（近战范围内的敌人）
+      this._heroTakeDamage(hero, heroStats, dt);
+    }
+  },
+
+  _findNearestEnemy: function (x, y, range) {
+    var nearest = null;
+    var nearestDist = range;
+
+    for (var i = 0; i < this._battle.enemies.length; i++) {
+      var e = this._battle.enemies[i];
+      if (e.status === 'dead' || e.hp <= 0) continue;
+
+      var dx = e.x - x;
+      var dy = e.y - y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < nearestDist) {
+        nearest = e;
+        nearestDist = dist;
+      }
+    }
+    return nearest;
+  },
+
+  _heroUseSkill: function (uid, hero, heroStats, target) {
+    var heroInstance = null;
+    var template = null;
+    if (typeof HeroManager !== 'undefined' && HeroManager.getAll) {
+      var all = HeroManager.getAll();
+      for (var j = 0; j < all.length; j++) {
+        if (all[j].uid === uid) {
+          heroInstance = all[j];
+          if (typeof HeroManager.getTemplate === 'function') {
+            template = HeroManager.getTemplate(all[j].id);
+          }
+          break;
+        }
+      }
+    }
+
+    if (!template || !template.skill) return;
+    var skill = template.skill;
+    var multiplier = skill.multiplier || 1.5;
+    var skillDmg = heroStats.atk * multiplier;
+    var cooldown = skill.cooldown || 3;
+
+    hero.skillCooldown = cooldown;
+
+    // 添加技能特效
+    if (!this._battle.skillEffects) this._battle.skillEffects = [];
+
+    if (skill.type === 'damage') {
+      // 单体伤害
+      target.hp -= skillDmg;
+      this._battle.skillEffects.push({
+        type: 'projectile_hit',
+        x: hero.x, y: hero.y,
+        targetX: target.x, targetY: target.y,
+        progress: 0, duration: 0.5
+      });
+      if (target.hp <= 0) this._killEnemy(target, null);
+
+    } else if (skill.type === 'aoe') {
+      // 范围伤害
+      var aoeRange = 2 * TD_CONSTANTS.TILE_SIZE;
+      this._battle.skillEffects.push({
+        type: 'aoe_ring',
+        x: target.x, y: target.y,
+        progress: 0, duration: 0.6, radius: aoeRange
+      });
+      for (var e = 0; e < this._battle.enemies.length; e++) {
+        var enemy = this._battle.enemies[e];
+        if (enemy.status === 'dead') continue;
+        var dx = enemy.x - target.x;
+        var dy = enemy.y - target.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= aoeRange) {
+          enemy.hp -= skillDmg * 0.6;
+          if (enemy.hp <= 0) this._killEnemy(enemy, null);
+        }
+      }
+
+    } else if (skill.type === 'heal') {
+      // 治疗自己
+      hero.hp = Math.min(hero.maxHp, hero.hp + skillDmg);
+      this._battle.skillEffects.push({
+        type: 'heal_glow',
+        x: hero.x, y: hero.y,
+        progress: 0, duration: 0.5
+      });
+
+    } else {
+      // 默认：单体伤害
+      target.hp -= skillDmg;
+      this._battle.skillEffects.push({
+        type: 'slash_arc',
+        x: hero.x, y: hero.y,
+        progress: 0, duration: 0.4
+      });
+      if (target.hp <= 0) this._killEnemy(target, null);
+    }
+  },
+
+  _heroTakeDamage: function (hero, heroStats, dt) {
+    // 附近的敌人对武将造成伤害
+    var damageRange = 1.0 * TD_CONSTANTS.TILE_SIZE;
+    var totalDmg = 0;
+
+    for (var i = 0; i < this._battle.enemies.length; i++) {
+      var e = this._battle.enemies[i];
+      if (e.status === 'dead' || e.hp <= 0) continue;
+
+      var dx = e.x - hero.x;
+      var dy = e.y - hero.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < damageRange) {
+        // 每秒受到附近敌人ATK的伤害
+        totalDmg += e.atk * 0.3 * dt;
+      }
+    }
+
+    if (totalDmg > 0) {
+      var heroDef = heroStats.def || 0;
+      var actualDmg = totalDmg * (1 - heroDef / (heroDef + 200));
+      hero.hp -= actualDmg;
+
+      if (hero.hp <= 0) {
+        hero.hp = 0;
+        hero.status = 'retreated';
+        EventBus.emit('toast:show', { type: 'warning', message: (heroStats.name || '武将') + ' 已撤退！' });
+      }
+    }
   },
 
   // ========== T8: 自动防守 ==========
@@ -737,7 +989,9 @@ var TowerDefenseManager = {
       spawnQueue: [],
       spawnTimer: 0,
       spawnInterval: 0.5, // seconds between spawns
-      wallInstances: []  // runtime wall hp tracking
+      wallInstances: [],  // runtime wall hp tracking
+      projectiles: [],
+      skillEffects: []
     };
   },
 
@@ -791,7 +1045,13 @@ var TowerDefenseManager = {
       // Update traps
       this._updateTraps(dt);
       // Apply hero skills
-      this._applyHeroSkills(dt);
+      this._tickHeroCombat(dt);
+      // 更新弹道
+      this._tickProjectiles(dt);
+      // 更新技能特效
+      this._tickSkillEffects(dt);
+      // 更新攻城器械特殊行为
+      this._tickSiegeEquipment(dt);
       // Check win/lose
       this._checkBattleEnd();
     }
@@ -1060,7 +1320,11 @@ var TowerDefenseManager = {
     var wallDef = 0;
     var dmg = enemy.atk * (1 - wallDef / (wallDef + 100)) * dt;
 
-    // Siege ram: wall_damage_x2
+    // Siege ram: wall_damage_x3 (攻城车)
+    if (enemy.special === 'wall_damage_x3') {
+      dmg *= 3;
+    }
+    // 保留旧的 wall_damage_x2 兼容
     if (enemy.special === 'wall_damage_x2') {
       dmg *= 2;
     }
@@ -1078,10 +1342,13 @@ var TowerDefenseManager = {
   },
 
   _enemyReachTownHall: function (enemy) {
-    // §CAP-TD-06: dmg = enemyHP×10% + enemyATK
     var damage = Math.floor(enemy.hp * 0.1 + enemy.atk);
-    // §6.3: 轰炸者对城主府伤害 ×2
     var enemyData = TDEnemyData[enemy.type];
+    // 冲城锤对城主府伤害×5
+    if (enemyData && enemyData.special === 'townhall_damage_x5') {
+      damage *= 5;
+    }
+    // 保留旧的 flying_tower_damage_x2 兼容
     if (enemyData && enemyData.special === 'flying_tower_damage_x2') {
       damage *= 2;
     }
@@ -1187,7 +1454,7 @@ var TowerDefenseManager = {
       // Skip traps — handled separately
       if (towerData.category === 'trap') continue;
       // Skip support towers with no attack
-      if (towerData.atk <= 0 && towerData.special !== 'detect' && towerData.special !== 'detect_atk_buff_20') continue;
+      if (towerData.atk <= 0 && towerData.special !== 'detect' && towerData.special !== 'detect_atk_buff_20' && towerData.special !== 'detect_atk_buff_15') continue;
 
       var stats = this.getTowerStats(tower.uid);
       if (!stats || stats.attackSpeed <= 0) continue;
@@ -1205,6 +1472,18 @@ var TowerDefenseManager = {
         var targets = this._findTargets(tower, stats, maxTargets);
         for (var t = 0; t < targets.length; t++) {
           this._towerAttack(tower, stats, towerData, targets[t]);
+        }
+
+        // 火油塔持续区域灼烧
+        if (towerData.special === 'burn_area_3s') {
+          // 对射程内所有地面敌人施加灼烧
+          // 已在常规攻击中处理伤害，此处添加灼烧状态
+          if (targets.length > 0) {
+            for (var bt = 0; bt < targets.length; bt++) {
+              targets[bt].burnTimer = 3;
+              targets[bt].burnDps = stats.atk * 0.3;
+            }
+          }
         }
       }
     }
@@ -1228,7 +1507,7 @@ var TowerDefenseManager = {
       var towerData = TDTowerData[tower.type];
       if (!towerData) continue;
 
-      if (towerData.special === 'detect' || towerData.special === 'detect_atk_buff_20') {
+      if (towerData.special === 'detect' || towerData.special === 'detect_atk_buff_20' || towerData.special === 'detect_atk_buff_15') {
         var stats = this.getTowerStats(tower.uid);
         var tc = this._getTowerCenter(tower);
         var towerCenterX = tc.x;
@@ -1319,9 +1598,27 @@ var TowerDefenseManager = {
     var damage = this._calcDamage(atk, def);
     enemy.hp -= damage;
 
+    // 添加攻击弹道
+    if (!this._battle.projectiles) this._battle.projectiles = [];
+    var tc = this._getTowerCenter(tower);
+    var projType = 'arrow';
+    if (towerData.special === 'splash_1' || towerData.special === 'splash_1.5') projType = 'stone';
+    if (towerData.special === 'multi_2') projType = 'multi_bolt';
+    if (towerData.special === 'armor_pierce_30') projType = 'bolt';
+    if (towerData.special === 'burn_area_3s') projType = 'oil_splash';
+    this._battle.projectiles.push({
+      type: projType,
+      x: tc.x, y: tc.y,
+      targetX: enemy.x, targetY: enemy.y,
+      progress: 0, speed: 4
+    });
+
     // Splash damage
     if (towerData.special === 'splash_1' || towerData.special === 'homing_splash_1') {
       this._handleSplash(enemy, damage, 1);
+    }
+    if (towerData.special === 'splash_1.5') {
+      this._handleSplash(enemy, damage, 1.5);
     }
 
     // Pierce beam (laser): hit all enemies in a line
@@ -1551,6 +1848,84 @@ var TowerDefenseManager = {
     }
   },
 
+  // 弹道系统
+  _tickProjectiles: function (dt) {
+    if (!this._battle.projectiles) return;
+    for (var i = this._battle.projectiles.length - 1; i >= 0; i--) {
+      var p = this._battle.projectiles[i];
+      p.progress += p.speed * dt;
+      if (p.progress >= 1.0) {
+        this._battle.projectiles.splice(i, 1);
+      }
+    }
+  },
+
+  // 技能特效系统
+  _tickSkillEffects: function (dt) {
+    if (!this._battle.skillEffects) return;
+    for (var i = this._battle.skillEffects.length - 1; i >= 0; i--) {
+      var e = this._battle.skillEffects[i];
+      e.progress += dt / e.duration;
+      if (e.progress >= 1.0) {
+        this._battle.skillEffects.splice(i, 1);
+      }
+    }
+  },
+
+  // 攻城器械特殊行为
+  _tickSiegeEquipment: function (dt) {
+    for (var i = 0; i < this._battle.enemies.length; i++) {
+      var enemy = this._battle.enemies[i];
+      if (enemy.status === 'dead') continue;
+
+      // 云梯：无视墙体
+      if (enemy.special === 'ignore_wall' && enemy.status === 'attacking_wall') {
+        enemy.status = 'moving';
+        enemy.wallTarget = null;
+        // 重新计算路径（忽略墙体）
+        var target = this._getTownHallGridPos();
+        if (target) {
+          // 云梯直线移动到城主府
+          enemy.path = [{ x: Math.floor(enemy.x / TD_CONSTANTS.TILE_SIZE), y: Math.floor(enemy.y / TD_CONSTANTS.TILE_SIZE) }, target];
+          enemy.pathIndex = 0;
+        }
+      }
+
+      // 投石车：远程攻击建筑
+      if (enemy.special === 'ranged_attack_building') {
+        var thPos = this._getTownHallGridPos();
+        if (thPos) {
+          var thX = thPos.x * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
+          var thY = thPos.y * TD_CONSTANTS.TILE_SIZE + TD_CONSTANTS.TILE_SIZE / 2;
+          var distToTH = Math.sqrt((enemy.x - thX) * (enemy.x - thX) + (enemy.y - thY) * (enemy.y - thY));
+
+          // 在射程内（5格）停下来攻击
+          if (distToTH < 5 * TD_CONSTANTS.TILE_SIZE && enemy.status === 'moving') {
+            enemy.status = 'ranged_attacking';
+          }
+
+          if (enemy.status === 'ranged_attacking') {
+            if (!enemy._rangedTimer) enemy._rangedTimer = 0;
+            enemy._rangedTimer += dt;
+            if (enemy._rangedTimer >= 3) { // 每3秒攻击一次
+              enemy._rangedTimer -= 3;
+              // 对城主府造成伤害
+              this._damageTownHall(enemy.atk);
+              // 弹道特效
+              if (!this._battle.projectiles) this._battle.projectiles = [];
+              this._battle.projectiles.push({
+                type: 'stone',
+                x: enemy.x, y: enemy.y,
+                targetX: thX, targetY: thY,
+                progress: 0, speed: 1.5
+              });
+            }
+          }
+        }
+      }
+    }
+  },
+
   _killEnemy: function (enemy, killerTowerUid) {
     enemy.status = 'dead';
     enemy.hp = 0;
@@ -1572,18 +1947,18 @@ var TowerDefenseManager = {
       var other = this._state.towers[i];
       if (other.uid === tower.uid) continue;
       var otherData = TDTowerData[other.type];
-      if (!otherData || otherData.special !== 'detect_atk_buff_20') continue;
-
-      // 用中心坐标算距离（支持多格塔）
-      var otherSize = TDGetTowerSize(other.type);
-      var towerSize = TDGetTowerSize(tower.type);
-      var dx = (other.gridX + otherSize.w / 2) - (tower.gridX + towerSize.w / 2);
-      var dy = (other.gridY + otherSize.h / 2) - (tower.gridY + towerSize.h / 2);
-      var dist = Math.sqrt(dx * dx + dy * dy);
-      var radarRange = otherData.range;
-
-      if (dist <= radarRange) {
-        bonus += 0.20; // +20% ATK
+      if (!otherData) continue;
+      // 烽火台增伤
+      if (otherData.special === 'detect_atk_buff_15') {
+        var otherSize = TDGetTowerSize(other.type);
+        var towerSize = TDGetTowerSize(tower.type);
+        var dx = (other.gridX + otherSize.w / 2) - (tower.gridX + towerSize.w / 2);
+        var dy = (other.gridY + otherSize.h / 2) - (tower.gridY + towerSize.h / 2);
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        var radarRange = otherData.range;
+        if (dist <= radarRange) {
+          bonus += 0.15;
+        }
       }
     }
     return bonus;
@@ -1671,6 +2046,12 @@ var TowerDefenseManager = {
     }
 
     EventBus.emit('td:wave_started', { wave: waveNum });
+
+    // 初始化武将运行时
+    this._initHeroRuntime();
+    // 初始化弹道和特效数组
+    this._battle.projectiles = [];
+    this._battle.skillEffects = [];
   },
 
   _checkBattleEnd: function () {
@@ -1860,11 +2241,6 @@ var TowerDefenseManager = {
     // 每日挑战次数重置检查
     this._checkDailyReset();
 
-    // 科技研究 tick
-    if (this._state.unlocked) {
-      this._tickResearch(dt);
-    }
-
     // 自动防守：非防守模式 + 有塔 + 已解锁
     if (!this._inDefenseMode && this._state.unlocked && this._state.towers.length > 0) {
       this._autoDefend(dt);
@@ -1898,10 +2274,15 @@ var TowerDefenseManager = {
     if (ch === 1) return this._state.unlocked;
     var data = TDChapterData[ch];
     if (!data || !data.unlockCondition) return false;
-    // 前置章节需通关
     if (data.unlockCondition.chapter && !this._isChapterCleared(data.unlockCondition.chapter)) return false;
-    // 科技时代要求
-    if (data.unlockCondition.era && this._state.era < data.unlockCondition.era) return false;
+    // 城主府等级要求替代科技时代
+    if (data.unlockCondition.townHallLevel) {
+      var townHallLevel = 0;
+      if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
+        townHallLevel = TownManager.getBuildingLevel('town_hall');
+      }
+      if (townHallLevel < data.unlockCondition.townHallLevel) return false;
+    }
     return true;
   },
 
