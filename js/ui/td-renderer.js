@@ -1343,5 +1343,178 @@ var TDRenderer = {
     var g = Math.max(0, ((num >> 8) & 0xFF) - amount);
     var b = Math.max(0, (num & 0xFF) - amount);
     return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  },
+
+  // ============================================================
+  //  Phase 1 增强 — 飘字系统
+  // ============================================================
+
+  drawDamageTexts: function (ctx, damageTexts) {
+    if (!damageTexts || damageTexts.length === 0) return;
+    ctx.save();
+    for (var i = 0; i < damageTexts.length; i++) {
+      var dt = damageTexts[i];
+      var progress = dt.elapsed / dt.duration;
+      var alpha = 1 - progress;
+      var offsetY = -dt.floatDist * progress;
+
+      ctx.globalAlpha = Math.max(0, alpha);
+
+      var fontSize = 14;
+      var color = '#FFF';
+      if (dt.type === 'kill') {
+        fontSize = 16;
+        color = '#FF4444';
+      } else if (dt.type === 'emergency') {
+        fontSize = 18;
+        color = '#FFD700';
+      } else if (dt.type === 'heal') {
+        fontSize = 16;
+        color = '#4CAF50';
+      } else if (dt.type === 'crit') {
+        fontSize = 20;
+        color = '#FFD700';
+      }
+
+      if (dt.merged && dt.merged > 1) {
+        fontSize += 2;
+      }
+
+      ctx.font = 'bold ' + fontSize + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // 描边
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      var text = (typeof dt.damage === 'number') ? Math.floor(dt.damage).toString() : dt.damage;
+      if (dt.merged && dt.merged > 1) text += ' ×' + dt.merged;
+      ctx.strokeText(text, dt.x, dt.y + offsetY);
+
+      ctx.fillStyle = color;
+      ctx.fillText(text, dt.x, dt.y + offsetY);
+    }
+    ctx.restore();
+  },
+
+  // ============================================================
+  //  Phase 1 增强 — 击杀/死亡特效
+  // ============================================================
+
+  drawDyingEnemy: function (ctx, enemy) {
+    if (!enemy || enemy.deathTimer === undefined) return;
+    var progress = 1 - (enemy.deathTimer / 0.3);
+    var alpha = 1 - progress;
+    var scale = 1 + progress * 0.3;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.translate(enemy.x, enemy.y);
+    ctx.scale(scale, scale);
+
+    // 简化的死亡动画：红色闪烁 + 缩放
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 68, 68, ' + alpha + ')';
+    ctx.fill();
+
+    // 金币粒子（3个）
+    for (var p = 0; p < 3; p++) {
+      var angle = (Math.PI * 2 / 3) * p + progress * Math.PI;
+      var dist = progress * 20;
+      var px = Math.cos(angle) * dist;
+      var py = Math.sin(angle) * dist - progress * 15;
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(245, 197, 24, ' + alpha + ')';
+      ctx.fill();
+    }
+
+    ctx.restore();
+  },
+
+  // ============================================================
+  //  Phase 1 增强 — 连杀特效
+  // ============================================================
+
+  drawKillStreak: function (ctx, streakData, canvasW, canvasH) {
+    if (!streakData || !streakData.text) return;
+    var elapsed = streakData.elapsed || 0;
+    var duration = 1.5;
+    if (elapsed > duration) return;
+
+    var progress = elapsed / duration;
+    var alpha = progress < 0.3 ? (progress / 0.3) : (1 - (progress - 0.3) / 0.7);
+    var scale = progress < 0.2 ? (0.5 + progress * 2.5) : 1.0;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.translate(canvasW / 2, canvasH * 0.3);
+    ctx.scale(scale, scale);
+
+    var fontSize = streakData.fontSize || 28;
+    ctx.font = 'bold ' + fontSize + 'px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 外发光
+    ctx.shadowColor = streakData.color || '#FFD700';
+    ctx.shadowBlur = 15;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.strokeText(streakData.text, 0, 0);
+
+    ctx.fillStyle = streakData.color || '#FFD700';
+    ctx.fillText(streakData.text, 0, 0);
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  },
+
+  // ============================================================
+  //  Phase 1 增强 — 武将蓄力条
+  // ============================================================
+
+  drawChargeBar: function (ctx, x, y, progress, ready) {
+    var barW = 30;
+    var barH = 4;
+    var bx = x - barW / 2;
+    var by = y - 22;
+
+    // 底色
+    ctx.fillStyle = '#333';
+    ctx.fillRect(bx, by, barW, barH);
+
+    // 进度
+    var ratio = Math.min(1, progress);
+    ctx.fillStyle = ready ? '#FFD700' : '#4CAF50';
+    ctx.fillRect(bx, by, barW * ratio, barH);
+
+    // 边框
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, barW, barH);
+
+    // 满蓄力闪烁
+    if (ready) {
+      var blink = Math.sin(Date.now() / 150) * 0.3 + 0.7;
+      ctx.fillStyle = 'rgba(255, 215, 0, ' + blink * 0.3 + ')';
+      ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
+    }
+  },
+
+  // ============================================================
+  //  Phase 1 增强 — 速度指示器
+  // ============================================================
+
+  drawSpeedIndicator: function (ctx, speed, canvasW) {
+    if (speed <= 1) return;
+    ctx.save();
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = speed >= 3 ? '#FF4444' : '#FFD700';
+    ctx.fillText(speed + '×', canvasW - 8, 18);
+    ctx.restore();
   }
 };

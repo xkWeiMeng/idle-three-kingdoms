@@ -58,6 +58,7 @@ Agent 应像使用地图一样导航规范：
 | [城镇道路系统](product-specs/town-road-system.md) | Active | MST 自动道路网络、分级宽度渲染、A* 寻路偏好 |
 | [城防塔防系统](product-specs/tower-defense-system.md) | Active | 防御建筑、波次进攻、科技树、从中世纪到现代 |
 | [城防塔防系统](product-specs/tower-defense-system.md) | Draft | 波次制城防、4 时代科技树、地面/地下/空中敌人、武将联动 |
+| [塔防体验全面升级](product-specs/td-gameplay-enhancement.md) | Draft | 15 项能力（速度控制、体力、飘字、技能手动、连杀、进化、羁绊、Boss AI 等），3 Phase 交付 |
 | [装备栏逻辑优化](product-specs/equipment-inventory-optimization.md) | Active | 默认容量翻倍、金币扩容、一键排序/售卖、内联操作按钮 |
 | [深渊战利品爆落与连续刷本](product-specs/abyss-loot-explosion.md) | Draft | 粒子爆落动画、装备翻牌特效、移除冷却、结算重制 |
 

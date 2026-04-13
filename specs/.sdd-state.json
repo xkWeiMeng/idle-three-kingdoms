@@ -1120,6 +1120,54 @@
         }
       ],
       "currentTask": "Phase 1-2: td-data.js + td-renderer.js"
+    },
+    "td-gameplay-enhancement": {
+      "stage": "PLAN",
+      "acceptance": {
+        "numerical": null,
+        "product": null
+      },
+      "history": [
+        {
+          "timestamp": "2026-04-13",
+          "result": "started",
+          "stage": "PRD"
+        },
+        {
+          "stage": "PRD",
+          "result": "completed",
+          "timestamp": "2026-04-13",
+          "note": "15个US覆盖5个方向，10项@numerical-designer标记"
+        },
+        {
+          "stage": "NUMERICAL",
+          "result": "completed",
+          "timestamp": "2026-04-13",
+          "note": "10项数值全覆盖，含公式推导+跨系统验证+JS配置输出"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-13",
+          "note": "15个CAP技术设计，含事件协议+存档迁移+集成点"
+        },
+        {
+          "stage": "REVIEW",
+          "result": "self-reviewed",
+          "timestamp": "2026-04-13",
+          "note": "设计文档覆盖所有PRD用户故事和数值引用"
+        }
+      ],
+      "spec": null,
+      "changelog": null,
+      "prd": "specs/game-prds/td-gameplay-enhancement.md",
+      "testFiles": [],
+      "name": "塔防体验全面升级",
+      "currentTask": null,
+      "execPlan": null,
+      "numericalSpec": "specs/numerical/td-gameplay-enhancement.md",
+      "adr": null,
+      "designDoc": "specs/design-docs/td-gameplay-enhancement.md"
     }
   }
 }

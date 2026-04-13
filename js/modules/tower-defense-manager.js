@@ -31,8 +31,9 @@ var TowerDefenseManager = {
       // 章节/关卡进度
       chapter: { current: 1, highestCleared: 0 },
       stageProgress: {},   // 'ch_st' → { cleared: true, stars: 0-3 }
-      // 每日挑战次数
-      dailyChallenges: { date: null, used: 0 }
+      stamina: { current: 12, lastRecover: Date.now() },
+      towerEvolutions: {},
+      practiceMode: false
     };
   },
 
@@ -49,11 +50,22 @@ var TowerDefenseManager = {
         tutorialSeen: !!data.tutorialSeen,
         chapter: data.chapter || { current: 1, highestCleared: 0 },
         stageProgress: data.stageProgress || {},
-        dailyChallenges: data.dailyChallenges || { date: null, used: 0 }
+        stamina: data.stamina || { current: 12, lastRecover: Date.now() },
+        towerEvolutions: data.towerEvolutions || {},
+        practiceMode: false
       };
     } else {
       this._state = this._defaultState();
     }
+
+    // 存档迁移：dailyChallenges → stamina
+    if (data && data.dailyChallenges && !data.stamina) {
+      var remaining = Math.max(0, 12 - (data.dailyChallenges.used || 0));
+      this._state.stamina = { current: remaining, lastRecover: Date.now() };
+    }
+
+    // 离线体力恢复
+    this._recoverOfflineStamina();
 
     // 初始化战斗运行时
     this._battle = this._defaultBattle();
@@ -708,8 +720,25 @@ var TowerDefenseManager = {
       }
       if (!heroStats) continue;
 
-      // 减少技能冷却
-      if (hero.skillCooldown > 0) hero.skillCooldown -= dt;
+      // 蓄力系统
+      if (typeof hero.chargeProgress === 'undefined') {
+        hero.chargeProgress = 0;
+        hero.chargeReady = false;
+        hero.autoReleaseTimer = 0;
+      }
+      var chargeTime = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.SKILL_CHARGE.BASE_CHARGE_TIME : 10;
+      var autoTimeout = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.SKILL_CHARGE.AUTO_RELEASE_TIMEOUT : 5;
+
+      if (!hero.chargeReady) {
+        hero.chargeProgress += dt;
+        if (hero.chargeProgress >= chargeTime) {
+          hero.chargeReady = true;
+          hero.autoReleaseTimer = autoTimeout;
+          EventBus.emit('td:skill_charged', { heroUid: uid, ready: true });
+        }
+      } else {
+        hero.autoReleaseTimer -= dt;
+      }
 
       // 寻找最近的敌人（在巡逻范围内）
       var target = this._findNearestEnemy(hero.x, hero.y, hero.patrolRange);
@@ -760,9 +789,14 @@ var TowerDefenseManager = {
             }
           }
 
-          // 技能释放
-          if (hero.skillCooldown <= 0) {
+          // 自动释放技能（蓄满后超时 OR 手动释放在 manualReleaseSkill 中处理）
+          if (hero.chargeReady && hero.autoReleaseTimer <= 0) {
+            hero.manualRelease = false;
             this._heroUseSkill(uid, hero, heroStats, target);
+            hero.chargeProgress = 0;
+            hero.chargeReady = false;
+            hero.autoReleaseTimer = 0;
+            EventBus.emit('td:skill_released', { heroUid: uid, manual: false });
           }
         }
       } else {
@@ -833,6 +867,10 @@ var TowerDefenseManager = {
     var skill = template.skill;
     var multiplier = skill.multiplier || 1.5;
     var skillDmg = heroStats.atk * multiplier;
+    // 手动释放伤害加成
+    if (hero.manualRelease && typeof TD_ENHANCEMENT !== 'undefined') {
+      skillDmg *= TD_ENHANCEMENT.SKILL_CHARGE.MANUAL_SKILL_BONUS;
+    }
     var cooldown = skill.cooldown || 3;
 
     hero.skillCooldown = cooldown;
@@ -1015,7 +1053,22 @@ var TowerDefenseManager = {
       spawnInterval: 0.5, // seconds between spawns
       wallInstances: [],  // runtime wall hp tracking
       projectiles: [],
-      skillEffects: []
+      skillEffects: [],
+      // Phase 1 增强
+      speedMultiplier: 1.0,
+      isPractice: false,
+      damageTexts: [],
+      killStreak: { count: 0, timer: 0, lastLevel: 0 },
+      emergencySkills: {
+        arrow_rain: { cd: 0 },
+        battle_charge: { cd: 0, active: false, timer: 0 },
+        iron_wall: { cd: 0, active: false, timer: 0 }
+      },
+      battleChargeActive: false,
+      battleChargeTimer: 0,
+      ironWallActive: false,
+      ironWallTimer: 0,
+      dyingEnemies: []
     };
   },
 
@@ -1048,8 +1101,17 @@ var TowerDefenseManager = {
     var dt = (timestamp - this._battle.lastFrameTime) / 1000;
     this._battle.lastFrameTime = timestamp;
 
+    // 原始dt（用于UI动画，不受速度影响）
+    var rawDt = dt;
+    // 速度倍率
+    dt *= this._battle.speedMultiplier;
+
     // Cap dt to avoid huge jumps
-    if (dt > 0.1) dt = 0.1;
+    if (typeof TD_ENHANCEMENT !== 'undefined' && TD_ENHANCEMENT.SPEED) {
+      if (dt > TD_ENHANCEMENT.SPEED.MAX_SCALED_DELTA) dt = TD_ENHANCEMENT.SPEED.MAX_SCALED_DELTA;
+    } else {
+      if (dt > 0.1) dt = 0.1;
+    }
 
     if (this._battle.phase === 'prep') {
       this._battle.prepTimer -= dt;
@@ -1076,6 +1138,11 @@ var TowerDefenseManager = {
       this._tickSkillEffects(dt);
       // 更新攻城器械特殊行为
       this._tickSiegeEquipment(dt);
+      // Phase 1 增强系统
+      this._tickDamageTexts(rawDt);
+      this._tickKillStreak(dt);
+      this._tickDyingEnemies(rawDt);
+      this._tickEmergencyBuffs(dt);
       // Check win/lose
       this._checkBattleEnd();
     }
@@ -1484,6 +1551,10 @@ var TowerDefenseManager = {
       if (!stats || stats.attackSpeed <= 0) continue;
 
       var attackInterval = 1 / stats.attackSpeed;
+      if (this._battle.battleChargeActive) {
+        var chargeBonus = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.EMERGENCY_SKILLS.BATTLE_CHARGE.aspdMultiplier : 1.5;
+        attackInterval /= chargeBonus;
+      }
       runtime.lastAttackTime += dt;
 
       if (runtime.lastAttackTime >= attackInterval) {
@@ -1621,6 +1692,7 @@ var TowerDefenseManager = {
 
     var damage = this._calcDamage(atk, def);
     enemy.hp -= damage;
+    this._addDamageText(enemy.x, enemy.y, Math.floor(damage), 'normal');
 
     // 添加攻击弹道
     if (!this._battle.projectiles) this._battle.projectiles = [];
@@ -1951,17 +2023,28 @@ var TowerDefenseManager = {
   },
 
   _killEnemy: function (enemy, killerTowerUid) {
-    enemy.status = 'dead';
+    enemy.status = 'dying';
     enemy.hp = 0;
+    enemy.deathTimer = 0.3;
     this._state.stats.totalKills++;
 
     if (killerTowerUid && this._towerRuntime[killerTowerUid]) {
       this._towerRuntime[killerTowerUid].kills++;
     }
 
+    // 连杀更新
+    this._updateKillStreak();
+
+    // 生成击杀飘字
+    this._addDamageText(enemy.x, enemy.y - 10, '击杀', 'kill');
+
+    // 移到dying队列
+    if (!this._battle.dyingEnemies) this._battle.dyingEnemies = [];
+    this._battle.dyingEnemies.push(enemy);
+
     EventBus.emit('td:enemy_killed', { enemyUid: enemy.uid, killerTowerUid: killerTowerUid });
 
-    // Remove from array
+    // 从活跃敌人中移除
     this._battle.enemies = this._battle.enemies.filter(function (e) { return e.uid !== enemy.uid; });
   },
 
@@ -1992,19 +2075,35 @@ var TowerDefenseManager = {
   // State machine: idle → prep → active → settlement → idle
   //                                     → failed → idle
 
-  startWave: function () {
+  startWave: function (options) {
     if (!this._state.unlocked || !this._inDefenseMode) return false;
     if (this._battle.active) return false;
 
-    // 检查每日挑战次数
-    this._checkDailyReset();
-    if (this._state.dailyChallenges.used >= TD_CONSTANTS.DAILY_CHALLENGE_LIMIT) {
-      EventBus.emit('toast:show', { type: 'warning', message: '今日挑战次数已用完' });
-      return false;
+    var isPractice = options && options.practice;
+
+    if (!isPractice) {
+      // 消耗体力
+      var cost = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.STAMINA.COST_NORMAL : 1;
+      if (this._state.stamina.current < cost) {
+        EventBus.emit('toast:show', { type: 'warning', message: '体力不足，请稍后再试' });
+        return false;
+      }
+      this._state.stamina.current -= cost;
+      this._state.stamina.lastRecover = this._state.stamina.lastRecover || Date.now();
+      EventBus.emit('td:stamina_changed', { current: this._state.stamina.current, max: (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.STAMINA.MAX : 12 });
+    } else {
+      // 练习模式：检查关卡是否已通关
+      if (this._currentStage) {
+        var stageKey = this._currentStage.chapter + '_' + this._currentStage.stage;
+        if (!this._state.stageProgress[stageKey] || !this._state.stageProgress[stageKey].cleared) {
+          EventBus.emit('toast:show', { type: 'warning', message: '需要先通关此关卡才能练习' });
+          return false;
+        }
+      }
     }
 
-    // 消耗一次每日挑战次数
-    this._state.dailyChallenges.used++;
+    this._battle.isPractice = !!isPractice;
+    if (isPractice) EventBus.emit('td:practice_mode', { enabled: true });
 
     // Init town hall HP for this wave
     this._initTownHallHp();
@@ -2015,6 +2114,11 @@ var TowerDefenseManager = {
     this._battle.enemies = [];
     this._battle.spawnQueue = [];
     this._battle.spawnTimer = 0;
+    // 重置 Phase 1 运行时
+    this._battle.damageTexts = [];
+    this._battle.killStreak = { count: 0, timer: 0, lastLevel: 0 };
+    this._battle.dyingEnemies = [];
+    this._battle.speedMultiplier = 1.0;
 
     // Init wall instances for hp tracking
     this._initWallInstances();
@@ -2105,14 +2209,25 @@ var TowerDefenseManager = {
       rewards.gold = Math.floor(rewards.gold * TD_CONSTANTS.MANUAL_GOLD_BONUS);
       rewards.exp = Math.floor(rewards.exp * TD_CONSTANTS.MANUAL_EXP_BONUS);
       waveNum = this._currentStage.chapter * 100 + this._currentStage.stage;
-      this._clearCurrentStage();
+      if (!this._battle.isPractice) {
+        this._clearCurrentStage();
+      }
     } else {
       waveNum = this._state.wave.current;
       rewards = this._calcRewards(waveNum, true);
     }
 
-    // Grant full rewards
-    this._grantRewards(rewards, 1.0);
+    // 练习模式奖励折扣
+    var rewardMultiplier = 1.0;
+    if (this._battle.isPractice) {
+      rewardMultiplier = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.PRACTICE.REWARD_RATIO : 0.25;
+      // 练习模式无装备/玉石掉落
+      delete rewards.jade;
+      delete rewards.equipDrop;
+    }
+
+    // Grant rewards
+    this._grantRewards(rewards, rewardMultiplier);
 
     // Update stats
     this._state.stats.totalWavesCleared++;
@@ -2262,8 +2377,8 @@ var TowerDefenseManager = {
   onTick: function (dt) {
     if (!this._state) return;
 
-    // 每日挑战次数重置检查
-    this._checkDailyReset();
+    // 体力恢复
+    this._tickStamina();
 
     // 自动防守：非防守模式 + 有塔 + 已解锁
     if (!this._inDefenseMode && this._state.unlocked && this._state.towers.length > 0) {
@@ -2364,12 +2479,6 @@ var TowerDefenseManager = {
       }
     }
 
-    // 检查每日挑战次数
-    this._checkDailyReset();
-    if (this._state.dailyChallenges.used >= TD_CONSTANTS.DAILY_CHALLENGE_LIMIT) {
-      return { ok: false, reason: '今日挑战次数已用完（' + TD_CONSTANTS.DAILY_CHALLENGE_LIMIT + '/' + TD_CONSTANTS.DAILY_CHALLENGE_LIMIT + '）' };
-    }
-
     // 设置当前关卡（用于后续 startWave）
     this._currentStage = { chapter: chapterId, stage: stageNum, data: stageData };
     return { ok: true, stage: stageData };
@@ -2454,21 +2563,13 @@ var TowerDefenseManager = {
     }
   },
 
-  // 每日次数检查与重置
-  _checkDailyReset: function () {
-    var today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    if (this._state.dailyChallenges.date !== today) {
-      this._state.dailyChallenges.date = today;
-      this._state.dailyChallenges.used = 0;
-    }
-  },
-
+  // 体力信息（兼容旧接口名）
   getDailyChallengeInfo: function () {
-    this._checkDailyReset();
+    var sta = this.getStamina();
     return {
-      used: this._state.dailyChallenges.used,
-      limit: TD_CONSTANTS.DAILY_CHALLENGE_LIMIT,
-      remaining: TD_CONSTANTS.DAILY_CHALLENGE_LIMIT - this._state.dailyChallenges.used
+      used: sta.max - sta.current,
+      limit: sta.max,
+      remaining: sta.current
     };
   },
 
@@ -2589,5 +2690,311 @@ var TowerDefenseManager = {
       return { x: Math.floor(grid[0].length / 2), y: Math.floor(grid.length / 2) };
     }
     return { x: 16, y: 16 };
+  },
+
+  // ========== Phase 1: 速度控制 (CAP-TDE-01) ==========
+
+  toggleSpeed: function () {
+    if (!this._battle.active) return;
+    var levels = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.SPEED.LEVELS : [1.0, 2.0, 3.0];
+    var current = this._battle.speedMultiplier;
+    var idx = levels.indexOf(current);
+    idx = (idx + 1) % levels.length;
+    this._battle.speedMultiplier = levels[idx];
+    EventBus.emit('td:speed_changed', { speed: this._battle.speedMultiplier });
+  },
+
+  getSpeed: function () {
+    return this._battle ? this._battle.speedMultiplier : 1.0;
+  },
+
+  // ========== Phase 1: 体力系统 (CAP-TDE-02) ==========
+
+  getStamina: function () {
+    return {
+      current: this._state.stamina.current,
+      max: (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.STAMINA.MAX : 12
+    };
+  },
+
+  _tickStamina: function () {
+    if (typeof TD_ENHANCEMENT === 'undefined') return;
+    var sta = this._state.stamina;
+    var max = TD_ENHANCEMENT.STAMINA.MAX;
+    if (sta.current >= max) {
+      sta.lastRecover = Date.now();
+      return;
+    }
+    var now = Date.now();
+    var elapsed = (now - sta.lastRecover) / 60000; // minutes
+    var interval = TD_ENHANCEMENT.STAMINA.RECOVER_INTERVAL_MIN;
+    if (elapsed >= interval) {
+      var recovered = Math.floor(elapsed / interval);
+      sta.current = Math.min(max, sta.current + recovered * TD_ENHANCEMENT.STAMINA.RECOVER_AMOUNT);
+      sta.lastRecover = now - ((elapsed % interval) * 60000);
+      EventBus.emit('td:stamina_changed', { current: sta.current, max: max });
+    }
+  },
+
+  _recoverOfflineStamina: function () {
+    if (typeof TD_ENHANCEMENT === 'undefined') return;
+    var sta = this._state.stamina;
+    if (!sta.lastRecover) { sta.lastRecover = Date.now(); return; }
+    var max = TD_ENHANCEMENT.STAMINA.MAX;
+    if (sta.current >= max) return;
+    var elapsed = (Date.now() - sta.lastRecover) / 60000;
+    var interval = TD_ENHANCEMENT.STAMINA.RECOVER_INTERVAL_MIN;
+    var recovered = Math.floor(elapsed / interval);
+    if (recovered > 0) {
+      sta.current = Math.min(max, sta.current + recovered * TD_ENHANCEMENT.STAMINA.RECOVER_AMOUNT);
+      sta.lastRecover = Date.now();
+    }
+  },
+
+  // ========== Phase 1: 飘字系统 (CAP-TDE-03) ==========
+
+  _addDamageText: function (x, y, damage, type) {
+    if (!this._battle.damageTexts) this._battle.damageTexts = [];
+    var cfg = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.DAMAGE_TEXT : { MERGE_WINDOW: 0.3, MAX_ONSCREEN: 15, DURATION: 0.8, FLOAT_DISTANCE: 30, RANDOM_OFFSET_X: 8 };
+
+    // 合并窗口：相同位置附近 + 相同类型
+    for (var i = 0; i < this._battle.damageTexts.length; i++) {
+      var existing = this._battle.damageTexts[i];
+      if (existing.type === type && existing.elapsed < cfg.MERGE_WINDOW) {
+        var dx = existing.x - x;
+        var dy = existing.y - y;
+        if (Math.sqrt(dx * dx + dy * dy) < TD_CONSTANTS.TILE_SIZE * 2) {
+          if (typeof damage === 'number' && typeof existing.damage === 'number') {
+            existing.damage += damage;
+            existing.merged = (existing.merged || 1) + 1;
+          }
+          return;
+        }
+      }
+    }
+
+    // 超出上限移除最旧的
+    while (this._battle.damageTexts.length >= cfg.MAX_ONSCREEN) {
+      this._battle.damageTexts.shift();
+    }
+
+    var offsetX = (Math.random() - 0.5) * cfg.RANDOM_OFFSET_X * 2;
+    this._battle.damageTexts.push({
+      x: x + offsetX, y: y,
+      damage: damage, type: type,
+      elapsed: 0, duration: cfg.DURATION,
+      floatDist: cfg.FLOAT_DISTANCE,
+      merged: 1
+    });
+  },
+
+  _tickDamageTexts: function (rawDt) {
+    if (!this._battle.damageTexts) return;
+    for (var i = this._battle.damageTexts.length - 1; i >= 0; i--) {
+      this._battle.damageTexts[i].elapsed += rawDt;
+      if (this._battle.damageTexts[i].elapsed >= this._battle.damageTexts[i].duration) {
+        this._battle.damageTexts.splice(i, 1);
+      }
+    }
+  },
+
+  getDamageTexts: function () {
+    return this._battle ? (this._battle.damageTexts || []) : [];
+  },
+
+  // ========== Phase 1: 击杀反馈 (CAP-TDE-04) ==========
+
+  _tickDyingEnemies: function (rawDt) {
+    if (!this._battle.dyingEnemies) return;
+    for (var i = this._battle.dyingEnemies.length - 1; i >= 0; i--) {
+      this._battle.dyingEnemies[i].deathTimer -= rawDt;
+      if (this._battle.dyingEnemies[i].deathTimer <= 0) {
+        this._battle.dyingEnemies.splice(i, 1);
+      }
+    }
+  },
+
+  getDyingEnemies: function () {
+    return this._battle ? (this._battle.dyingEnemies || []) : [];
+  },
+
+  // ========== Phase 1: 武将技能手动释放 (CAP-TDE-05) ==========
+
+  manualReleaseSkill: function (heroUid) {
+    var hero = this._heroRuntime[heroUid];
+    if (!hero || hero.status === 'retreated') return false;
+    if (!hero.chargeReady) return false;
+
+    hero.manualRelease = true;
+    // 找当前目标释放技能
+    var heroStats = null;
+    if (typeof HeroManager !== 'undefined' && HeroManager.getHeroStats) {
+      heroStats = HeroManager.getHeroStats(heroUid);
+    }
+    if (!heroStats) return false;
+
+    var target = this._findNearestEnemy(hero.x, hero.y, hero.patrolRange);
+    if (target) {
+      this._heroUseSkill(heroUid, hero, heroStats, target);
+    }
+    hero.chargeProgress = 0;
+    hero.chargeReady = false;
+    hero.autoReleaseTimer = 0;
+    hero.manualRelease = false;
+
+    EventBus.emit('td:skill_released', { heroUid: heroUid, manual: true });
+    return true;
+  },
+
+  // ========== Phase 1: 连杀系统 (CAP-TDE-06) ==========
+
+  _updateKillStreak: function () {
+    if (!this._battle.killStreak) this._battle.killStreak = { count: 0, timer: 0, lastLevel: 0 };
+    var ks = this._battle.killStreak;
+    var cfg = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.KILL_STREAK : { WINDOW: 4, LEVELS: [] };
+
+    ks.count++;
+    ks.timer = cfg.WINDOW;
+
+    // 检查连杀等级
+    var currentLevel = 0;
+    for (var i = cfg.LEVELS.length - 1; i >= 0; i--) {
+      if (ks.count >= cfg.LEVELS[i].kills) {
+        currentLevel = i + 1;
+        break;
+      }
+    }
+
+    if (currentLevel > ks.lastLevel && currentLevel > 0) {
+      var levelData = cfg.LEVELS[currentLevel - 1];
+      ks.lastLevel = currentLevel;
+      EventBus.emit('td:kill_streak', {
+        count: ks.count,
+        level: currentLevel,
+        name: levelData.name,
+        text: levelData.text,
+        color: levelData.color,
+        fontSize: levelData.fontSize,
+        goldBonus: levelData.goldBonus
+      });
+
+      // 更新最佳连杀
+      if (ks.count > (this._state.stats.bestKillStreak || 0)) {
+        this._state.stats.bestKillStreak = ks.count;
+      }
+    }
+  },
+
+  _tickKillStreak: function (dt) {
+    if (!this._battle.killStreak) return;
+    var ks = this._battle.killStreak;
+    if (ks.timer > 0) {
+      ks.timer -= dt;
+      if (ks.timer <= 0) {
+        ks.count = 0;
+        ks.timer = 0;
+        ks.lastLevel = 0;
+      }
+    }
+  },
+
+  getKillStreak: function () {
+    return this._battle ? this._battle.killStreak : { count: 0, timer: 0, lastLevel: 0 };
+  },
+
+  // ========== Phase 1: 紧急技能 (CAP-TDE-08, Phase 2 但基础框架先建) ==========
+
+  useEmergencySkill: function (skillId) {
+    if (!this._battle.active || this._battle.phase !== 'active') return false;
+    if (!this._battle.emergencySkills) return false;
+    var sk = this._battle.emergencySkills[skillId];
+    if (!sk || sk.cd > 0) return false;
+
+    var cfg = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.EMERGENCY_SKILLS : null;
+    if (!cfg) return false;
+
+    if (skillId === 'arrow_rain') {
+      this._applyArrowRain(cfg.ARROW_RAIN);
+      sk.cd = cfg.ARROW_RAIN.cooldown;
+    } else if (skillId === 'battle_charge') {
+      this._applyBattleCharge(cfg.BATTLE_CHARGE);
+      sk.cd = cfg.BATTLE_CHARGE.cooldown;
+    } else if (skillId === 'iron_wall') {
+      this._applyIronWall(cfg.IRON_WALL);
+      sk.cd = cfg.IRON_WALL.cooldown;
+    } else {
+      return false;
+    }
+
+    EventBus.emit('td:emergency_used', { skillId: skillId, cd: sk.cd });
+    return true;
+  },
+
+  _applyArrowRain: function (cfg) {
+    // 对全场敌人造成 baseHp × hpRatio 伤害
+    var waveData = this._currentStage ? this._getStageWaveData() : TDWaveTable[this._state.wave.current];
+    var baseHp = waveData ? waveData.baseHp : 100;
+    var dmg = Math.floor(baseHp * cfg.hpRatio);
+    for (var i = 0; i < this._battle.enemies.length; i++) {
+      var e = this._battle.enemies[i];
+      if (e.status === 'dead' || e.status === 'dying') continue;
+      e.hp -= dmg;
+      this._addDamageText(e.x, e.y, dmg, 'emergency');
+      if (e.hp <= 0) this._killEnemy(e, null);
+    }
+  },
+
+  _applyBattleCharge: function (cfg) {
+    this._battle.battleChargeActive = true;
+    this._battle.battleChargeTimer = cfg.duration;
+  },
+
+  _applyIronWall: function (cfg) {
+    this._battle.ironWallActive = true;
+    this._battle.ironWallTimer = cfg.wallInvincibleDuration;
+    // 恢复城主府HP
+    var healAmount = Math.floor(this._state.wave.townHallMaxHp * cfg.townhallHealRatio);
+    this._state.wave.townHallHp = Math.min(
+      this._state.wave.townHallMaxHp,
+      this._state.wave.townHallHp + healAmount
+    );
+    this._addDamageText(16 * TD_CONSTANTS.TILE_SIZE, 16 * TD_CONSTANTS.TILE_SIZE, '+' + healAmount, 'heal');
+  },
+
+  _tickEmergencyBuffs: function (dt) {
+    // 冲锋buff
+    if (this._battle.battleChargeActive) {
+      this._battle.battleChargeTimer -= dt;
+      if (this._battle.battleChargeTimer <= 0) {
+        this._battle.battleChargeActive = false;
+        this._battle.battleChargeTimer = 0;
+      }
+    }
+    // 铁壁buff
+    if (this._battle.ironWallActive) {
+      this._battle.ironWallTimer -= dt;
+      if (this._battle.ironWallTimer <= 0) {
+        this._battle.ironWallActive = false;
+        this._battle.ironWallTimer = 0;
+      }
+    }
+    // CD递减
+    if (this._battle.emergencySkills) {
+      for (var key in this._battle.emergencySkills) {
+        if (this._battle.emergencySkills.hasOwnProperty(key)) {
+          if (this._battle.emergencySkills[key].cd > 0) {
+            this._battle.emergencySkills[key].cd -= dt;
+            if (this._battle.emergencySkills[key].cd <= 0) {
+              this._battle.emergencySkills[key].cd = 0;
+              EventBus.emit('td:emergency_ready', { skillId: key });
+            }
+          }
+        }
+      }
+    }
+  },
+
+  getEmergencySkills: function () {
+    return this._battle ? this._battle.emergencySkills : {};
   }
 };

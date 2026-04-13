@@ -364,8 +364,7 @@ var TD_CONSTANTS = {
   WAVE_DURATION_ASSUMED: 60,
   HERO_SKILL_INTERVAL: 10,
   HERO_SKILL_COEFFICIENT: 0.5,
-  TILE_SIZE: 48,
-  DAILY_CHALLENGE_LIMIT: 3
+  TILE_SIZE: 48
 };
 
 // ============================================================
@@ -506,3 +505,238 @@ var TDWarDialogues = [
   '弓箭手准备！',
   '放箭！放箭！'
 ];
+
+// ============================================================
+//  TD 增强系统常量
+// ============================================================
+var TD_ENHANCEMENT = {
+  // §1 武将技能蓄力
+  SKILL_CHARGE: {
+    BASE_CHARGE_TIME: 10,
+    MANUAL_SKILL_BONUS: 1.5,
+    AUTO_RELEASE_TIMEOUT: 5,
+    MAX_CD_REDUCTION: 0.5
+  },
+  // §2 紧急技能
+  EMERGENCY_SKILLS: {
+    ARROW_RAIN:    { id: 'arrow_rain',    name: '万箭齐发', hpRatio: 0.25, cooldown: 75 },
+    BATTLE_CHARGE: { id: 'battle_charge', name: '擂鼓助威', aspdMultiplier: 1.5, duration: 8, cooldown: 75 },
+    IRON_WALL:     { id: 'iron_wall',     name: '金城汤池', wallInvincibleDuration: 5, townhallHealRatio: 0.15, cooldown: 75 }
+  },
+  // §3 体力系统
+  STAMINA: {
+    MAX: 12,
+    COST_NORMAL: 1,
+    COST_PRACTICE: 0,
+    RECOVER_INTERVAL_MIN: 25,
+    RECOVER_AMOUNT: 1
+  },
+  // §4 练习模式
+  PRACTICE: {
+    REWARD_RATIO: 0.25,
+    EQUIP_DROP: false,
+    JADE_DROP: false,
+    PROGRESS_UPDATE: false
+  },
+  // §5 飘字
+  DAMAGE_TEXT: {
+    MERGE_WINDOW: 0.3,
+    MAX_ONSCREEN: 15,
+    DURATION: 0.8,
+    FLOAT_DISTANCE: 30,
+    RANDOM_OFFSET_X: 8
+  },
+  // §6 连杀
+  KILL_STREAK: {
+    WINDOW: 4,
+    LEVELS: [
+      { kills: 2,  name: '双杀',     text: '双杀！',     color: '#FFFFFF', fontSize: 24, goldBonus: 0.05 },
+      { kills: 3,  name: '三连杀',   text: '三连杀！',   color: '#FFD700', fontSize: 28, goldBonus: 0.10 },
+      { kills: 5,  name: '五连绝杀', text: '五连绝杀！', color: '#FF8C00', fontSize: 32, goldBonus: 0.15 },
+      { kills: 8,  name: '杀神降临', text: '杀神降临！', color: '#FF0000', fontSize: 36, goldBonus: 0.20 },
+      { kills: 12, name: '万夫莫敌', text: '万夫莫敌！', color: '#FFD700', fontSize: 40, goldBonus: 0.30 }
+    ]
+  },
+  // §10 速度倍率
+  SPEED: {
+    LEVELS: [1.0, 2.0, 3.0],
+    DEFAULT_INDEX: 0,
+    MAX_SCALED_DELTA: 0.1
+  }
+};
+
+// ============================================================
+//  塔进化数据（Phase 3 预置）
+// ============================================================
+var TDEvolutionData = {
+  td_arrow_tower: {
+    pathA: {
+      id: 'td_arrow_sharpshooter', name: '神射塔',
+      atk: 60, range: 5.5, attackSpeed: 1.0,
+      special: 'priority_boss',
+      cost: { gold: 500, wood: 150 }
+    },
+    pathB: {
+      id: 'td_arrow_storm', name: '箭雨塔',
+      atk: 25, range: 3.5, attackSpeed: 1.5,
+      special: 'splash_1.0',
+      cost: { gold: 500, wood: 150 }
+    }
+  },
+  td_crossbow: {
+    pathA: {
+      id: 'td_crossbow_piercer', name: '穿甲弩',
+      atk: 140, range: 5.0, attackSpeed: 0.35,
+      special: 'ignore_def',
+      cost: { gold: 2000, wood: 300, iron: 100 }
+    },
+    pathB: {
+      id: 'td_crossbow_multi', name: '连弩车',
+      atk: 65, range: 4.5, attackSpeed: 0.5,
+      special: 'multi_3',
+      cost: { gold: 2000, wood: 300, iron: 100 }
+    }
+  },
+  td_catapult: {
+    pathA: {
+      id: 'td_catapult_flame', name: '烈焰石',
+      atk: 180, range: 5.5, attackSpeed: 0.25,
+      special: 'splash_2.0_burn_5s_15dps',
+      cost: { gold: 3000, wood: 400, stone: 300 }
+    },
+    pathB: {
+      id: 'td_catapult_quake', name: '震天锤',
+      atk: 200, range: 5.0, attackSpeed: 0.20,
+      special: 'splash_1.5_stun_2s',
+      cost: { gold: 3000, wood: 400, stone: 300 }
+    }
+  },
+  td_oil_tower: {
+    pathA: {
+      id: 'td_oil_inferno', name: '天火塔',
+      atk: 90, range: 3.0, attackSpeed: 0.5,
+      special: 'burn_area_5s_20dps',
+      cost: { gold: 2500, wood: 250, stone: 200 }
+    },
+    pathB: {
+      id: 'td_oil_poison', name: '毒烟塔',
+      atk: 50, range: 3.5, attackSpeed: 0.5,
+      special: 'slow_40_def_reduce_25',
+      cost: { gold: 2500, wood: 250, stone: 200 }
+    }
+  },
+  td_repeater: {
+    pathA: {
+      id: 'td_repeater_zhuge', name: '诸葛连弩',
+      atk: 25, range: 3.0, attackSpeed: 4.0,
+      special: 'multi_4',
+      cost: { gold: 3500, wood: 500, iron: 250 }
+    },
+    pathB: {
+      id: 'td_repeater_breaker', name: '破阵弩',
+      atk: 60, range: 3.5, attackSpeed: 1.5,
+      special: 'pierce_line',
+      cost: { gold: 3500, wood: 500, iron: 250 }
+    }
+  },
+  td_beacon: {
+    pathA: {
+      id: 'td_beacon_eye', name: '天眼台',
+      atk: 10, range: 8.0, attackSpeed: 0.5,
+      special: 'detect_all_atk_buff_25',
+      cost: { gold: 1500, wood: 200, stone: 150 }
+    },
+    pathB: {
+      id: 'td_beacon_command', name: '号令台',
+      atk: 10, range: 6.0, attackSpeed: 0.5,
+      special: 'detect_aspd_buff_20_hero_cd_15',
+      cost: { gold: 1500, wood: 200, stone: 150 }
+    }
+  }
+};
+
+// ============================================================
+//  武将羁绊数据（Phase 3 预置）
+// ============================================================
+var TDBondData = [
+  {
+    id: 'taoyuan', name: '桃园结义',
+    heroes: ['hero_liubei', 'hero_guanyu', 'hero_zhangfei'],
+    requiredCount: 3,
+    effects: { target: 'bond_heroes', atkBonus: 0.15, defBonus: 0.15, skillCdReduction: 0.20 }
+  },
+  {
+    id: 'wolong', name: '卧龙凤雏',
+    heroes: ['hero_zhugeliang', 'hero_pangtong'],
+    requiredCount: 2,
+    effects: { target: 'all_towers', atkBonus: 0.10, skillRangeBonus: 0.20 }
+  },
+  {
+    id: 'wuhu', name: '五虎上将',
+    heroes: ['hero_guanyu', 'hero_zhangfei', 'hero_zhaoyun', 'hero_machao', 'hero_huangzhong'],
+    requiredCount: 3,
+    effects: { target: 'all_heroes', aspdBonus: 0.25 }
+  },
+  {
+    id: 'hubaoqi', name: '虎豹骑',
+    heroes: ['hero_caocao', 'hero_xiahoudun'],
+    requiredCount: 2,
+    effects: { target: 'all_towers_walls', atkBonus: 0.08, wallHpBonus: 0.20 }
+  },
+  {
+    id: 'jiangdong', name: '江东双璧',
+    heroes: ['hero_zhouyu', 'hero_sunce'],
+    requiredCount: 2,
+    effects: { target: 'fire_towers', fireDmgBonus: 0.30 }
+  }
+];
+
+// ============================================================
+//  Boss 专属技能数据（Phase 3 预置）
+// ============================================================
+var TDBossSkillData = {
+  chapter_1_zhangjiao: {
+    id: 'boss_zhangjiao', name: '张角',
+    hpMultiplier: 4, atkMultiplier: 2, speed: 0.5,
+    skill: {
+      type: 'summon', interval: 15,
+      summonType: 'td_militia', summonCount: 2,
+      summonHpRatio: 0.5, summonAtkRatio: 0.5, maxAlive: 6
+    }
+  },
+  chapter_2_lvbu: {
+    id: 'boss_lvbu', name: '吕布',
+    hpMultiplier: 6, atkMultiplier: 3, speed: 0.8,
+    skill: {
+      type: 'charge', interval: 20,
+      damageMultiplier: 3, chargeRange: 3,
+      ignoreWalls: 1, selfStunDuration: 2
+    }
+  },
+  chapter_3_caocao: {
+    id: 'boss_caocao', name: '曹操',
+    hpMultiplier: 5, atkMultiplier: 1.5, speed: 0.5,
+    skill: {
+      type: 'aura', auraRange: 3,
+      atkBuff: 0.40, speedBuff: 0.20, persistent: true
+    }
+  },
+  chapter_4_guanyu: {
+    id: 'boss_guanyu', name: '关羽',
+    hpMultiplier: 5, atkMultiplier: 2.5, speed: 0.6,
+    skill: {
+      type: 'slash', interval: 12,
+      angle: 120, range: 2,
+      damageMultiplier: 3, maxHpPercent: 0.30
+    }
+  },
+  chapter_5_simayi: {
+    id: 'boss_simayi', name: '司马懿',
+    hpMultiplier: 5, atkMultiplier: 2, speed: 0.5,
+    skill: {
+      type: 'clone', interval: 30,
+      cloneCount: 2, cloneHpRatio: 0.40, cloneAtkRatio: 0.60,
+      cloneCanUseSkill: false, detectReveal: true
+    }
+  }
+};

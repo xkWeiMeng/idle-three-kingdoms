@@ -60,6 +60,20 @@ var TowerDefensePanel = {
     EventBus.on('td:enemy_killed', function () { self._updateStatusBar(); });
     EventBus.on('td:hero_assigned', function () { self._updateStatusBar(); });
 
+    // Phase 1: 连杀特效
+    this._activeKillStreak = null;
+    EventBus.on('td:kill_streak', function (data) {
+      self._activeKillStreak = {
+        text: data.text,
+        color: data.color,
+        fontSize: data.fontSize,
+        elapsed: 0
+      };
+    });
+
+    // Phase 1: 体力变化
+    EventBus.on('td:stamina_changed', function () { self._updateStatusBar(); });
+
     // 监听 overlay 关闭以刷新
     EventBus.on('overlay:closed', function () {
       if (self._inDefenseMode) self._updateToolbar();
@@ -80,15 +94,18 @@ var TowerDefensePanel = {
     }
 
     var chapters = TowerDefenseManager.getChapters();
-    var dailyInfo = TowerDefenseManager.getDailyChallengeInfo();
+    var stamina = TowerDefenseManager.getStamina();
     var html = '<div style="padding:8px;">';
 
-    // 每日挑战次数
+    // 体力显示
     html += '<div style="text-align:center;margin-bottom:12px;padding:8px;background:rgba(22,33,62,0.6);border-radius:8px;">';
-    html += '<span style="color:var(--color-gold);">⚔ 今日挑战次数</span>　';
-    html += '<span style="font-size:18px;font-weight:bold;color:' + (dailyInfo.remaining > 0 ? 'var(--color-success)' : 'var(--color-danger)') + ';">';
-    html += dailyInfo.remaining + '</span>';
-    html += '<span style="color:var(--color-text-dim);"> / ' + dailyInfo.limit + '</span>';
+    html += '<span style="color:var(--color-gold);">⚡ 体力</span>　';
+    html += '<span style="font-size:18px;font-weight:bold;color:' + (stamina.current > 0 ? 'var(--color-success)' : 'var(--color-danger)') + ';">';
+    html += stamina.current + '</span>';
+    html += '<span style="color:var(--color-text-dim);"> / ' + stamina.max + '</span>';
+    if (stamina.current < stamina.max && typeof TD_ENHANCEMENT !== 'undefined') {
+      html += '<span style="color:var(--color-text-dim);font-size:11px;margin-left:8px;">（每' + TD_ENHANCEMENT.STAMINA.RECOVER_INTERVAL_MIN + '分钟恢复1点）</span>';
+    }
     html += '</div>';
 
     // 塔防管理按钮行
@@ -198,24 +215,54 @@ var TowerDefensePanel = {
     html += '<p style="color:var(--color-text-dim);font-size:12px;">难度系数: ×' + diff.toFixed(1) + '</p>';
     html += '<p style="font-size:13px;margin-top:8px;">敌人: ' + enemyPreview.join(' ') + '</p>';
     html += '<p style="font-size:11px;color:var(--color-text-dim);margin-top:4px;">你的防御塔将保持当前布阵</p>';
+
+    // 练习模式提示（已通关关卡）
+    var stageKey = chapterId + '_' + stageNum;
+    var progress = TowerDefenseManager.getState().stageProgress[stageKey];
+    var isCleared = progress && progress.cleared;
+    if (isCleared) {
+      html += '<p style="font-size:11px;color:var(--color-success);margin-top:4px;">✅ 已通关 — 可选择练习模式（免体力，奖励-75%）</p>';
+    }
     html += '</div>';
 
     var self = this;
-    Modal.show({
-      title: '⚔ 出击确认',
-      content: html,
-      confirmText: '开始战斗',
-      cancelText: '取消',
-      showCancel: true,
-      onConfirm: function () {
-        OverlayPanel.close();
-        self._enterDefenseMode();
-        // 短延迟后自动开始波次
-        setTimeout(function () {
-          self._onStartWave();
-        }, 500);
-      }
-    });
+    var buttons = [];
+    if (isCleared) {
+      // 已通关：提供练习模式按钮
+      Modal.show({
+        title: '⚔ 出击确认',
+        content: html,
+        confirmText: '开始战斗',
+        cancelText: '练习模式',
+        showCancel: true,
+        onConfirm: function () {
+          OverlayPanel.close();
+          self._enterDefenseMode();
+          setTimeout(function () { self._onStartWave(); }, 500);
+        },
+        onCancel: function () {
+          OverlayPanel.close();
+          self._enterDefenseMode();
+          setTimeout(function () { self._onStartPractice(); }, 500);
+        }
+      });
+    } else {
+      Modal.show({
+        title: '⚔ 出击确认',
+        content: html,
+        confirmText: '开始战斗',
+        cancelText: '取消',
+        showCancel: true,
+        onConfirm: function () {
+          OverlayPanel.close();
+          self._enterDefenseMode();
+          // 短延迟后自动开始波次
+          setTimeout(function () {
+            self._onStartWave();
+          }, 500);
+        }
+      });
+    }
   },
 
   // 防御塔管理面板（非战斗时管理塔布阵）
@@ -367,6 +414,40 @@ var TowerDefensePanel = {
 
     // 绘制 HUD（屏幕坐标）
     this._drawTownHallHpBar(ctx, w, h);
+
+    // Phase 1: 飘字
+    if (typeof TDRenderer !== 'undefined' && typeof TowerDefenseManager !== 'undefined') {
+      var damageTexts = TowerDefenseManager.getDamageTexts();
+      if (damageTexts.length > 0) {
+        ctx.save();
+        ctx.scale(TownWorld._cam.zoom, TownWorld._cam.zoom);
+        ctx.translate(-TownWorld._cam.x, -TownWorld._cam.y);
+        TDRenderer.drawDamageTexts(ctx, damageTexts);
+        ctx.restore();
+      }
+
+      // Phase 1: 死亡特效
+      var dyingEnemies = TowerDefenseManager.getDyingEnemies();
+      if (dyingEnemies.length > 0) {
+        ctx.save();
+        ctx.scale(TownWorld._cam.zoom, TownWorld._cam.zoom);
+        ctx.translate(-TownWorld._cam.x, -TownWorld._cam.y);
+        for (var de = 0; de < dyingEnemies.length; de++) {
+          TDRenderer.drawDyingEnemy(ctx, dyingEnemies[de]);
+        }
+        ctx.restore();
+      }
+
+      // Phase 1: 连杀特效
+      if (this._activeKillStreak && this._activeKillStreak.elapsed < 1.5) {
+        this._activeKillStreak.elapsed += 0.016;
+        TDRenderer.drawKillStreak(ctx, this._activeKillStreak, w, h);
+      }
+
+      // Phase 1: 速度指示器
+      var speed = TowerDefenseManager.getSpeed();
+      TDRenderer.drawSpeedIndicator(ctx, speed, w);
+    }
   },
 
   _drawGrid: function (ctx) {
@@ -489,6 +570,14 @@ var TowerDefensePanel = {
 
       // HP 条
       TDRenderer.drawHpBar(ctx, h.x, h.y - TD_CONSTANTS.TILE_SIZE * 0.8, hpRatio, 40, 5);
+
+      // Phase 1: 蓄力条
+      var heroRt = TowerDefenseManager._heroRuntime[h.uid];
+      if (heroRt && typeof TD_ENHANCEMENT !== 'undefined') {
+        var chargeTime = TD_ENHANCEMENT.SKILL_CHARGE.BASE_CHARGE_TIME;
+        var chargeRatio = (heroRt.chargeProgress || 0) / chargeTime;
+        TDRenderer.drawChargeBar(ctx, h.x, h.y, chargeRatio, !!heroRt.chargeReady);
+      }
     }
   },
 
@@ -701,9 +790,9 @@ var TowerDefensePanel = {
       }
     }
 
-    // 每日挑战次数
-    var dailyInfo = TowerDefenseManager.getDailyChallengeInfo();
-    var dailyText = '🎫' + dailyInfo.remaining + '/' + dailyInfo.limit;
+    // 体力显示
+    var stamina = TowerDefenseManager.getStamina();
+    var staminaText = '⚡' + stamina.current + '/' + stamina.max;
 
     this._statusBar.innerHTML =
       '<div style="display:flex;align-items:center;gap:6px;">' +
@@ -711,7 +800,7 @@ var TowerDefensePanel = {
         '<span>🛡 ' + waveText + phaseText + '</span>' +
       '</div>' +
       '<div style="display:flex;gap:8px;">' +
-        '<span>' + dailyText + '</span>' +
+        '<span>' + staminaText + '</span>' +
         '<span>💰 ' + Utils.formatNumber(gold) + '</span>' +
       '</div>';
 
@@ -776,10 +865,55 @@ var TowerDefensePanel = {
     } else if (battle.phase === 'prep') {
       html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;background:linear-gradient(180deg,#d4a849,#a08030);border-color:rgba(212,168,73,0.4);" onclick="TowerDefensePanel._onSkipPrep()">⏩ 跳过准备</button>';
     } else {
+      // 战斗中 — 速度按钮
+      var speed = TowerDefenseManager.getSpeed();
+      html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;background:' + (speed >= 3 ? '#a02820' : speed >= 2 ? '#a08030' : '#333') + ';" onclick="TowerDefensePanel._toggleSpeed()">' + speed + '× 速度</button>';
       html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;opacity:0.6;" disabled>⚔ 战斗中...</button>';
     }
 
     html += '</div>';
+
+    // Phase 1: 紧急技能 + 武将技能行（战斗中显示）
+    if (isActive && battle.phase === 'active') {
+      html += '<div style="display:flex;padding:4px 12px;gap:6px;border-bottom:1px solid rgba(255,255,255,0.1);">';
+
+      // 紧急技能
+      var eSkills = TowerDefenseManager.getEmergencySkills();
+      var eNames = { arrow_rain: '🏹万箭', battle_charge: '🥁冲锋', iron_wall: '🛡铁壁' };
+      var eIds = ['arrow_rain', 'battle_charge', 'iron_wall'];
+      for (var ei = 0; ei < eIds.length; ei++) {
+        var eId = eIds[ei];
+        var eData = eSkills[eId];
+        var eCd = eData ? Math.ceil(eData.cd) : 0;
+        var eReady = eCd <= 0;
+        html += '<button class="btn" style="flex:1;font-size:11px;padding:4px 0;' + (eReady ? 'background:#2a4a2a;' : 'opacity:0.5;') + '" ' +
+          (eReady ? 'onclick="TowerDefensePanel._useEmergencySkill(\'' + eId + '\')"' : 'disabled') + '>' +
+          eNames[eId] + (eCd > 0 ? '(' + eCd + 's)' : '') + '</button>';
+      }
+
+      html += '</div>';
+
+      // 武将技能按钮
+      var heroes = TowerDefenseManager.getHeroRuntime();
+      if (heroes.length > 0) {
+        html += '<div style="display:flex;padding:4px 12px;gap:6px;">';
+        for (var hi = 0; hi < heroes.length; hi++) {
+          var hrt = heroes[hi];
+          var heroRt = TowerDefenseManager._heroRuntime[hrt.uid];
+          var chargeReady = heroRt && heroRt.chargeReady;
+          var chargeRatio = 0;
+          if (heroRt && typeof TD_ENHANCEMENT !== 'undefined') {
+            chargeRatio = Math.min(1, (heroRt.chargeProgress || 0) / TD_ENHANCEMENT.SKILL_CHARGE.BASE_CHARGE_TIME);
+          }
+          var barColor = chargeReady ? '#FFD700' : '#4CAF50';
+          html += '<button class="btn" style="flex:1;font-size:11px;padding:4px 0;position:relative;overflow:hidden;' + (chargeReady ? 'background:#4a3a00;border-color:#FFD700;' : '') + '" ' +
+            (chargeReady ? 'onclick="TowerDefensePanel._manualSkill(\'' + hrt.uid + '\')"' : 'disabled') + '>' +
+            '<div style="position:absolute;bottom:0;left:0;height:3px;width:' + (chargeRatio * 100) + '%;background:' + barColor + ';"></div>' +
+            '⚔' + hrt.name.charAt(0) + (chargeReady ? ' ★' : '') + '</button>';
+        }
+        html += '</div>';
+      }
+    }
 
     // 塔建造工具栏（横向滚动）
     html += '<div style="display:flex;overflow-x:auto;padding:6px 12px 10px;gap:8px;-webkit-overflow-scrolling:touch;">';
@@ -858,6 +992,37 @@ var TowerDefensePanel = {
     var started = TowerDefenseManager.startWave();
     if (started) {
       this._updateStatusBar();
+      this._updateToolbar();
+    }
+  },
+
+  _onStartPractice: function () {
+    var started = TowerDefenseManager.startWave({ practice: true });
+    if (started) {
+      EventBus.emit('toast:show', { type: 'info', message: '练习模式：奖励减少75%' });
+      this._updateStatusBar();
+      this._updateToolbar();
+    }
+  },
+
+  _toggleSpeed: function () {
+    TowerDefenseManager.toggleSpeed();
+    this._updateToolbar();
+  },
+
+  _useEmergencySkill: function (skillId) {
+    var used = TowerDefenseManager.useEmergencySkill(skillId);
+    if (used) {
+      var names = { arrow_rain: '万箭齐发', battle_charge: '擂鼓助威', iron_wall: '金城汤池' };
+      EventBus.emit('toast:show', { type: 'success', message: names[skillId] + '！' });
+      this._updateToolbar();
+    }
+  },
+
+  _manualSkill: function (heroUid) {
+    var used = TowerDefenseManager.manualReleaseSkill(heroUid);
+    if (used) {
+      EventBus.emit('toast:show', { type: 'success', message: '手动释放技能！伤害×1.5' });
       this._updateToolbar();
     }
   },
