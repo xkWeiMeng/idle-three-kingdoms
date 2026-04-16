@@ -15,6 +15,7 @@ const ResourcesBar = {
     var R = CONSTANTS.RESOURCE;
     var gold = ResourceManager.get(R.GOLD);
     var jade = ResourceManager.get(R.JADE);
+    var exp = ResourceManager.get(R.EXP);
     var food = ResourceManager.get(R.FOOD);
     var wood = ResourceManager.get(R.WOOD);
     var stone = ResourceManager.get(R.STONE);
@@ -25,6 +26,7 @@ const ResourcesBar = {
       '<span class="res-item">💰 ' + Utils.formatNumber(gold) + '</span>' +
       '<span class="res-item">💎 ' + Utils.formatNumber(jade) + '</span>' +
       '<span class="res-item">🍚 ' + food + '/' + foodCap + '</span>' +
+      '<span class="res-item">⭐ ' + Utils.formatNumber(exp) + '</span>' +
       '</div>';
 
     html += '<div class="res-group res-group-building">' +

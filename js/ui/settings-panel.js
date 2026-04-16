@@ -342,7 +342,6 @@ var SettingsPanel = {
   },
 
   _renderAchievements: function () {
-    var snapshot = this._gatherSnapshot();
     var unlockedCount = 0;
     var total = AchievementDefs.length;
     for (var i = 0; i < total; i++) {
@@ -350,63 +349,10 @@ var SettingsPanel = {
       if (ach && ach.unlocked) unlockedCount++;
     }
 
-    var categoryNames = { battle:'⚔️ 战斗', chapter:'📖 章节', collect:'🎖️ 收集', upgrade:'⬆️ 升级', economy:'💰 经济' };
-    var categoryOrder = ['battle', 'chapter', 'collect', 'upgrade', 'economy'];
-    var html = '';
-
-    for (var c = 0; c < categoryOrder.length; c++) {
-      var cat = categoryOrder[c];
-      var catName = categoryNames[cat];
-      var items = '';
-      for (var i = 0; i < AchievementDefs.length; i++) {
-        var def = AchievementDefs[i];
-        if (def.category !== cat) continue;
-        var ach = this._achievements[def.id] || { unlocked: false, claimed: false };
-        var prog = def.progress(snapshot);
-        var pct = Math.min(100, Math.floor((prog / def.target) * 100));
-        var barColor = ach.claimed ? 'var(--color-success)' : (ach.unlocked ? 'var(--color-gold)' : 'var(--color-secondary)');
-        var statusIcon = ach.claimed ? '✅' : (ach.unlocked ? '🎁' : '🔒');
-
-        // Reward text
-        var rewardText = '💎' + def.jade;
-        if (def.bonus && def.bonus.gold) rewardText += ' 💰' + def.bonus.gold;
-        if (def.bonus && def.bonus.food) rewardText += ' 🍖' + def.bonus.food;
-        if (def.bonus && def.bonus.exp) rewardText += ' ⭐' + def.bonus.exp;
-
-        items += '<div style="padding:8px;margin-bottom:6px;border-radius:4px;background:rgba(15,52,96,0.3);' +
-          'border-left:3px solid ' + barColor + ';">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-            '<div>' +
-              '<span>' + def.icon + ' <strong>' + def.name + '</strong></span>' +
-              '<div style="font-size:11px;color:var(--color-text-dim);">' + def.desc + '</div>' +
-            '</div>' +
-            '<span style="font-size:14px;">' + statusIcon + '</span>' +
-          '</div>' +
-          '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;">' +
-            '<div style="flex:1;background:rgba(255,255,255,0.1);border-radius:3px;height:6px;overflow:hidden;">' +
-              '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius:3px;transition:width 0.3s;"></div>' +
-            '</div>' +
-            '<span style="font-size:11px;color:var(--color-text-dim);white-space:nowrap;">' +
-              (def.target > 1 ? Utils.formatNumber(prog) + '/' + Utils.formatNumber(def.target) : (ach.unlocked ? '已完成' : '未完成')) +
-            '</span>' +
-          '</div>' +
-          '<div style="margin-top:4px;display:flex;justify-content:space-between;align-items:center;">' +
-            '<span style="font-size:11px;color:var(--color-text-dim);">奖励: ' + rewardText + '</span>' +
-            (ach.unlocked && !ach.claimed
-              ? '<button class="btn btn-claim-ach" data-ach-id="' + def.id + '" style="font-size:11px;padding:2px 8px;">领取</button>'
-              : '') +
-          '</div>' +
-        '</div>';
-      }
-      html += '<div style="margin-bottom:8px;">' +
-        '<div style="font-weight:bold;margin-bottom:6px;font-size:13px;">' + catName + '</div>' +
-        items +
-      '</div>';
-    }
-
     return '<div class="card">' +
-      '<h4 style="margin-bottom:8px;">🏆 成就 (' + unlockedCount + '/' + total + ')</h4>' +
-      html +
+      '<h3 style="margin-bottom:8px;">🏆 成就</h3>' +
+      '<p style="margin-bottom:8px;font-size:13px;">已完成 ' + unlockedCount + '/' + total + ' 个成就（奖励已自动领取）</p>' +
+      '<button class="btn btn-view-achievements">查看全部成就</button>' +
     '</div>';
   },
 
@@ -512,12 +458,15 @@ var SettingsPanel = {
       deleteBtn.addEventListener('click', function() { self._onDeleteData(); });
     }
 
-    this._container.querySelectorAll('.btn-claim-ach').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var achId = btn.getAttribute('data-ach-id');
-        self._claimAchievement(achId);
+    var viewAchBtn = this._container.querySelector('.btn-view-achievements');
+    if (viewAchBtn) {
+      viewAchBtn.addEventListener('click', function() {
+        if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
+        if (typeof AchievementPanel !== 'undefined' && AchievementPanel.show) {
+          AchievementPanel.show();
+        }
       });
-    });
+    }
   },
 
   getState: function () {

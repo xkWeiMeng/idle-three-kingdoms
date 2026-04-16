@@ -32,6 +32,7 @@
       achievement: AchievementManager.getState(),
       roguelike: RoguelikeManager.getState(),
       dailyChallenge: DailyChallengeManager.getState(),
+      tutorial: TutorialManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
@@ -60,6 +61,7 @@
     AchievementManager.init(saved);
     RoguelikeManager.init(saved);
     DailyChallengeManager.init(saved);
+    TutorialManager.init(saved);
 
     // 初始化 UI
     Toast.init();

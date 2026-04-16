@@ -90,6 +90,11 @@ var AdventurePanel = {
         var cls = val > 1 ? 'mult-high' : (val < 1 ? 'mult-low' : 'mult-normal');
         html += '<span class="adv-mult ' + cls + '">' + labels[res] + ' ×' + val.toFixed(1) + '</span>';
       }
+      html += '<div class="adv-mult-legend">' +
+        '<span class="mult-high">▲ 加成</span>' +
+        '<span class="mult-normal">— 正常</span>' +
+        '<span class="mult-low">▼ 减少</span>' +
+        '</div>';
       html += '</div>';
 
       // 地图节点

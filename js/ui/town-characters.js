@@ -826,12 +826,15 @@ var TownCharacters = {
       return a.y - b.y;
     });
 
+    // 收集已绘制气泡的矩形，用于防重叠
+    var drawnBubbles = [];
+
     for (var i = 0; i < sorted.length; i++) {
-      this._drawCharacter(ctx, sorted[i]);
+      this._drawCharacter(ctx, sorted[i], drawnBubbles);
     }
   },
 
-  _drawCharacter: function (ctx, c) {
+  _drawCharacter: function (ctx, c, drawnBubbles) {
     // 隐藏的角色不绘制（战时躲在主城里）
     if (c.hidden) return;
 
@@ -944,12 +947,12 @@ var TownCharacters = {
 
     // 气泡（拖拽时不显示）
     if (c.bubble && !isDragged) {
-      this._drawBubble(ctx, c);
+      this._drawBubble(ctx, c, drawnBubbles);
     }
   },
 
   // ── 气泡绘制 ──
-  _drawBubble: function (ctx, c) {
+  _drawBubble: function (ctx, c, drawnBubbles) {
     var text = c.bubble.text;
     var isClick = c.bubble.isClick;
 
@@ -972,6 +975,36 @@ var TownCharacters = {
     var bh = lines.length * lineH + padding * 2;
     var bx = c.x;
     var by = c.y - this.CHAR_H - bh - 10;
+
+    // ── 气泡防重叠 ──
+    if (drawnBubbles) {
+      var bubbleRect = { x: bx - bw / 2, y: by, w: bw, h: bh };
+      var maxShift = 120; // 最大上移像素，防止飞出画面
+      var totalShift = 0;
+      var hasOverlap = true;
+      while (hasOverlap && totalShift < maxShift) {
+        hasOverlap = false;
+        for (var bi = 0; bi < drawnBubbles.length; bi++) {
+          var other = drawnBubbles[bi];
+          // AABB 碰撞检测
+          if (bubbleRect.x < other.x + other.w &&
+              bubbleRect.x + bubbleRect.w > other.x &&
+              bubbleRect.y < other.y + other.h &&
+              bubbleRect.y + bubbleRect.h > other.y) {
+            // 上移到 other 上方，留 4px 间距
+            var shift = (bubbleRect.y + bubbleRect.h) - other.y + 4;
+            if (shift > 0) {
+              bubbleRect.y = other.y - bubbleRect.h - 4;
+              by = bubbleRect.y;
+              totalShift += shift;
+              hasOverlap = true;
+              break; // 重新检查所有已有气泡
+            }
+          }
+        }
+      }
+      drawnBubbles.push(bubbleRect);
+    }
 
     // 淡入淡出
     var alpha = 1;

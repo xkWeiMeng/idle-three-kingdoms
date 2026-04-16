@@ -104,10 +104,12 @@ const BattlePanel = {
     html += '</div>';
 
     // --- 进度条 ---
-    html += '<div class="battle-progress-bar">';
     var pct = cleared.length / Math.max(1, StageData.length) * 100;
+    var pctDisplay = pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1);
+    var progressColorCls = pct < 25 ? 'progress-tier1' : pct < 50 ? 'progress-tier2' : pct < 75 ? 'progress-tier3' : 'progress-tier4';
+    html += '<div class="battle-progress-bar ' + progressColorCls + '">';
     html += '<div class="battle-progress-fill" style="width:' + pct + '%;"></div>';
-    html += '<span class="battle-progress-text">关卡 ' + cleared.length + '/' + StageData.length + '</span>';
+    html += '<span class="battle-progress-text">关卡 ' + cleared.length + '/' + StageData.length + ' (' + pctDisplay + '%)</span>';
     html += '</div>';
 
     this._container.innerHTML = html;
@@ -145,7 +147,25 @@ const BattlePanel = {
     }
     html += '</div>';
 
-    html += '<div class="battle-idle-vs">⚔️</div>';
+    // --- 战力对比 ---
+    var allyPower = 0;
+    for (var pi = 0; pi < team.length; pi++) {
+      allyPower += HeroManager.getBattlePower(team[pi].uid) || 0;
+    }
+    var enemyPower = 0;
+    if (stage && stage.enemies) {
+      for (var ei = 0; ei < stage.enemies.length; ei++) {
+        var e = stage.enemies[ei];
+        enemyPower += Math.floor((e.atk || 0) + (e.def || 0) + (e.hp || 0) / 10 + (e.spd || 0));
+      }
+    }
+    var powerDiff = allyPower - enemyPower;
+    var powerCls = Math.abs(powerDiff) <= Math.max(allyPower, enemyPower, 1) * 0.1 ? 'power-even' : (powerDiff > 0 ? 'power-ahead' : 'power-behind');
+    html += '<div class="battle-idle-vs">';
+    html += '<span class="power-ally ' + powerCls + '">⚔️ ' + allyPower + '</span>';
+    html += '<span class="power-vs-label">VS</span>';
+    html += '<span class="power-enemy ' + powerCls + '">⚔️ ' + enemyPower + '</span>';
+    html += '</div>';
 
     html += '<div class="battle-idle-side">';
     html += '<div class="battle-idle-label enemy">敌方</div>';

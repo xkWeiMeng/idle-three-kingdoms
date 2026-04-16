@@ -1805,7 +1805,34 @@ html, body, #app {
   flex-shrink: 0;
   filter: drop-shadow(0 0 8px rgba(192, 57, 43, 0.4));
   animation: pulse-glow 2s ease-in-out infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
+
+.power-ally,
+.power-enemy {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.power-vs-label {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* 颜色编码 —— 我方领先=绿/敌红, 我方落后=红/敌绿, 均势=金 */
+.power-ally.power-ahead  { color: var(--color-success); }
+.power-enemy.power-ahead { color: var(--color-danger); }
+
+.power-ally.power-behind  { color: var(--color-danger); }
+.power-enemy.power-behind { color: var(--color-success); }
+
+.power-ally.power-even,
+.power-enemy.power-even { color: var(--color-gold); }
 
 /* --- 控制按钮 --- */
 .battle-controls {
@@ -2097,6 +2124,27 @@ html, body, #app {
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
+}
+
+/* --- 进度条颜色阶段 --- */
+.progress-tier1 .battle-progress-fill {
+  background: linear-gradient(90deg, var(--color-primary), #d63447);
+}
+.progress-tier2 .battle-progress-fill {
+  background: linear-gradient(90deg, #e08a2a, var(--color-gold));
+}
+.progress-tier3 .battle-progress-fill {
+  background: linear-gradient(90deg, #43a047, var(--color-success));
+}
+.progress-tier4 .battle-progress-fill {
+  background: linear-gradient(90deg, var(--color-gold), #ab47bc, var(--color-gold));
+  background-size: 200% 100%;
+  animation: progress-shimmer 3s linear infinite;
+}
+
+@keyframes progress-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* ===========================================
@@ -2764,6 +2812,15 @@ html, body, #app {
 .adv-mult.mult-high { color: var(--color-success); }
 .adv-mult.mult-low { color: var(--color-danger); }
 .adv-mult.mult-normal { color: var(--color-text-dim); }
+.adv-mult-legend {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
 .adv-map-nodes {
   display: flex;
   flex-wrap: wrap;
