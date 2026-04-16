@@ -119,13 +119,8 @@
       }
     }
 
-    // 每日签到检查
-    const dailyInfo = ResourceManager.checkDailyLogin();
-    if (dailyInfo && !dailyInfo.claimed) {
-      setTimeout(() => {
-        EventBus.emit('toast:show', { type: 'info', message: '📅 每日签到奖励可领取！' });
-      }, 2000);
-    }
+    // 每日签到弹窗（等待离线收益弹窗关闭后再显示）
+    _maybeShowDailyLoginPopup();
 
     // 启动
     GameLoop.start();
@@ -203,6 +198,110 @@
         showCancel: false
       });
     }, 500);
+  }
+
+  // —— 每日签到弹窗 ——
+
+  function _maybeShowDailyLoginPopup() {
+    var dailyInfo = ResourceManager.checkDailyLogin();
+    if (!dailyInfo || dailyInfo.claimed) return;
+
+    // 等待可能存在的离线收益弹窗先关闭再弹出
+    function tryShow() {
+      if (Modal._overlay && Modal._overlay.style.display !== 'none') {
+        setTimeout(tryShow, 500);
+        return;
+      }
+      _showDailyLoginPopup(dailyInfo);
+    }
+    setTimeout(tryShow, 1200);
+  }
+
+  function _showDailyLoginPopup(info) {
+    var day = info.day;
+    var rewards = ResourceManager._dailyRewards;
+    var cycleDay = (day - 1) % 7;
+
+    // 构建 7 天签到日历
+    var daysHtml = '';
+    for (var i = 0; i < 7; i++) {
+      var r = rewards[i];
+      var isCurrent = (i === cycleDay);
+      var isPast = (i < cycleDay);
+
+      var bg, border, extraStyle;
+      if (isCurrent) {
+        bg = 'rgba(212,168,73,0.18)';
+        border = '2px solid #d4a849';
+        extraStyle = 'box-shadow:0 0 8px rgba(212,168,73,0.3);';
+      } else if (isPast) {
+        bg = 'rgba(93,138,72,0.12)';
+        border = '1px solid rgba(93,138,72,0.4)';
+        extraStyle = 'opacity:0.7;';
+      } else {
+        bg = 'rgba(255,255,255,0.04)';
+        border = '1px solid #3a2a1a';
+        extraStyle = 'opacity:0.55;';
+      }
+
+      var rewardLines = '💰' + r.gold;
+      if (r.jade)  rewardLines += '<br>💎' + r.jade;
+      if (r.food)  rewardLines += '<br>🍖' + r.food;
+      if (r.freeRecruit) rewardLines += '<br>🎲';
+
+      var statusMark = '';
+      if (isPast) {
+        statusMark = '<div style="color:#5d8a48;font-size:9px;margin-top:1px;">✅</div>';
+      }
+
+      daysHtml += '<div style="flex:1;text-align:center;padding:5px 1px;border-radius:4px;' +
+        'background:' + bg + ';border:' + border + ';min-width:0;' + extraStyle + '">' +
+        '<div style="font-weight:bold;font-size:10px;color:' + (isCurrent ? '#d4a849' : '#e8dcc8') + ';">第' + (i + 1) + '天</div>' +
+        '<div style="margin-top:2px;font-size:9px;line-height:1.35;color:#c0b8a8;">' + rewardLines + '</div>' +
+        statusMark +
+      '</div>';
+    }
+
+    // 今日奖励文字
+    var todayReward = rewards[cycleDay];
+    var todayParts = [];
+    if (todayReward.gold)  todayParts.push('💰 ' + todayReward.gold + ' 金币');
+    if (todayReward.jade)  todayParts.push('💎 ' + todayReward.jade + ' 玉璧');
+    if (todayReward.food)  todayParts.push('🍖 ' + todayReward.food + ' 粮草');
+    if (todayReward.freeRecruit) todayParts.push('🎲 免费招募×1');
+    var todayText = todayParts.join('&nbsp;&nbsp;');
+
+    var content = '<div style="text-align:center;">' +
+      '<div style="margin-bottom:10px;font-size:0.78rem;color:#a09080;">' +
+        '已连续签到 <b style="color:#d4a849;">' + day + '</b> 天' +
+      '</div>' +
+      '<div style="display:flex;gap:3px;margin-bottom:12px;">' + daysHtml + '</div>' +
+      '<div style="padding:8px 10px;border-radius:4px;background:rgba(212,168,73,0.08);border:1px solid rgba(212,168,73,0.25);">' +
+        '<div style="font-size:0.68rem;color:#a09080;margin-bottom:4px;">今日奖励</div>' +
+        '<div style="font-size:0.82rem;color:#d4a849;font-weight:bold;">' + todayText + '</div>' +
+      '</div>' +
+    '</div>';
+
+    Modal.show({
+      title: '📅 每日签到',
+      content: content,
+      confirmText: '领取奖励',
+      showCancel: false,
+      onConfirm: function() {
+        var reward = ResourceManager.claimDailyReward();
+        if (reward) {
+          var msg = '✅ 签到成功！获得 💰' + (reward.gold || 0);
+          if (reward.jade) msg += ' 💎' + reward.jade;
+          if (reward.food) msg += ' 🍖' + reward.food;
+          if (reward.freeRecruit) msg += ' 🎲免费招募';
+          EventBus.emit('toast:show', { type: 'success', message: msg });
+        }
+        // 刷新设置面板中的签到状态
+        if (typeof SettingsPanel !== 'undefined' && SettingsPanel._render) {
+          SettingsPanel._render();
+        }
+      }
+    });
   }
 
   // 页面关闭前保存

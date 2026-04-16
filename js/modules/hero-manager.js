@@ -80,6 +80,21 @@ const HeroManager = {
     };
     this._heroes.push(hero);
     EventBus.emit('hero:added', hero);
+
+    // 自动加入队伍（如果队伍未满）
+    if (this._team.length < CONSTANTS.MAX_TEAM_SIZE) {
+      this.addToTeam(hero.uid);
+      EventBus.emit('toast:show', {
+        type: 'success',
+        message: template.name + ' 已自动加入队伍！'
+      });
+    } else {
+      EventBus.emit('toast:show', {
+        type: 'info',
+        message: '队伍已满，请手动调整编队'
+      });
+    }
+
     return hero;
   },
 

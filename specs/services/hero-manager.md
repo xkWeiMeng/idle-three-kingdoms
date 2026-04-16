@@ -28,6 +28,8 @@ system-spec: specs/system/core-contracts.md
 - 创建武将实例：`uid` 由 `Utils.uid()` 生成，`level=1`, `exp=0`, 装备全 `null`
 - **重复武将处理**：如果玩家已拥有同 `id` 的武将，不添加新实例，而是转换为经验：`quality × 100` EXP，通过 `ResourceManager.add('exp', amount)` 发放
 - 成功添加新武将后 emit `hero:added(heroInstance)`
+- **新武将自动加入队伍**：如果队伍人数 < `CONSTANTS.MAX_TEAM_SIZE`，自动调用 `addToTeam(hero.uid)`，并 toast 提示"[武将名] 已自动加入队伍！"
+- **队伍已满时**：不自动加入，toast 提示"队伍已满，请手动调整编队"
 - 重复时 emit `toast:show` 通知玩家获得经验
 
 **验收场景**：
@@ -35,9 +37,21 @@ system-spec: specs/system/core-contracts.md
 ```
 WHEN addHero('shu_zhaoyun')
 AND 玩家当前没有赵云
+AND 队伍人数 < MAX_TEAM_SIZE
 THEN 创建赵云实例（uid唯一, level=1, exp=0）
 AND _heroes 新增该实例
 AND emit hero:added(赵云实例)
+AND 自动调用 addToTeam(赵云.uid)
+AND emit toast:show "赵云 已自动加入队伍！"
+
+WHEN addHero('wei_dianwei')
+AND 玩家当前没有典韦
+AND 队伍人数 == MAX_TEAM_SIZE（5人）
+THEN 创建典韦实例
+AND _heroes 新增该实例
+AND emit hero:added(典韦实例)
+AND 不加入队伍
+AND emit toast:show "队伍已满，请手动调整编队"
 
 WHEN addHero('shu_zhaoyun')
 AND 玩家已拥有赵云（quality=4）

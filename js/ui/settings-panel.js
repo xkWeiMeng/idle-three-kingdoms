@@ -150,21 +150,54 @@ var SettingsPanel = {
     };
   },
 
+  _checkingAch: false,
+
   _checkAchievements: function () {
-    var snapshot = this._gatherSnapshot();
-    var changed = false;
-    for (var i = 0; i < AchievementDefs.length; i++) {
-      var def = AchievementDefs[i];
-      if (!this._achievements[def.id]) {
-        this._achievements[def.id] = { unlocked: false, claimed: false };
+    if (this._checkingAch) return;
+    this._checkingAch = true;
+    try {
+      var snapshot = this._gatherSnapshot();
+      var changed = false;
+      for (var i = 0; i < AchievementDefs.length; i++) {
+        var def = AchievementDefs[i];
+        if (!this._achievements[def.id]) {
+          this._achievements[def.id] = { unlocked: false, claimed: false };
+        }
+        var ach = this._achievements[def.id];
+
+        // Newly unlocked — auto-claim immediately
+        if (!ach.unlocked && def.condition(snapshot)) {
+          ach.unlocked = true;
+          changed = true;
+        }
+
+        // Auto-claim: unlocked but not yet claimed (covers both new and legacy saves)
+        if (ach.unlocked && !ach.claimed) {
+          ach.claimed = true;
+          changed = true;
+          ResourceManager.add('jade', def.jade, 'achievement', def.id);
+          if (def.bonus) {
+            if (def.bonus.gold) ResourceManager.add('gold', def.bonus.gold, 'achievement', def.id);
+            if (def.bonus.food) ResourceManager.add('food', def.bonus.food, 'achievement', def.id);
+            if (def.bonus.exp) ResourceManager.add('exp', def.bonus.exp, 'achievement', def.id);
+          }
+          // Detailed toast with reward info
+          var rewardParts = [];
+          if (def.jade) rewardParts.push('💎' + def.jade);
+          if (def.bonus && def.bonus.gold) rewardParts.push('💰' + def.bonus.gold);
+          if (def.bonus && def.bonus.food) rewardParts.push('🍖' + def.bonus.food);
+          if (def.bonus && def.bonus.exp) rewardParts.push('⭐' + def.bonus.exp);
+          var rewardStr = rewardParts.length > 0 ? '！获得 ' + rewardParts.join(' ') : '';
+          EventBus.emit('toast:show', {
+            type: 'success',
+            message: '🏆 成就达成：' + def.name + rewardStr
+          });
+        }
       }
-      if (!this._achievements[def.id].unlocked && def.condition(snapshot)) {
-        this._achievements[def.id].unlocked = true;
-        changed = true;
-        EventBus.emit('toast:show', { type: 'success', message: '🏆 成就解锁: ' + def.name });
-      }
+      if (changed) this._render();
+    } finally {
+      this._checkingAch = false;
     }
-    if (changed) this._render();
   },
 
   _claimAchievement: function (id) {
