@@ -124,7 +124,7 @@ function resetAll() {
   _emitted = [];
 }
 
-console.log('=== Running HeroManager Test Suite (25 Tests) ===\n');
+console.log('=== Running HeroManager Test Suite (27 Tests) ===\n');
 
 // C1: Getting Heroes
 console.log('--- Ability 1: Get Heroes (addHero) ---');
@@ -232,9 +232,39 @@ test('C3-S5: removeFromTeam success decreases team', function() {
 test('C3-S6: removeFromTeam not in team returns false', function() {
   resetAll();
   var hero = global.HeroManager.addHero('shu_zhaoyun');
+  global.HeroManager._team = []; // 清空自动加入的队伍
   var result = global.HeroManager.removeFromTeam(hero.uid);
   assertEqual(result, false, 'not in team returns false');
   assertEqual(global.HeroManager._team.length, 0, 'team unchanged');
+});
+
+test('C3-S7: addHero auto-joins team when not full', function() {
+  resetAll();
+  var hero = global.HeroManager.addHero('shu_zhaoyun');
+  assertEqual(global.HeroManager._team.length, 1, 'team=1 after auto-join');
+  assert(global.HeroManager.isInTeam(hero.uid), 'hero auto-joined team');
+  var toastEvent = _emitted.find(function(e) {
+    return e.event === 'toast:show' && e.args[0] && e.args[0].message && e.args[0].message.indexOf('已自动加入队伍') !== -1;
+  });
+  assert(toastEvent, 'toast shown for auto-join');
+});
+
+test('C3-S8: addHero does not auto-join when team full', function() {
+  resetAll();
+  var ids = ['shu_zhaoyun', 'shu_zhugeliang', 'wei_caocao', 'shu_liubei', 'shu_guanyu'];
+  for (var i = 0; i < ids.length; i++) {
+    global.HeroManager.addHero(ids[i]);
+  }
+  assertEqual(global.HeroManager._team.length, 5, 'team full at 5');
+  _emitted = [];
+  var extraHero = global.HeroManager.addHero('shu_zhangfei');
+  assert(extraHero !== null, 'hero still added to _heroes');
+  assertEqual(global.HeroManager._team.length, 5, 'team still 5');
+  assert(!global.HeroManager.isInTeam(extraHero.uid), 'extra hero not in team');
+  var toastEvent = _emitted.find(function(e) {
+    return e.event === 'toast:show' && e.args[0] && e.args[0].message && e.args[0].message.indexOf('队伍已满') !== -1;
+  });
+  assert(toastEvent, 'toast shown for full team');
 });
 
 // C4: Hero Leveling
