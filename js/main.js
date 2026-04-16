@@ -30,6 +30,8 @@
       towerDefense: TowerDefenseManager.getState(),
       quest: QuestManager.getState(),
       achievement: AchievementManager.getState(),
+      roguelike: RoguelikeManager.getState(),
+      dailyChallenge: DailyChallengeManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
     };
@@ -56,10 +58,13 @@
     TowerDefenseManager.init(saved);
     QuestManager.init(saved);
     AchievementManager.init(saved);
+    RoguelikeManager.init(saved);
+    DailyChallengeManager.init(saved);
 
     // 初始化 UI
     Toast.init();
     Modal.init();
+    CelebrationOverlay.init();
     OverlayPanel.init();
     BottomNav.init();
     ResourcesBar.init();
@@ -84,6 +89,8 @@
     TowerDefensePanel.init();
     QuestPanel.init();
     AchievementPanel.init();
+    RoguelikePanel.init();
+    DailyChallengePanel.init();
 
     // 注册 tick 回调
     EventBus.on('game:tick', (dt) => {
@@ -100,6 +107,8 @@
       ParkingManager.onTick(dt);
       TowerDefenseManager.onTick(dt);
       QuestManager.onTick(dt);
+      RoguelikeManager.onTick(dt);
+      DailyChallengeManager.onTick(dt);
     });
 
     // 离线收益计算

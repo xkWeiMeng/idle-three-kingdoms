@@ -26,6 +26,8 @@ const BattleManager = {
   _battleTimer: 0,
   /** 自动推图胜利后等待延迟（秒） */
   _autoAdvanceDelay: 0,
+  /** 战斗速度倍率：1/2/4 */
+  _battleSpeed: 1,
 
   // ---------- 生命周期 ----------
 
@@ -39,14 +41,15 @@ const BattleManager = {
     };
     this._battleTimer = 0;
     this._autoAdvanceDelay = 0;
+    this._battleSpeed = data.battleSpeed || 1;
   },
 
   onTick: function (dt) {
     var bs = this._state.battleState;
 
-    // 战斗中：累积时间，每秒执行一回合
+    // 战斗中：累积时间（乘以速度倍率），每秒执行一回合
     if (bs && bs.phase === 'fighting') {
-      this._battleTimer += dt;
+      this._battleTimer += dt * this._battleSpeed;
       while (this._battleTimer >= 1.0 && bs.phase === 'fighting') {
         this._battleTimer -= 1.0;
         this._executeRound();
@@ -54,9 +57,9 @@ const BattleManager = {
       return;
     }
 
-    // 自动推图：胜利后延迟 1 秒开始下一关
+    // 自动推图：胜利后延迟 1 秒开始下一关（也受加速影响）
     if (this._state.isAutoFight && bs && (bs.phase === 'victory')) {
-      this._autoAdvanceDelay += dt;
+      this._autoAdvanceDelay += dt * this._battleSpeed;
       if (this._autoAdvanceDelay >= 1.0) {
         this._autoAdvanceDelay = 0;
         var next = this._getNextStage(this._state.currentStage);
@@ -83,22 +86,34 @@ const BattleManager = {
       return false;
     }
 
-    // 检查食物
+    // 检查食物 — 新手首通免费 + 食物耗尽降低奖励而非阻止
     var cost = stage.foodCost || 0;
-    if (cost > 0 && !ResourceManager.canAfford(CONSTANTS.RESOURCE.FOOD, cost)) {
-      EventBus.emit('toast:show', { type: 'warning', message: '粮草不足，无法出战！' });
-      return false;
+    var isFirstClear = this._state.clearedStages.indexOf(this._state.currentStage) === -1;
+    var stageNum = parseInt((this._state.currentStage || '').replace(/\D/g, '') || '0');
+    var isNewbieFree = isFirstClear && stageNum <= CONSTANTS.FOOD.NEWBIE_FREE_STAGES;
+    var foodDepleted = false;
+
+    if (cost > 0 && !isNewbieFree) {
+      if (ResourceManager.canAfford(CONSTANTS.RESOURCE.FOOD, cost)) {
+        ResourceManager.spend(CONSTANTS.RESOURCE.FOOD, cost);
+      } else {
+        // 食物耗尽：允许战斗但标记奖励衰减
+        foodDepleted = true;
+      }
     }
 
-    // 消耗食物（战斗开始时扣除）
-    if (cost > 0) {
-      ResourceManager.spend(CONSTANTS.RESOURCE.FOOD, cost);
-    }
-
-    // 构建队友单位（含建筑加成 + 料理加成）
+    // 构建队友单位（含建筑加成 + 料理加成 + 阵营羁绊加成）
     var atkBonus = typeof TownManager !== 'undefined' ? TownManager.getAtkBonus() : 0;
     var defBonus = typeof TownManager !== 'undefined' ? TownManager.getDefBonus() : 0;
     var hpBonus  = typeof TownManager !== 'undefined' ? TownManager.getHpBonus() : 0;
+
+    // 阵营共鸣 & 武将羁绊
+    var teamBonuses = typeof calculateTeamBonuses === 'function' ? calculateTeamBonuses(team) : null;
+    if (teamBonuses) {
+      atkBonus += teamBonuses.atkPercent;
+      defBonus += teamBonuses.defPercent;
+      hpBonus  += teamBonuses.hpPercent;
+    }
 
     // 料理 Buff 加成
     var cookBuff = typeof FarmManager !== 'undefined' ? FarmManager.getActiveBuff() : null;
@@ -107,6 +122,15 @@ const BattleManager = {
       atkBonus += (ce.atkBonus || 0) + (ce.allBonus || 0);
       defBonus += (ce.defBonus || 0) + (ce.allBonus || 0);
       hpBonus  += (ce.hpBonus || 0) + (ce.allBonus || 0);
+    }
+
+    // 塔防永久加成
+    var tdBuff = (typeof TowerDefenseManager !== 'undefined' && TowerDefenseManager.getPermanentBattleBuff)
+      ? TowerDefenseManager.getPermanentBattleBuff() : null;
+    if (tdBuff) {
+      atkBonus += tdBuff.atkPercent;
+      defBonus += tdBuff.defPercent;
+      hpBonus  += tdBuff.hpPercent;
     }
 
     var allies = [];
@@ -166,7 +190,33 @@ const BattleManager = {
       }
 
       var cookSpdBonus = (cookBuff && cookBuff.effects.spdBonus) ? cookBuff.effects.spdBonus : 0;
-      var finalSpd = Math.floor(stats.spd * (1 + cookSpdBonus));
+      var spdBonus = cookSpdBonus + (teamBonuses ? teamBonuses.spdPercent : 0);
+      // 个人羁绊加成（如吕布天下无双）
+      var selfBonus = (teamBonuses && teamBonuses.selfBonuses[hero.id]) || null;
+      if (selfBonus) {
+        finalAtk = Math.floor(finalAtk * (1 + (selfBonus.atkPercent || 0)));
+        finalDef = Math.floor(finalDef * (1 + (selfBonus.defPercent || 0)));
+        spdBonus += selfBonus.spdPercent || 0;
+      }
+      var finalSpd = Math.floor(stats.spd * (1 + spdBonus));
+
+      // 装备词缀战斗效果
+      var combatAffixData = { lifesteal: 0, critRate: 0, critDamage: 0, thorns: 0, dodge: 0, healPerRound: 0 };
+      if (typeof aggregateCombatAffixes === 'function' && hero.equipment) {
+        var heroEquips = [];
+        var eqSlots = Object.keys(hero.equipment);
+        for (var eqi = 0; eqi < eqSlots.length; eqi++) {
+          var eqUid = hero.equipment[eqSlots[eqi]];
+          if (eqUid) {
+            var eqItem = (typeof EquipmentManager !== 'undefined') ? EquipmentManager.getEquipment(eqUid) : null;
+            if (eqItem) heroEquips.push(eqItem);
+          }
+        }
+        combatAffixData = aggregateCombatAffixes(heroEquips);
+      }
+
+      // 终极技能数据
+      var ultData = (typeof UltimateSkills !== 'undefined' && UltimateSkills[hero.id]) ? UltimateSkills[hero.id] : null;
 
       allies.push({
         uid: hero.uid,
@@ -195,14 +245,28 @@ const BattleManager = {
         setHealInterval: setHealInterval,
         setHealPct: setHealPct,
         setDeathImmunity: setDeathImmunity,
-        deathImmunityUsed: false
+        deathImmunityUsed: false,
+        // 装备词缀战斗效果
+        affixLifesteal: combatAffixData.lifesteal,
+        affixCritRate: combatAffixData.critRate,
+        affixCritDmg: combatAffixData.critDamage,
+        affixThorns: combatAffixData.thorns,
+        affixDodge: combatAffixData.dodge,
+        affixHealPerRound: combatAffixData.healPerRound,
+        // 终极技能
+        ultimate: ultData,
+        energy: 0,
+        energyMax: ultData ? (ultData.energyCost || 100) : 100,
+        ultimateReady: false
       });
     }
 
-    // 构建敌方单位
+    // 构建敌方单位（含羁绊减益）
+    var enemyAtkMult = 1 - (teamBonuses ? teamBonuses.enemyAtkReduce : 0);
     var enemies = [];
     for (var j = 0; j < stage.enemies.length; j++) {
       var e = stage.enemies[j];
+      var eAtk = Math.floor(e.atk * enemyAtkMult);
       enemies.push({
         uid: 'enemy_' + Utils.uid(),
         id: e.id,
@@ -210,10 +274,10 @@ const BattleManager = {
         emoji: '',
         currentHp: e.hp,
         maxHp: e.hp,
-        atk: e.atk,
+        atk: eAtk,
         def: e.def,
         spd: e.spd,
-        baseAtk: e.atk,
+        baseAtk: eAtk,
         baseDef: e.def,
         baseSpd: e.spd,
         skill: e.skill ? Utils.deepClone(e.skill) : null,
@@ -230,7 +294,9 @@ const BattleManager = {
       allies: allies,
       enemies: enemies,
       round: 0,
-      log: []
+      log: [],
+      foodDepleted: foodDepleted,
+      teamBonuses: teamBonuses
     };
     this._battleTimer = 0;
     this._autoAdvanceDelay = 0;
@@ -276,6 +342,26 @@ const BattleManager = {
           this._addLog(state, '  ✨ 套装效果：全体回复 ' + Math.round(ally.setHealPct * 100) + '% HP');
           break; // Only trigger once per team
         }
+      }
+    }
+
+    // 2.6 羁绊效果：每回合全体回血
+    if (state.teamBonuses && state.teamBonuses.healPerRound > 0) {
+      for (var bhi = 0; bhi < state.allies.length; bhi++) {
+        if (state.allies[bhi].isAlive) {
+          var bondHeal = Math.floor(state.allies[bhi].maxHp * state.teamBonuses.healPerRound);
+          state.allies[bhi].currentHp = Math.min(state.allies[bhi].maxHp, state.allies[bhi].currentHp + bondHeal);
+        }
+      }
+      this._addLog(state, '  🍑 羁绊效果：全体回复 ' + Math.round(state.teamBonuses.healPerRound * 100) + '% HP');
+    }
+
+    // 词缀回春效果
+    for (var ahi = 0; ahi < state.allies.length; ahi++) {
+      var aUnit = state.allies[ahi];
+      if (aUnit.isAlive && aUnit.affixHealPerRound > 0) {
+        var affixHeal = Math.floor(aUnit.maxHp * aUnit.affixHealPerRound / 100);
+        aUnit.currentHp = Math.min(aUnit.maxHp, aUnit.currentHp + affixHeal);
       }
     }
 
@@ -363,6 +449,12 @@ const BattleManager = {
 
     var result = this._calculateDamage(unit, target, 1.0);
 
+    // 闪避
+    if (result.isDodge) {
+      this._addLog(state, '[第' + state.round + '回合] ' + unit.name + ' 攻击 → ' + target.name + ' 🌀闪避！');
+      return;
+    }
+
     // Set bonus: double damage chance
     if (unit.setDoubleDmg && Math.random() < unit.setDoubleDmg) {
       result.damage = result.damage * 2;
@@ -370,6 +462,23 @@ const BattleManager = {
     }
 
     target.currentHp -= result.damage;
+
+    // 吸血词缀
+    if (unit.affixLifesteal && unit.isAlive) {
+      var healAmt = Math.floor(result.damage * unit.affixLifesteal / 100);
+      if (healAmt > 0) {
+        unit.currentHp = Math.min(unit.maxHp, unit.currentHp + healAmt);
+      }
+    }
+
+    // 荆棘词缀（反伤）
+    if (target.affixThorns && target.isAlive && result.damage > 0) {
+      var thornsDmg = Math.floor(result.damage * target.affixThorns / 100);
+      if (thornsDmg > 0) {
+        unit.currentHp -= thornsDmg;
+        if (unit.currentHp <= 0) { unit.currentHp = 0; unit.isAlive = false; }
+      }
+    }
 
     // Set bonus: death immunity
     if (target.currentHp <= 0 && target.isAlly && target.setDeathImmunity && !target.deathImmunityUsed) {
@@ -389,6 +498,10 @@ const BattleManager = {
 
     // Trigger attack animation
     BattleAnimations.playAttack(unit.uid, target.uid, result.damage, result.isCrit);
+
+    // 能量积攒
+    if (unit.ultimate) this._gainEnergy(unit, unit.ultimate.energyGainOnHit || 8);
+    if (target.ultimate) this._gainEnergy(target, target.ultimate.energyGainOnHurt || 10);
 
     var critText = result.isCrit ? '💥暴击！' : '';
     var doubleText = result.isDouble ? '⚡双倍！' : '';
@@ -449,6 +562,10 @@ const BattleManager = {
         target.currentHp = 0;
         target.isAlive = false;
       }
+
+      // 能量积攒
+      if (unit.ultimate) this._gainEnergy(unit, unit.ultimate.energyGainOnHit || 8);
+      if (target.ultimate) this._gainEnergy(target, target.ultimate.energyGainOnHurt || 10);
 
       // 触发技能动画
       BattleAnimations.playSkill(unit.uid, target.uid,
@@ -562,18 +679,193 @@ const BattleManager = {
   // ---------- 伤害计算 ----------
 
   _calculateDamage: function (attacker, defender, multiplier) {
+    // 闪避检查（词缀 dodge）
+    var dodgeChance = (defender.affixDodge || 0) / 100;
+    if (dodgeChance > 0 && Math.random() < dodgeChance) {
+      return { damage: 0, isCrit: false, isDodge: true };
+    }
+
     var randomFactor = 0.9 + Math.random() * 0.2;
     var baseDamage = Math.floor(attacker.atk * multiplier * randomFactor);
     var reduction = defender.def / (defender.def + 100);
     var damage = Math.max(1, Math.floor(baseDamage * (1 - reduction)));
 
-    var critChance = 0.05 + (attacker.setCritRate || 0);
+    var critChance = 0.05 + (attacker.setCritRate || 0) + (attacker.affixCritRate || 0) / 100;
     var isCrit = Math.random() < critChance;
     if (isCrit) {
-      damage = Math.floor(damage * 1.5);
+      var critMult = 1.5 + (attacker.affixCritDmg || 0) / 100;
+      damage = Math.floor(damage * critMult);
     }
 
-    return { damage: damage, isCrit: isCrit };
+    return { damage: damage, isCrit: isCrit, isDodge: false };
+  },
+
+  // ---------- 能量系统 ----------
+
+  _gainEnergy: function (unit, amount) {
+    if (!unit.ultimate || !unit.isAlly) return;
+    unit.energy = Math.min(unit.energyMax, (unit.energy || 0) + amount);
+    if (unit.energy >= unit.energyMax && !unit.ultimateReady) {
+      unit.ultimateReady = true;
+      EventBus.emit('battle:ultimate_ready', { uid: unit.uid, name: unit.name, ultimate: unit.ultimate });
+    }
+  },
+
+  /** 玩家手动触发终极技能 */
+  triggerUltimate: function (uid) {
+    var bs = this._state.battleState;
+    if (!bs || bs.phase !== 'fighting') return false;
+
+    var unit = null;
+    for (var i = 0; i < bs.allies.length; i++) {
+      if (bs.allies[i].uid === uid && bs.allies[i].isAlive) {
+        unit = bs.allies[i];
+        break;
+      }
+    }
+    if (!unit || !unit.ultimate || unit.energy < unit.energyMax) return false;
+
+    unit.energy = 0;
+    unit.ultimateReady = false;
+    this._executeUltimate(unit, bs);
+    EventBus.emit('battle:ultimate_used', { uid: unit.uid, name: unit.name });
+
+    var result = this._checkBattleEnd();
+    if (result) {
+      if (result === 'victory') this._handleVictory();
+      else this._handleDefeat();
+    }
+    return true;
+  },
+
+  _executeUltimate: function (unit, state) {
+    var ult = unit.ultimate;
+    this._addLog(state, '  🌟 ' + unit.name + ' 释放终极技能【' + ult.name + '】！');
+
+    var targets = unit.isAlly ? state.enemies : state.allies;
+    var allies = unit.isAlly ? state.allies : state.enemies;
+
+    if (ult.type === 'damage' || ult.type === 'damage_buff' || ult.type === 'damage_debuff' || ult.type === 'damage_dot' || ult.type === 'sacrifice_damage') {
+      // 牺牲HP型
+      if (ult.hpCostPercent) {
+        var hpCost = Math.floor(unit.currentHp * ult.hpCostPercent);
+        unit.currentHp = Math.max(1, unit.currentHp - hpCost);
+      }
+
+      if (ult.target === 'all') {
+        for (var t = 0; t < targets.length; t++) {
+          if (!targets[t].isAlive) continue;
+          var dmg = this._calculateDamage(unit, targets[t], ult.multiplier);
+          if (ult.forceCrit) { dmg.damage = Math.floor(dmg.damage * 1.5); dmg.isCrit = true; }
+          targets[t].currentHp -= dmg.damage;
+          if (targets[t].currentHp <= 0) { targets[t].currentHp = 0; targets[t].isAlive = false; }
+          this._addLog(state, '    → ' + targets[t].name + ' 受到 ' + dmg.damage + ' 伤害' + (dmg.isCrit ? '💥' : ''));
+        }
+      } else if (ult.target === 'lowest_hp') {
+        var lowest = null;
+        for (var tl = 0; tl < targets.length; tl++) {
+          if (targets[tl].isAlive && (!lowest || targets[tl].currentHp < lowest.currentHp)) lowest = targets[tl];
+        }
+        if (lowest) {
+          var dmgL = this._calculateDamage(unit, lowest, ult.multiplier);
+          if (ult.forceCrit) { dmgL.damage = Math.floor(dmgL.damage * 1.5); dmgL.isCrit = true; }
+          lowest.currentHp -= dmgL.damage;
+          if (lowest.currentHp <= 0) { lowest.currentHp = 0; lowest.isAlive = false; }
+          this._addLog(state, '    → ' + lowest.name + ' 受到 ' + dmgL.damage + ' 伤害' + (dmgL.isCrit ? '💥' : ''));
+        }
+      }
+
+      // 附加buff/debuff
+      if (ult.selfBuff) {
+        this._applyBuff(unit, { stat: ult.selfBuff.stat, ratio: ult.selfBuff.percent, duration: ult.selfBuff.duration }, ult.name);
+      }
+      if (ult.debuffEffect) {
+        for (var td = 0; td < targets.length; td++) {
+          if (targets[td].isAlive) {
+            var dStats = ult.debuffEffect.stats || [ult.debuffEffect.stat];
+            for (var ds = 0; ds < dStats.length; ds++) {
+              this._applyBuff(targets[td], { stat: dStats[ds], ratio: ult.debuffEffect.percent, duration: ult.debuffEffect.duration }, ult.name);
+            }
+          }
+        }
+      }
+      if (ult.teamBuff) {
+        for (var tb = 0; tb < allies.length; tb++) {
+          if (allies[tb].isAlive) {
+            var bStats = ult.teamBuff.stats || [ult.teamBuff.stat];
+            for (var bs2 = 0; bs2 < bStats.length; bs2++) {
+              this._applyBuff(allies[tb], { stat: bStats[bs2], ratio: ult.teamBuff.percent, duration: ult.teamBuff.duration }, ult.name);
+            }
+          }
+        }
+      }
+
+    } else if (ult.type === 'multi_hit') {
+      for (var mh = 0; mh < ult.hits; mh++) {
+        var mTarget = this._pickRandomAlive(targets);
+        if (!mTarget) break;
+        var mDmg = this._calculateDamage(unit, mTarget, ult.multiplier);
+        mTarget.currentHp -= mDmg.damage;
+        if (mTarget.currentHp <= 0) { mTarget.currentHp = 0; mTarget.isAlive = false; }
+        this._addLog(state, '    → ' + mTarget.name + ' 受到 ' + mDmg.damage + ' 伤害');
+      }
+
+    } else if (ult.type === 'heal' || ult.type === 'heal_buff' || ult.type === 'heal_cleanse') {
+      for (var ha = 0; ha < allies.length; ha++) {
+        if (!allies[ha].isAlive) continue;
+        var healAmt = Math.floor(allies[ha].maxHp * ult.healPercent);
+        allies[ha].currentHp = Math.min(allies[ha].maxHp, allies[ha].currentHp + healAmt);
+        if (ult.type === 'heal_cleanse') {
+          allies[ha].buffs = allies[ha].buffs.filter(function (b) { return b.ratio >= 0; });
+          this._recalcStats(allies[ha]);
+        }
+        this._addLog(state, '    → ' + allies[ha].name + ' 回复 ' + healAmt + ' HP');
+      }
+      if (ult.buffEffect) {
+        for (var hb = 0; hb < allies.length; hb++) {
+          if (allies[hb].isAlive) {
+            this._applyBuff(allies[hb], { stat: ult.buffEffect.stat, ratio: ult.buffEffect.percent, duration: ult.buffEffect.duration }, ult.name);
+          }
+        }
+      }
+
+    } else if (ult.type === 'shield') {
+      for (var sa = 0; sa < allies.length; sa++) {
+        if (!allies[sa].isAlive) continue;
+        var shieldAmt = Math.floor(allies[sa].maxHp * ult.shieldPercent);
+        allies[sa].currentHp = Math.min(allies[sa].maxHp + shieldAmt, allies[sa].currentHp + shieldAmt);
+        this._addLog(state, '    → ' + allies[sa].name + ' 获得 ' + shieldAmt + ' 护盾');
+      }
+
+    } else if (ult.type === 'debuff') {
+      for (var da = 0; da < targets.length; da++) {
+        if (targets[da].isAlive && ult.debuffEffect) {
+          var dbStats = ult.debuffEffect.stats || [ult.debuffEffect.stat];
+          for (var dbs = 0; dbs < dbStats.length; dbs++) {
+            this._applyBuff(targets[da], { stat: dbStats[dbs], ratio: ult.debuffEffect.percent, duration: ult.debuffEffect.duration }, ult.name);
+          }
+        }
+      }
+
+    } else if (ult.type === 'steal_buff') {
+      var totalStolen = 0;
+      for (var st = 0; st < targets.length; st++) {
+        if (targets[st].isAlive) {
+          var stolen = Math.floor(targets[st].atk * ult.stealPercent);
+          totalStolen += stolen;
+          this._applyBuff(targets[st], { stat: 'atk', ratio: -ult.stealPercent, duration: ult.duration }, ult.name);
+        }
+      }
+      var perAlly = Math.floor(totalStolen / Math.max(1, allies.filter(function(a){return a.isAlive;}).length));
+      for (var sa2 = 0; sa2 < allies.length; sa2++) {
+        if (allies[sa2].isAlive) {
+          this._applyBuff(allies[sa2], { stat: 'atk', ratio: perAlly / Math.max(1, allies[sa2].baseAtk), duration: ult.duration }, ult.name);
+        }
+      }
+      this._addLog(state, '    窃取了 ' + totalStolen + ' 点攻击力分配给全队');
+    }
+
+    EventBus.emit('battle:tick', { round: state.round });
   },
 
   // ---------- Buff / Debuff 系统 ----------
@@ -655,6 +947,12 @@ const BattleManager = {
     var rewardSummary = [];
     var stageId = this._state.currentStage;
 
+    // 食物耗尽时奖励衰减
+    var rewardMult = state.foodDepleted ? CONSTANTS.FOOD.DEPLETED_REWARD_RATE : 1;
+    if (state.foodDepleted) {
+      rewardSummary.push('⚠️粮草不足(-' + Math.round((1 - rewardMult) * 100) + '%)');
+    }
+
     // 基础奖励（含校场 EXP 加成 + 料理 EXP 加成）
     var expBonusMult = 1 + (typeof TownManager !== 'undefined' ? TownManager.getExpBonus() : 0);
     var cookBuffReward = typeof FarmManager !== 'undefined' ? FarmManager.getActiveBuff() : null;
@@ -663,30 +961,35 @@ const BattleManager = {
     }
 
     if (rewards.gold) {
-      ResourceManager.add(CONSTANTS.RESOURCE.GOLD, rewards.gold, 'battle', 'stage_reward', stageId);
-      rewardSummary.push('💰' + rewards.gold);
+      var actualGold = Math.floor(rewards.gold * rewardMult);
+      ResourceManager.add(CONSTANTS.RESOURCE.GOLD, actualGold, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('💰' + actualGold);
     }
     if (rewards.exp) {
-      var actualExp = Math.floor(rewards.exp * expBonusMult);
+      var actualExp = Math.floor(rewards.exp * expBonusMult * rewardMult);
       ResourceManager.add(CONSTANTS.RESOURCE.EXP, actualExp, 'battle', 'stage_reward', stageId);
       rewardSummary.push('⭐' + actualExp);
     }
     if (rewards.food) {
-      ResourceManager.add(CONSTANTS.RESOURCE.FOOD, rewards.food, 'battle', 'stage_reward', stageId);
-      rewardSummary.push('🍖' + rewards.food);
+      var actualFood = Math.floor(rewards.food * rewardMult);
+      ResourceManager.add(CONSTANTS.RESOURCE.FOOD, actualFood, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('🍖' + actualFood);
     }
     // 建筑资源掉落
     if (rewards.wood) {
-      ResourceManager.add(CONSTANTS.RESOURCE.WOOD, rewards.wood, 'battle', 'stage_reward', stageId);
-      rewardSummary.push('🪵' + rewards.wood);
+      var actualWood = Math.floor(rewards.wood * rewardMult);
+      ResourceManager.add(CONSTANTS.RESOURCE.WOOD, actualWood, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('🪵' + actualWood);
     }
     if (rewards.stone) {
-      ResourceManager.add(CONSTANTS.RESOURCE.STONE, rewards.stone, 'battle', 'stage_reward', stageId);
-      rewardSummary.push('🪨' + rewards.stone);
+      var actualStone = Math.floor(rewards.stone * rewardMult);
+      ResourceManager.add(CONSTANTS.RESOURCE.STONE, actualStone, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('🪨' + actualStone);
     }
     if (rewards.iron) {
-      ResourceManager.add(CONSTANTS.RESOURCE.IRON, rewards.iron, 'battle', 'stage_reward', stageId);
-      rewardSummary.push('⛏️' + rewards.iron);
+      var actualIron = Math.floor(rewards.iron * rewardMult);
+      ResourceManager.add(CONSTANTS.RESOURCE.IRON, actualIron, 'battle', 'stage_reward', stageId);
+      rewardSummary.push('⛏️' + actualIron);
     }
 
     // 首次通关奖励
@@ -899,6 +1202,20 @@ const BattleManager = {
     return bs ? bs.phase === 'fighting' : false;
   },
 
+  // ---------- 战斗速度控制 ----------
+
+  getBattleSpeed: function () {
+    return this._battleSpeed;
+  },
+
+  cycleBattleSpeed: function () {
+    if (this._battleSpeed === 1) this._battleSpeed = 2;
+    else if (this._battleSpeed === 2) this._battleSpeed = 4;
+    else this._battleSpeed = 1;
+    EventBus.emit('battle:speed_changed', { speed: this._battleSpeed });
+    return this._battleSpeed;
+  },
+
   getBattleState: function () {
     return this._state.battleState;
   },
@@ -916,6 +1233,7 @@ const BattleManager = {
       currentStage: this._state.currentStage,
       isAutoFight: this._state.isAutoFight,
       clearedStages: this._state.clearedStages.slice(),
+      battleSpeed: this._battleSpeed,
       battleState: null   // 不保存战中状态
     };
   }

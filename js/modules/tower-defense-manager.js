@@ -102,6 +102,21 @@ var TowerDefenseManager = {
     return Utils.deepClone(this._state);
   },
 
+  /** 根据塔防最高波次计算永久战斗加成 */
+  getPermanentBattleBuff: function () {
+    if (!this._state || !this._state.unlocked) return null;
+    var hw = (this._state.wave && this._state.wave.highest) || 0;
+    if (hw <= 0) return null;
+    // 每5波：ATK+1%, DEF+1%, HP+0.5%
+    return {
+      atkPercent: Math.floor(hw / 5) * 0.01,
+      defPercent: Math.floor(hw / 5) * 0.01,
+      hpPercent:  Math.floor(hw / 5) * 0.005,
+      label: '城防加成(波' + hw + ')',
+      highestWave: hw
+    };
+  },
+
   isUnlocked: function () {
     return this._state.unlocked;
   },

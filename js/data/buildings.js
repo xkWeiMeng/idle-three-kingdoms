@@ -561,13 +561,13 @@ const BuildingData = {
     }
   },
 
-  // ===== 停车场系统建筑 =====
+  // ===== 驿站系统建筑 =====
   parking_lot: {
     id: 'parking_lot',
-    name: '停车场',
-    emoji: '🅿️',
+    name: '驿站',
+    emoji: '🐴',
     category: 'functional',
-    description: '停放载具收取停车费，被动产出金币',
+    description: '饲养坐骑派遣任务，被动产出金币',
     requires: { town_hall: 4, stable: 1 },
     maxLevel: 5,
     unlockOrder: 23,

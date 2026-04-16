@@ -92,6 +92,11 @@ var AchievementManager = {
       type: 'success',
       message: '🏆 成就达成：' + ach.title + ' — ' + milestone.desc
     });
+    EventBus.emit('achievement:milestone', {
+      name: ach.title,
+      description: milestone.desc,
+      icon: ach.icon
+    });
     EventBus.emit('achievement:claimed', { id: ach.id, milestone: nextIdx });
     return true;
   },

@@ -56,7 +56,8 @@ const EquipmentManager = {
       description: template.description,
       stats: { [template.statType]: statValue },
       level: 0,
-      equippedBy: null
+      equippedBy: null,
+      affixes: (typeof rollEquipAffixes === 'function') ? rollEquipAffixes(quality) : []
     };
 
     // 6. Add to inventory or overflow

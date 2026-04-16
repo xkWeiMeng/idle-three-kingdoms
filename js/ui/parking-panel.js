@@ -1,5 +1,5 @@
 /**
- * 停车场面板 UI — 车位网格 / 载具商店 / 我的车库
+ * 驿站面板 UI — 马厩网格 / 坐骑商店 / 我的坐骑
  * CAP-PKG-10
  */
 var ParkingPanel = {
@@ -30,7 +30,7 @@ var ParkingPanel = {
   show: function () {
     var html = this._render();
     OverlayPanel.show({
-      title: '🅿️ 停车场',
+      title: '🐴 驿站',
       content: html,
       panelId: 'parking',
       height: 'full',
@@ -76,7 +76,7 @@ var ParkingPanel = {
 
     // Header
     html += '<div style="text-align:center;padding:8px;background:var(--color-surface);border-radius:8px;margin-bottom:10px;">';
-    html += '<div style="font-size:1.1em;font-weight:bold;">🅿️ 停车场 Lv.' + parkingLevel + '</div>';
+    html += '<div style="font-size:1.1em;font-weight:bold;">🐴 驿站 Lv.' + parkingLevel + '</div>';
     html += '<div style="color:var(--color-gold);margin-top:4px;">收入倍率 ×' + multiplier.toFixed(2) + '</div>';
     html += '<div style="color:var(--color-success);margin-top:4px;">当前收入：<span id="parking-income-display">' + Utils.formatNumber(incomePerHour) + '</span> 金/小时</div>';
     html += '</div>';
@@ -84,7 +84,7 @@ var ParkingPanel = {
     // Tab buttons
     html += '<div style="display:flex;gap:4px;margin-bottom:10px;">';
     var tabs = [
-      { id: 'slots', label: '🚗 车位' },
+      { id: 'slots', label: '🐴 马厩' },
       { id: 'shop', label: '🏪 商店' },
       { id: 'garage', label: '🔧 车库' }
     ];
@@ -113,12 +113,12 @@ var ParkingPanel = {
   _renderUnbuilt: function () {
     var html = '<div id="parking-panel-content" style="text-align:center;padding:40px 20px;">';
     html += '<div style="font-size:3em;">🅿️</div>';
-    html += '<div style="font-size:1.2em;margin:16px 0;">停车场尚未建造</div>';
+    html += '<div style="font-size:1.2em;margin:16px 0;">驿站尚未建造</div>';
     html += '<div style="color:var(--color-text-dim);margin-bottom:16px;">';
     html += '需要：城主府 Lv.4 + 马厩 Lv.1';
     html += '</div>';
     html += '<div style="color:var(--color-text-dim);">';
-    html += '在城镇中建造停车场后，可购买载具停入车位，被动产出金币收入。';
+    html += '在城镇中建造驿站后，可购买坐骑入驻马厩，被动产出金币收入。';
     html += '</div>';
     html += '</div>';
     return html;
@@ -149,7 +149,7 @@ var ParkingPanel = {
           // Empty slot
           html += '<div class="card" style="text-align:center;padding:12px;cursor:pointer;opacity:0.6;" data-parking-park="' + i + '">';
           html += '<div style="font-size:2em;">➕</div>';
-          html += '<div style="font-size:0.8em;margin-top:4px;color:var(--color-text-dim);">空车位 ' + (i + 1) + '</div>';
+          html += '<div style="font-size:0.8em;margin-top:4px;color:var(--color-text-dim);">空马厩 ' + (i + 1) + '</div>';
           html += '</div>';
         }
       } else {
@@ -160,7 +160,7 @@ var ParkingPanel = {
           var canUnlock = ParkingManager.canUnlockSlot();
           html += '<div class="card" style="text-align:center;padding:12px;cursor:' + (canUnlock ? 'pointer' : 'default') + ';opacity:' + (canUnlock ? '1' : '0.5') + ';" data-parking-unlock="1">';
           html += '<div style="font-size:2em;">🔒</div>';
-          html += '<div style="font-size:0.7em;margin-top:4px;">解锁车位 ' + nextSlot + '</div>';
+          html += '<div style="font-size:0.7em;margin-top:4px;">解锁马厩 ' + nextSlot + '</div>';
           if (cost) {
             var costParts = [];
             if (cost.gold > 0) costParts.push(Utils.formatNumber(cost.gold) + ' 金');
@@ -171,7 +171,7 @@ var ParkingPanel = {
         } else {
           html += '<div class="card" style="text-align:center;padding:12px;opacity:0.3;">';
           html += '<div style="font-size:2em;">🔒</div>';
-          html += '<div style="font-size:0.7em;margin-top:4px;color:var(--color-text-dim);">车位 ' + (i + 1) + '</div>';
+          html += '<div style="font-size:0.7em;margin-top:4px;color:var(--color-text-dim);">马厩 ' + (i + 1) + '</div>';
           html += '</div>';
         }
       }
@@ -181,7 +181,7 @@ var ParkingPanel = {
 
     // Slot summary
     if (state.unlockedSlots >= 10) {
-      html += '<div style="text-align:center;color:var(--color-success);font-size:0.9em;">✅ 全部车位已解锁</div>';
+      html += '<div style="text-align:center;color:var(--color-success);font-size:0.9em;">✅ 全部马厩已解锁</div>';
     }
 
     return html;
@@ -214,7 +214,7 @@ var ParkingPanel = {
 
       // Button
       if (locked) {
-        html += '<div style="font-size:0.7em;color:var(--color-danger);">需停车场 Lv.' + vData.requiredLevel + '</div>';
+        html += '<div style="font-size:0.7em;color:var(--color-danger);">需驿站 Lv.' + vData.requiredLevel + '</div>';
       } else {
         html += '<button class="btn" data-parking-buy="' + vData.id + '" ' + (canBuy ? '' : 'disabled') + ' style="padding:6px 12px;font-size:0.8em;' + (canBuy ? 'background:var(--color-primary);' : 'opacity:0.5;') + '">购买</button>';
       }
@@ -241,7 +241,7 @@ var ParkingPanel = {
 
     if (state.vehicles.length === 0) {
       html += '<div style="text-align:center;padding:30px;color:var(--color-text-dim);">';
-      html += '车库为空，前往商店购买载具吧！';
+      html += '坐骑栏为空，前往商店购买坐骑吧！';
       html += '</div>';
       return html;
     }
@@ -289,7 +289,7 @@ var ParkingPanel = {
         html += '<div class="card" style="display:flex;align-items:center;padding:8px;">';
         html += '<div style="font-size:1.5em;width:36px;text-align:center;">' + pvData.emoji + '</div>';
         html += '<div style="flex:1;margin-left:8px;">';
-        html += '<div>' + pvData.name + ' <span style="font-size:0.7em;color:var(--color-success);">🅿️ 车位 ' + (pv.parkedAt + 1) + '</span></div>';
+        html += '<div>' + pvData.name + ' <span style="font-size:0.7em;color:var(--color-success);">🐴 马厩 ' + (pv.parkedAt + 1) + '</span></div>';
         html += '<div style="font-size:0.7em;color:var(--color-gold);">💰 ' + Utils.formatNumber(pvData.goldPerHour) + ' 金/时</div>';
         html += '</div>';
         html += '<button class="btn" data-parking-take-out="' + pv.uid + '|' + pv.parkedAt + '" style="padding:4px 10px;font-size:0.75em;background:var(--color-secondary);">取出</button>';
@@ -386,7 +386,7 @@ var ParkingPanel = {
         if (!vData) return;
 
         if (vehicle.parkedAt !== null) {
-          EventBus.emit('toast:show', { type: 'warning', message: '请先将载具取出' });
+          EventBus.emit('toast:show', { type: 'warning', message: '请先将坐骑取出' });
           return;
         }
 

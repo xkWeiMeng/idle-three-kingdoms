@@ -19,8 +19,10 @@ var BottomNav = {
     { id: 'forge',     icon: '🔨', label: '锻造' },
     { id: 'td',        icon: '🏰', label: '城防' },
     { id: 'abyss',     icon: '🔥', label: '深渊' },
+    { id: 'roguelike', icon: '🏯', label: '试炼' },
+    { id: 'daily',     icon: '📅', label: '日挑' },
     { id: 'farm',      icon: '🥬', label: '菜园' },
-    { id: 'parking',   icon: '🅿️', label: '停车' },
+    { id: 'parking',   icon: '🐴', label: '驿站' },
     { id: 'achievement', icon: '🏆', label: '成就' },
     { id: 'economy',   icon: '📊', label: '经济' },
     { id: 'story',     icon: '📜', label: '剧情' },
@@ -125,6 +127,12 @@ var BottomNav = {
     }
     if (panelId === 'achievement' && typeof AchievementPanel !== 'undefined') {
       AchievementPanel.show(); return;
+    }
+    if (panelId === 'roguelike' && typeof RoguelikePanel !== 'undefined') {
+      RoguelikePanel.show(); return;
+    }
+    if (panelId === 'daily' && typeof DailyChallengePanel !== 'undefined') {
+      DailyChallengePanel.show(); return;
     }
 
     var titles = {

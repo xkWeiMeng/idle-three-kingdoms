@@ -270,6 +270,15 @@ const EquipmentPanel = {
     html += (this._statLabels[statKey] || statKey) + '+' + Math.floor(statVal);
     html += '</div>';
 
+    // 词缀指示器
+    if (equip.affixes && equip.affixes.length > 0) {
+      html += '<div style="font-size:0.55rem;margin-top:2px;">';
+      for (var ai = 0; ai < equip.affixes.length; ai++) {
+        html += equip.affixes[ai].icon;
+      }
+      html += '</div>';
+    }
+
     html += '</div>';
     return html;
   },
@@ -300,6 +309,19 @@ const EquipmentPanel = {
     html += (this._statLabels[statKey] || statKey) + ' +' + Math.floor(totalVal);
     html += '</span>';
     html += '</div>';
+
+    // 词缀展示
+    if (equip.affixes && equip.affixes.length > 0) {
+      html += '<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:3px;">';
+      for (var aIdx = 0; aIdx < equip.affixes.length; aIdx++) {
+        var af = equip.affixes[aIdx];
+        var afColor = af.type === 'combat' ? '#e94560' : '#4caf50';
+        html += '<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:' + afColor + '18;color:' + afColor + ';border:1px solid ' + afColor + '44;">';
+        html += af.icon + ' ' + af.desc;
+        html += '</span>';
+      }
+      html += '</div>';
+    }
 
     // Equipped status
     if (isEquipped) {

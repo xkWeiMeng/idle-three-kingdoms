@@ -38,6 +38,13 @@ const CONSTANTS = {
     food: 200,
   },
 
+  // 食物系统参数
+  FOOD: {
+    REGEN_INTERVAL: 15,      // 每15秒恢复1点（原30秒）
+    DEPLETED_REWARD_RATE: 0.3, // 食物耗尽后奖励倍率30%
+    NEWBIE_FREE_STAGES: 50,   // 前50关首通不消耗食物
+  },
+
   // 品质
   QUALITY: {
     COMMON: 1,    // 白

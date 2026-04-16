@@ -22,6 +22,28 @@ var FarmManager = {
     this._state.autoHarvest = data.autoHarvest || false;
     this._state.activeBuff = data.activeBuff || null;
 
+    // 战斗胜利 → 小概率获得种子/肥料
+    var self = this;
+    EventBus.on('battle:ended', function (data) {
+      if (!data || !data.victory) return;
+      var gardenLevel = self._getGardenLevel();
+      if (gardenLevel < 1) return;
+      // 20% 概率掉种子
+      if (Math.random() < 0.2) {
+        var cropIds = Object.keys(CropData || {});
+        if (cropIds.length > 0) {
+          var seedId = cropIds[Utils.randInt(0, cropIds.length - 1)];
+          self._state.seeds[seedId] = (self._state.seeds[seedId] || 0) + 1;
+          EventBus.emit('toast:show', { type: 'info', message: '🌱 战利品：获得 ' + (CropData[seedId] ? CropData[seedId].name : seedId) + ' 种子×1' });
+        }
+      }
+      // Boss 关卡额外奖励肥料
+      if (data.stageId && data.stageId.indexOf('boss') !== -1) {
+        self._state.fertilizer = Math.min(self._state.fertilizer + 1, 20);
+        EventBus.emit('toast:show', { type: 'info', message: '🧪 Boss 战利品：获得肥料×1' });
+      }
+    });
+
     // Restore plots or create empty based on garden level
     var gardenLevel = this._getGardenLevel();
     var plotCount = this._getPlotCount(gardenLevel);

@@ -60,11 +60,12 @@ const ResourceManager = {
   },
 
   onTick(dt) {
-    // 粮草恢复：默认每30秒+1（农田会覆盖此逻辑）
+    // 粮草恢复：每 FOOD.REGEN_INTERVAL 秒 +1（农田会覆盖此逻辑）
+    var regenInterval = CONSTANTS.FOOD.REGEN_INTERVAL;
     var foodCap = this.getCap('food');
     this._foodTimer += dt;
-    while (this._foodTimer >= 30) {
-      this._foodTimer -= 30;
+    while (this._foodTimer >= regenInterval) {
+      this._foodTimer -= regenInterval;
       if (this._state.food < foodCap) {
         this._state.food = Math.min(this._state.food + 1, foodCap);
         EventBus.emit('resource:changed', 'food', this._state.food);

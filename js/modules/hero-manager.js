@@ -152,7 +152,7 @@ const HeroManager = {
     return Math.floor(50 * Math.pow(level, 1.5));
   },
 
-  /** 突破武将（需满级，消耗金币+玉石，星级+1，等级归1） */
+  /** 突破武将（需满级，消耗金币+玉石，星级+1，提升等级上限） */
   ascend(uid) {
     var hero = this._heroes.find(function (h) { return h.uid === uid; });
     if (!hero) return false;
@@ -184,17 +184,15 @@ const HeroManager = {
     ResourceManager.spend('gold', cost.gold);
     ResourceManager.spend('jade', cost.jade);
     hero.stars = stars + 1;
-    hero.level = 1;
-    hero.exp = 0;
+    // 不再重置等级！突破后等级上限提升，当前等级保持
 
     var template = this.getTemplate(hero.id);
     var heroName = template ? template.name : hero.id;
     EventBus.emit('toast:show', {
       type: 'success',
-      message: heroName + ' 突破成功！⭐' + '★'.repeat(hero.stars)
+      message: heroName + ' 突破成功！⭐' + '★'.repeat(hero.stars) + ' 等级上限提升至 ' + this.getMaxLevel(uid)
     });
     EventBus.emit('hero:ascended', { hero: hero, newStars: hero.stars });
-    EventBus.emit('hero:levelup', { hero: hero, newLevel: hero.level });
     return true;
   },
 
@@ -241,6 +239,7 @@ const HeroManager = {
     stats.spd *= starBonus;
 
     // 装备加成
+    var equipList = [];
     if (hero.equipment && typeof EquipmentManager !== 'undefined' &&
         typeof EquipmentManager.getEquipment === 'function') {
       var slots = Object.keys(hero.equipment);
@@ -249,6 +248,7 @@ const HeroManager = {
         if (!equipUid) continue;
         var equip = EquipmentManager.getEquipment(equipUid);
         if (!equip) continue;
+        equipList.push(equip);
         var statKey = (typeof EquipTypeToStat !== 'undefined') ? EquipTypeToStat[equip.type] : null;
         if (statKey && equip.stats && equip.stats[statKey] !== undefined) {
           var bonus = equip.stats[statKey] * (1 + (equip.level || 0) * 0.1);
@@ -256,6 +256,27 @@ const HeroManager = {
         }
       }
     }
+
+    // 词缀属性加成（flat 先加，percent 后乘）
+    var pctBonuses = { atk: 0, def: 0, hp: 0, spd: 0 };
+    for (var ei = 0; ei < equipList.length; ei++) {
+      var eq = equipList[ei];
+      if (!eq.affixes) continue;
+      for (var ai = 0; ai < eq.affixes.length; ai++) {
+        var af = eq.affixes[ai];
+        if (af.type !== 'stat') continue;
+        if (af.mode === 'flat') {
+          stats[af.stat] = (stats[af.stat] || 0) + af.value;
+        } else if (af.mode === 'percent') {
+          pctBonuses[af.stat] = (pctBonuses[af.stat] || 0) + af.value;
+        }
+      }
+    }
+    // 百分比加成
+    if (pctBonuses.atk) stats.atk *= (1 + pctBonuses.atk / 100);
+    if (pctBonuses.def) stats.def *= (1 + pctBonuses.def / 100);
+    if (pctBonuses.hp)  stats.hp  *= (1 + pctBonuses.hp  / 100);
+    if (pctBonuses.spd) stats.spd *= (1 + pctBonuses.spd / 100);
 
     stats.atk = Math.floor(stats.atk);
     stats.def = Math.floor(stats.def);

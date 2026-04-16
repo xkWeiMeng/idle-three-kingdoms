@@ -78,10 +78,19 @@ const BattlePanel = {
       html += this._renderResultOverlay(this._resultOverlay);
     }
 
+    // --- 终极技能栏 ---
+    html += '<div id="ultimate-bar" class="ultimate-bar"></div>';
+
     // --- 控制按钮 ---
     html += '<div id="battle-controls" class="battle-controls">';
     html += this._renderControls(isFighting, isAuto, stage);
     html += '</div>';
+
+    // --- 阵营羁绊提示 ---
+    html += this._renderBondInfo();
+
+    // --- 增益提示 ---
+    html += this._renderBuffBar();
 
     // --- 战斗日志 (可折叠) ---
     html += '<div class="battle-log-section">';
@@ -157,13 +166,94 @@ const BattlePanel = {
     return html;
   },
 
+  // ===== 增益提示栏 =====
+
+  _renderBuffBar: function () {
+    var buffs = [];
+
+    // 料理 buff
+    var cookBuff = (typeof FarmManager !== 'undefined') ? FarmManager.getActiveBuff() : null;
+    if (cookBuff && cookBuff.effects) {
+      var parts = [];
+      if (cookBuff.effects.spdBonus) parts.push('速+' + Math.round(cookBuff.effects.spdBonus * 100) + '%');
+      if (cookBuff.effects.critRate) parts.push('暴+' + Math.round(cookBuff.effects.critRate * 100) + '%');
+      if (cookBuff.effects.expBonus) parts.push('经+' + Math.round(cookBuff.effects.expBonus * 100) + '%');
+      if (cookBuff.effects.atkBonus) parts.push('攻+' + Math.round(cookBuff.effects.atkBonus * 100) + '%');
+      if (cookBuff.effects.allBonus) parts.push('全+' + Math.round(cookBuff.effects.allBonus * 100) + '%');
+      if (parts.length > 0) buffs.push({ icon: '🍲', text: parts.join(' ') });
+    }
+
+    // 塔防永久 buff
+    var tdBuff = (typeof TowerDefenseManager !== 'undefined' && TowerDefenseManager.getPermanentBattleBuff)
+      ? TowerDefenseManager.getPermanentBattleBuff() : null;
+    if (tdBuff) {
+      buffs.push({ icon: '🏰', text: '城防波' + tdBuff.highestWave + ' 攻防+' + Math.round(tdBuff.atkPercent * 100) + '%' });
+    }
+
+    if (buffs.length === 0) return '';
+    var html = '<div class="battle-buff-bar">';
+    for (var i = 0; i < buffs.length; i++) {
+      html += '<span class="buff-tag">' + buffs[i].icon + ' ' + buffs[i].text + '</span>';
+    }
+    html += '</div>';
+    return html;
+  },
+
+  // ===== 阵营羁绊提示 =====
+
+  _updateUltimateBar: function (bs) {
+    var bar = this._container ? this._container.querySelector('#ultimate-bar') : null;
+    if (!bar) return;
+    if (!bs || !bs.allies) { bar.innerHTML = ''; return; }
+
+    var html = '';
+    for (var i = 0; i < bs.allies.length; i++) {
+      var u = bs.allies[i];
+      if (!u.ultimate || !u.isAlive) continue;
+      var pct = Math.min(100, Math.floor((u.energy / u.energyMax) * 100));
+      var ready = u.ultimateReady;
+      html += '<div class="ult-slot' + (ready ? ' ult-ready' : '') + '" data-uid="' + u.uid + '">';
+      html += '<div class="ult-icon">' + (u.ultimate.icon || '🔥') + '</div>';
+      html += '<div class="ult-energy-track"><div class="ult-energy-fill" style="width:' + pct + '%"></div></div>';
+      html += '<div class="ult-name">' + u.name + '</div>';
+      html += '</div>';
+    }
+    bar.innerHTML = html;
+
+    // bind click events for ready ultimates
+    var slots = bar.querySelectorAll('.ult-slot.ult-ready');
+    for (var j = 0; j < slots.length; j++) {
+      slots[j].addEventListener('click', (function (uid) {
+        return function () { BattleManager.triggerUltimate(uid); };
+      })(slots[j].getAttribute('data-uid')));
+    }
+  },
+
+  _renderBondInfo: function () {
+    if (typeof calculateTeamBonuses !== 'function') return '';
+    var team = HeroManager.getTeam();
+    var bonuses = calculateTeamBonuses(team);
+    if (!bonuses.factionBonus && bonuses.activeBonds.length === 0) return '';
+
+    var html = '<div class="battle-bond-bar">';
+    if (bonuses.factionBonus) {
+      html += '<span class="bond-tag faction">' + bonuses.factionName + ' ' + bonuses.factionBonus.label + '</span>';
+    }
+    for (var i = 0; i < bonuses.activeBonds.length; i++) {
+      var bond = bonuses.activeBonds[i];
+      html += '<span class="bond-tag">' + bond.icon + ' ' + bond.name + '</span>';
+    }
+    html += '</div>';
+    return html;
+  },
+
   // ===== Controls =====
 
   _renderControls: function (isFighting, isAuto, stage) {
     var html = '';
-    var foodAvailable = stage ? ResourceManager.canAfford(CONSTANTS.RESOURCE.FOOD, stage.foodCost || 0) : false;
     var hasTeam = HeroManager.getTeamUids().length > 0;
-    var canStart = !isFighting && foodAvailable && hasTeam;
+    var foodAvailable = stage ? ResourceManager.canAfford(CONSTANTS.RESOURCE.FOOD, stage.foodCost || 0) : false;
+    var canStart = !isFighting && hasTeam;
 
     html += '<button class="btn battle-btn-main battle-btn-start"';
     if (!canStart) html += ' disabled';
@@ -172,9 +262,15 @@ const BattlePanel = {
       html += '⚔️ 战斗中...';
     } else {
       html += '⚔️ 出战';
-      if (stage) html += ' <span class="battle-food-cost">🍚' + (stage.foodCost || 0) + '</span>';
+      if (stage) {
+        html += ' <span class="battle-food-cost' + (foodAvailable ? '' : ' depleted') + '">🍚' + (stage.foodCost || 0) + '</span>';
+      }
     }
     html += '</button>';
+
+    // 战斗速度按钮
+    var speed = BattleManager.getBattleSpeed();
+    html += '<button class="btn battle-btn-side battle-btn-speed">×' + speed + '</button>';
 
     html += '<button class="btn battle-btn-side battle-btn-auto';
     if (isAuto) html += ' active';
@@ -184,7 +280,7 @@ const BattlePanel = {
 
     if (stage && BattleManager.isStageCleared(stage.id)) {
       html += '<button class="btn battle-btn-side battle-btn-sweep"';
-      if (isFighting || !foodAvailable || !hasTeam) html += ' disabled';
+      if (isFighting || !hasTeam) html += ' disabled';
       html += '>⚡扫荡</button>';
     }
 
@@ -259,6 +355,9 @@ const BattlePanel = {
       this._initBattleScene();
     }
 
+    // 更新终极技能栏
+    this._updateUltimateBar(bs);
+
     this._updateLog();
   },
 
@@ -312,6 +411,15 @@ const BattlePanel = {
       startBtn.addEventListener('click', function () {
         self._resultOverlay = null;
         BattleManager.startBattle();
+      });
+    }
+
+    // 战斗速度切换
+    var speedBtn = this._container.querySelector('.battle-btn-speed');
+    if (speedBtn) {
+      speedBtn.addEventListener('click', function () {
+        var newSpeed = BattleManager.cycleBattleSpeed();
+        speedBtn.textContent = '×' + newSpeed;
       });
     }
 
