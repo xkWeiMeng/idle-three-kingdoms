@@ -116,8 +116,12 @@
     // 离线收益计算
     if (saved?.timestamp) {
       const offlineSeconds = Math.min((Date.now() - saved.timestamp) / 1000, 86400);
-      if (offlineSeconds > 60) {
+      if (offlineSeconds > 300) {
+        // 5 分钟以上：趣味报告
         _showOfflineRewards(offlineSeconds, saved);
+      } else if (offlineSeconds > 60) {
+        // 1-5 分钟：静默发放
+        _silentOfflineRewards(offlineSeconds, saved);
       }
     }
 
@@ -131,7 +135,7 @@
     console.log(`${CONSTANTS.GAME_TITLE} v${CONSTANTS.VERSION} 启动完成`);
   }
 
-  function _showOfflineRewards(offlineSeconds, saved) {
+  function _calcAndGrantOfflineRewards(offlineSeconds, saved) {
     // 使用 AdventureManager 计算离线收益（如可用）
     var rewards = null;
     if (typeof AdventureManager !== 'undefined' && AdventureManager.calculateOfflineRewards) {
@@ -141,7 +145,7 @@
     if (!rewards) {
       // 兜底：旧逻辑
       const stage = StageData.find(s => s.id === (saved.battle?.currentStage || 'stage_1_1'));
-      if (!stage) return;
+      if (!stage) return null;
       var goldPerSec = stage.rewards.gold / 5;
       var expPerSec = stage.rewards.exp / 5;
       rewards = {
@@ -155,10 +159,6 @@
       };
     }
 
-    const hours = Math.floor(rewards.offlineSec / 3600);
-    const mins = Math.floor((rewards.offlineSec % 3600) / 60);
-    const timeStr = hours > 0 ? `${hours}小时${mins}分钟` : `${mins}分钟`;
-
     // 发放资源
     if (rewards.gold > 0) ResourceManager.add('gold', rewards.gold, 'offline', 'offline_reward');
     if (rewards.exp > 0) ResourceManager.add('exp', rewards.exp, 'offline', 'offline_reward');
@@ -167,39 +167,107 @@
     if (rewards.iron > 0) ResourceManager.add('iron', rewards.iron, 'offline', 'offline_reward');
 
     // 停车场离线收入
-    var parkingOfflineGold = 0;
     if (typeof ParkingManager !== 'undefined' && ParkingManager.calcOfflineIncome) {
-      parkingOfflineGold = ParkingManager.calcOfflineIncome(offlineSeconds);
+      var parkingOfflineGold = ParkingManager.calcOfflineIncome(offlineSeconds);
       if (parkingOfflineGold > 0) {
         ResourceManager.add('gold', parkingOfflineGold, 'offline', 'parking_offline');
         rewards.gold += parkingOfflineGold;
       }
     }
 
-    var effPct = Math.round((rewards.efficiency || 0.5) * 100);
-    var regionLine = rewards.region ? `<p>英雄们在「${rewards.region}」替你战斗了</p>` : '';
+    return rewards;
+  }
 
-    setTimeout(() => {
+  function _silentOfflineRewards(offlineSeconds, saved) {
+    _calcAndGrantOfflineRewards(offlineSeconds, saved);
+  }
+
+  function _showOfflineRewards(offlineSeconds, saved) {
+    var rewards = _calcAndGrantOfflineRewards(offlineSeconds, saved);
+    if (!rewards) return;
+
+    // 生成武将活动描述
+    var heroActivities = _generateHeroActivities(saved);
+
+    var hours = Math.floor(rewards.offlineSec / 3600);
+    var mins = Math.floor((rewards.offlineSec % 3600) / 60);
+    var timeStr = hours > 0 ? hours + '小时' + mins + '分钟' : mins + '分钟';
+
+    // 构建趣味报告内容
+    var content = '<div style="text-align:center;line-height:1.8;">';
+    content += '<p style="font-size:0.9rem;color:var(--color-text-dim);">你离开了 <b style="color:#d4a849;">' + timeStr + '</b></p>';
+    content += '<hr style="border-color:#4a3728;margin:10px 0;">';
+
+    // 武将活动
+    if (heroActivities.length > 0) {
+      content += '<div style="text-align:left;padding:0 10px;">';
+      for (var i = 0; i < heroActivities.length; i++) {
+        content += '<p style="font-size:0.85rem;margin:6px 0;color:var(--color-text);">' + heroActivities[i] + '</p>';
+      }
+      content += '</div>';
+      content += '<hr style="border-color:#4a3728;margin:10px 0;">';
+    }
+
+    // 资源收益
+    content += '<div style="font-size:0.85rem;font-weight:bold;margin-bottom:6px;color:var(--color-text-dim);">战果汇报</div>';
+    if (rewards.gold > 0) content += '<p>💰 金币 <b style="color:#d4a849;">+' + Utils.formatNumber(rewards.gold) + '</b></p>';
+    if (rewards.exp > 0) content += '<p>⭐ 经验 <b style="color:#d4a849;">+' + Utils.formatNumber(rewards.exp) + '</b></p>';
+    if (rewards.wood > 0) content += '<p>🪵 木材 <b style="color:#8b6914;">+' + Utils.formatNumber(rewards.wood) + '</b></p>';
+    if (rewards.stone > 0) content += '<p>🪨 石材 <b style="color:#9e9e9e;">+' + Utils.formatNumber(rewards.stone) + '</b></p>';
+    if (rewards.iron > 0) content += '<p>⛏️ 铁矿 <b style="color:#607d8b;">+' + Utils.formatNumber(rewards.iron) + '</b></p>';
+    content += '</div>';
+
+    setTimeout(function() {
       Modal.show({
-        title: '☀ 欢迎回来！',
-        content: `
-          <div style="text-align:center;line-height:2;">
-            <p>你离开了 <b style="color:#d4a849">${timeStr}</b></p>
-            ${regionLine}
-            <p>共完成 <b style="color:#d4a849">${Utils.formatNumber(rewards.battles)}</b> 场战斗</p>
-            <hr style="border-color:#4a3728;margin:8px 0;">
-            <p>💰 金币 <b style="color:#d4a849">+${Utils.formatNumber(rewards.gold)}</b></p>
-            <p>⭐ 经验 <b style="color:#d4a849">+${Utils.formatNumber(rewards.exp)}</b></p>
-            ${rewards.wood > 0 ? `<p>🪵 木材 <b style="color:#8b6914">+${Utils.formatNumber(rewards.wood)}</b></p>` : ''}
-            ${rewards.stone > 0 ? `<p>🪨 石材 <b style="color:#9e9e9e">+${Utils.formatNumber(rewards.stone)}</b></p>` : ''}
-            ${rewards.iron > 0 ? `<p>⛏️ 铁矿 <b style="color:#607d8b">+${Utils.formatNumber(rewards.iron)}</b></p>` : ''}
-            <p style="color:#999;font-size:0.68rem;">（离线效率${effPct}%）</p>
-          </div>
-        `,
+        title: '📜 离线报告',
+        content: content,
         confirmText: '收下！',
         showCancel: false
       });
     }, 500);
+  }
+
+  function _generateHeroActivities(saved) {
+    var activities = [];
+    var team = [];
+
+    // 获取当前队伍
+    if (saved && saved.heroes && saved.heroes.team) {
+      var heroList = saved.heroes.heroes || [];
+      var teamUids = saved.heroes.team || [];
+      for (var i = 0; i < teamUids.length; i++) {
+        for (var j = 0; j < heroList.length; j++) {
+          if (heroList[j].uid === teamUids[i]) {
+            team.push(heroList[j]);
+            break;
+          }
+        }
+      }
+    }
+
+    if (team.length === 0) return activities;
+
+    var offlineData = (typeof NpcDialogues !== 'undefined') ? NpcDialogues.offlineActivities : null;
+    if (!offlineData) return activities;
+
+    for (var k = 0; k < team.length; k++) {
+      var hero = team[k];
+      var heroId = hero.id;
+      var template = (typeof HeroData !== 'undefined') ? HeroData.find(function(h) { return h.id === heroId; }) : null;
+      var name = template ? template.name : heroId;
+
+      // 取专属文案或通用文案
+      var pool = offlineData[heroId] || offlineData.generic || [];
+      if (pool.length === 0) continue;
+
+      var text = pool[Math.floor(Math.random() * pool.length)];
+      var count = Math.floor(Math.random() * 90) + 10; // 10-99 的随机数
+      text = text.replace(/\{name\}/g, name).replace(/\{count\}/g, count.toString());
+
+      activities.push(text);
+    }
+
+    return activities;
   }
 
   // —— 每日签到弹窗 ——

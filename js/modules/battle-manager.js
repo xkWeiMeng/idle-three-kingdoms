@@ -328,6 +328,8 @@ const BattleManager = {
     if (!state || state.phase !== 'fighting') return;
 
     state.round++;
+    // 初始化回合内击杀计数器 (CAP-ERH-03)
+    state._roundKillCount = 0;
 
     // 1. 处理 buff/debuff（递减持续时间，移除过期）
     this._processBuffs(state.allies);
@@ -467,6 +469,7 @@ const BattleManager = {
     // 闪避
     if (result.isDodge) {
       this._addLog(state, '[第' + state.round + '回合] ' + unit.name + ' 攻击 → ' + target.name + ' 🌀闪避！');
+      BattleAnimations.playDodge(target.uid);
       return;
     }
 
@@ -529,10 +532,9 @@ const BattleManager = {
     if (!target.isAlive) {
       BattleAnimations.playDeath(target.uid);
       this._addLog(state, '  💀 ' + target.name + ' 被击败！');
+      this._onEnemyKilled(state);
     }
   },
-
-  // ---------- 技能行动 ----------
 
   _performSkill: function (unit, skill, friendlies, hostiles, state) {
     var skillName = skill.name || '技能';
@@ -596,6 +598,7 @@ const BattleManager = {
       if (!target.isAlive) {
         BattleAnimations.playDeath(target.uid);
         this._addLog(state, '  💀 ' + target.name + ' 被击败！');
+        this._onEnemyKilled(state);
       }
     }
   },
@@ -715,6 +718,21 @@ const BattleManager = {
     return { damage: damage, isCrit: isCrit, isDodge: false };
   },
 
+  // ---------- 连杀检测 (CAP-ERH-03) ----------
+
+  /**
+   * 击杀事件处理：递增回合击杀计数并在达到阈值时触发连杀飘字
+   * @param {Object} state - 当前战斗状态
+   */
+  _onEnemyKilled: function (state) {
+    state._roundKillCount = (state._roundKillCount || 0) + 1;
+    var count = state._roundKillCount;
+    // 仅在恰好达到 3/5/7 时触发（避免重复触发同一阈值）
+    if (count === 3 || count === 5 || count === 7) {
+      BattleAnimations.playMultiKill(count);
+    }
+  },
+
   // ---------- 能量系统 ----------
 
   _gainEnergy: function (unit, amount) {
@@ -773,7 +791,12 @@ const BattleManager = {
           var dmg = this._calculateDamage(unit, targets[t], ult.multiplier);
           if (ult.forceCrit) { dmg.damage = Math.floor(dmg.damage * 1.5); dmg.isCrit = true; }
           targets[t].currentHp -= dmg.damage;
-          if (targets[t].currentHp <= 0) { targets[t].currentHp = 0; targets[t].isAlive = false; }
+          BattleAnimations.playUltimate(unit.uid, targets[t].uid, ult, dmg.damage);
+          if (targets[t].currentHp <= 0) {
+            targets[t].currentHp = 0; targets[t].isAlive = false;
+            BattleAnimations.playDeath(targets[t].uid);
+            this._onEnemyKilled(state);
+          }
           this._addLog(state, '    → ' + targets[t].name + ' 受到 ' + dmg.damage + ' 伤害' + (dmg.isCrit ? '💥' : ''));
         }
       } else if (ult.target === 'lowest_hp') {
@@ -785,7 +808,12 @@ const BattleManager = {
           var dmgL = this._calculateDamage(unit, lowest, ult.multiplier);
           if (ult.forceCrit) { dmgL.damage = Math.floor(dmgL.damage * 1.5); dmgL.isCrit = true; }
           lowest.currentHp -= dmgL.damage;
-          if (lowest.currentHp <= 0) { lowest.currentHp = 0; lowest.isAlive = false; }
+          BattleAnimations.playUltimate(unit.uid, lowest.uid, ult, dmgL.damage);
+          if (lowest.currentHp <= 0) {
+            lowest.currentHp = 0; lowest.isAlive = false;
+            BattleAnimations.playDeath(lowest.uid);
+            this._onEnemyKilled(state);
+          }
           this._addLog(state, '    → ' + lowest.name + ' 受到 ' + dmgL.damage + ' 伤害' + (dmgL.isCrit ? '💥' : ''));
         }
       }
@@ -821,7 +849,12 @@ const BattleManager = {
         if (!mTarget) break;
         var mDmg = this._calculateDamage(unit, mTarget, ult.multiplier);
         mTarget.currentHp -= mDmg.damage;
-        if (mTarget.currentHp <= 0) { mTarget.currentHp = 0; mTarget.isAlive = false; }
+        BattleAnimations.playUltimate(unit.uid, mTarget.uid, ult, mDmg.damage);
+        if (mTarget.currentHp <= 0) {
+          mTarget.currentHp = 0; mTarget.isAlive = false;
+          BattleAnimations.playDeath(mTarget.uid);
+          this._onEnemyKilled(state);
+        }
         this._addLog(state, '    → ' + mTarget.name + ' 受到 ' + mDmg.damage + ' 伤害');
       }
 

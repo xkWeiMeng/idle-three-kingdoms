@@ -1168,6 +1168,46 @@
       "numericalSpec": "specs/numerical/td-gameplay-enhancement.md",
       "adr": null,
       "designDoc": "specs/design-docs/td-gameplay-enhancement.md"
+    },
+    "emotional-rhythm-enhancement": {
+      "name": "情绪节奏强化 — 战斗飘字/招募演出/离线报告",
+      "stage": "COMPLETE",
+      "prd": "specs/game-prds/emotional-rhythm-enhancement.md",
+      "numericalSpec": null,
+      "spec": null,
+      "execPlan": null,
+      "testFiles": [],
+      "changelog": "specs/changelog.md",
+      "adr": null,
+      "acceptance": {
+        "product": "pass",
+        "numerical": null
+      },
+      "history": [
+        {
+          "stage": "PRD",
+          "result": "completed",
+          "timestamp": "2026-04-17"
+        },
+        {
+          "stage": "IMPLEMENT",
+          "result": "completed",
+          "timestamp": "2026-04-17",
+          "note": "3 parallel spec-implementer agents: battle-float, recruit-anim, offline-report"
+        },
+        {
+          "stage": "VERIFY",
+          "result": "pass",
+          "timestamp": "2026-04-17",
+          "note": "Chrome DevTools visual verification: Q3 recruit animation, Q1 instant display, offline report modal all confirmed working"
+        },
+        {
+          "stage": "COMPLETE",
+          "result": "done",
+          "timestamp": "2026-04-17"
+        }
+      ],
+      "currentTask": null
     }
   }
 }

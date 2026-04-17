@@ -8,6 +8,9 @@ const RecruitManager = {
     freeRecruitUsed: false
   },
 
+  /** CAP-ERH-14: 上一次 _determineQuality 是否由保底触发 */
+  _lastPityTriggered: false,
+
   init(saved) {
     if (saved && saved.recruit) {
       this._state = Utils.deepClone(saved.recruit);
@@ -19,12 +22,13 @@ const RecruitManager = {
 
   // Determine hero quality using pity system
   _determineQuality() {
+    this._lastPityTriggered = false;
     // 1. Check orange pity (80 pulls)
-    if (this._state.pity.legendary >= 79) return 5;
+    if (this._state.pity.legendary >= 79) { this._lastPityTriggered = true; return 5; }
     // 2. Check purple pity (30 pulls)
-    if (this._state.pity.epic >= 29) return 4;
+    if (this._state.pity.epic >= 29) { this._lastPityTriggered = true; return 4; }
     // 3. Check blue pity (10 pulls)
-    if (this._state.pity.rare >= 9) return 3;
+    if (this._state.pity.rare >= 9) { this._lastPityTriggered = true; return 3; }
     // 4. Normal probability
     const roll = Math.random() * 100;
     if (roll < 3) return 5;        // 3% Legendary
@@ -50,6 +54,7 @@ const RecruitManager = {
   // Perform a single recruit
   _doSingleRecruit() {
     const quality = this._determineQuality();
+    const isPityTriggered = this._lastPityTriggered;
     this._updatePity(quality);
 
     // Select random hero from quality pool
@@ -58,10 +63,10 @@ const RecruitManager = {
       // Fallback: common soldier
       const commonPool = HeroPoolByQuality[1];
       const heroId = commonPool[Utils.randInt(0, commonPool.length - 1)];
-      return { heroId, quality: 1 };
+      return { heroId, quality: 1, isPityTriggered: false };
     }
     const heroId = pool[Utils.randInt(0, pool.length - 1)];
-    return { heroId, quality };
+    return { heroId, quality, isPityTriggered };
   },
 
   // Single recruit (costs 100 jade)
@@ -76,7 +81,7 @@ const RecruitManager = {
     const template = HeroData.find(h => h.id === result.heroId);
 
     EventBus.emit('recruit:result', {
-      results: [{ heroId: result.heroId, quality: result.quality, isNew: !!hero, template }],
+      results: [{ heroId: result.heroId, quality: result.quality, isNew: !!hero, template, isPityTriggered: result.isPityTriggered }],
       pity: {...this._state.pity}
     });
     return result;
@@ -94,7 +99,7 @@ const RecruitManager = {
       const result = this._doSingleRecruit();
       const hero = HeroManager.addHero(result.heroId);
       const template = HeroData.find(h => h.id === result.heroId);
-      results.push({ heroId: result.heroId, quality: result.quality, isNew: !!hero, template });
+      results.push({ heroId: result.heroId, quality: result.quality, isNew: !!hero, template, isPityTriggered: result.isPityTriggered });
     }
 
     EventBus.emit('recruit:result', { results, pity: {...this._state.pity} });
@@ -113,7 +118,7 @@ const RecruitManager = {
     const template = HeroData.find(h => h.id === result.heroId);
 
     EventBus.emit('recruit:result', {
-      results: [{ heroId: result.heroId, quality: result.quality, isNew: !!hero, template }],
+      results: [{ heroId: result.heroId, quality: result.quality, isNew: !!hero, template, isPityTriggered: result.isPityTriggered }],
       pity: {...this._state.pity}
     });
     return result;

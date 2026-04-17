@@ -6,7 +6,30 @@
 
 ## [Unreleased]
 
-- **Construction Worker System 建造工人系统 SDD 闭环** (`specs/product-specs/construction-worker-system.md`) — 2026-04-16
+- **Emotional Rhythm Enhancement 情绪节奏强化** (`specs/game-prds/emotional-rhythm-enhancement.md`) — 2026-04-17
+  - **战斗飘字增强** (CAP-ERH-01~03)：
+    - MISS/闪避飘字：闪避时显示白色 "MISS!" 浮动文字
+    - 终极技能特效：施放终极技能时显示金色技能名 + 0.3s 画面震动（4px 衰减）
+    - 连杀播报：3连杀 "三连斩！"、5连杀 "五杀风暴！"、7+连杀 "神挡杀神！"
+  - **抽卡演出差异化** (CAP-ERH-10~15)：
+    - 新增 `js/ui/recruit-animation.js` 模块（504 行），按品质分级演出
+    - Q1-Q2（白·普通/绿·良品）：无全屏动画，直接显示结果
+    - Q3（蓝·稀有）：蓝色光芒卡牌翻转揭示（1.5s）
+    - Q4（紫·史诗）：屏幕裂纹 → 大卡揭示 + 武将语录（2.5s）
+    - Q5（橙·传说）：天道系统异常警告 → 故障特效 → 金色粒子揭示（4s）
+    - 保底触发文字提示 "天命所归！"
+    - 点击任意位置可跳过演出
+    - 十连抽：按品质升序展示，最高品质获完整单抽演出
+  - **离线收益趣味报告** (CAP-ERH-20~24)：
+    - 离线 >5 分钟：显示趣味报告弹窗，含武将离线活动描述
+    - 离线 1-5 分钟：静默发放奖励
+    - 武将活动基于 `NpcDialogues.offlineActivities` 数据，含通用模板和 10+ 位武将专属文案
+    - 资源汇总使用 `Utils.formatNumber()` 格式化
+  - **新增文件**：`js/ui/recruit-animation.js`、`index.html` 添加对应 script 标签
+  - **修改文件**：`battle-animations-canvas.js`、`battle-manager.js`、`recruit-panel.js`、`recruit-manager.js`、`main.js`、`npc-dialogues.js`、`css/main.css`
+  - **视觉验收**：通过 Chrome DevTools 验证 Q3 蓝色动画、Q1 即时显示、离线报告弹窗均正常工作
+
+- **Construction Worker System 建造工人系统 SDD 闭环**(`specs/product-specs/construction-worker-system.md`) — 2026-04-16
   - **回溯背景**：commit `8fd4cae` 实现了外围组件但核心 TownManager 逻辑缺失，本次补全闭环
   - **已有实现（8fd4cae）**：BuildQueueWidget UI (`js/ui/build-queue-widget.js`)、WORKER_CONFIG 常量 (`js/data/buildings.js`)、`ResourceManager.addMultiple()`、build-menu.js / town-panel.js 迁移到 `enqueueUpgrade()`
   - **本次补全（TownManager 核心）**：

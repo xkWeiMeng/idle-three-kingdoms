@@ -445,6 +445,7 @@ var NpcDialogues = {
 
     // ── 商人 NPC ──
     merchant_mizhu: {
+
       name: '糜竺',
       gender: 'male',
       faction: 'shu',
@@ -465,5 +466,86 @@ var NpcDialogues = {
         '要不要看看镇店之宝？',
       ],
     },
+  },
+
+  // ── 武将离线活动文案 ──
+  offlineActivities: {
+    // 通用模板（使用 {name} 占位符 + {count} 随机数字）
+    generic: [
+      '{name}：巡逻了城墙 {count} 次',
+      '{name}：在训练场练习了 {count} 套剑法',
+      '{name}：给城里的孩子讲了 {count} 个故事',
+      '{name}：修缮了 {count} 处城防工事',
+      '{name}：在酒馆喝了 {count} 壶酒',
+      '{name}：写了 {count} 封家书',
+    ],
+    // 武将专属离线活动（匹配现代穿越设定）
+    shu_zhugeliang: [
+      '诸葛亮：优化了 {count} 条配送路线',
+      '诸葛亮：处理了 {count} 个差评申诉',
+      '诸葛亮：写了 {count} 页 KPI 报告',
+      '诸葛亮：用锦囊包了 {count} 份外卖',
+    ],
+    shu_liubei: [
+      '刘备：批了 {count} 份奏折然后哭了',
+      '刘备：给 {count} 个员工做了离职面谈',
+      '刘备：在桃园浇了 {count} 次花',
+      '刘备：给关羽和张飞发了 {count} 条微信',
+    ],
+    shu_guanyu: [
+      '关羽：在训练场举铁 {count} 次',
+      '关羽：磨了 {count} 遍青龙偃月刀',
+      '关羽：做了 {count} 组深蹲',
+      '关羽：指导了 {count} 个新兵的健身计划',
+    ],
+    shu_zhangfei: [
+      '张飞：在酒馆喝了 {count} 坛酒',
+      '张飞：吼了 {count} 声把路人吓跑了',
+      '张飞：一个人吃了 {count} 碗面',
+      '张飞：带了 {count} 组暴力训练课',
+    ],
+    shu_zhaoyun: [
+      '赵云：巡逻了城墙 {count} 圈',
+      '赵云：在演武场练了 {count} 套枪法',
+      '赵云：救了 {count} 只困在树上的猫',
+      '赵云：检查了 {count} 处防御工事',
+    ],
+    wei_caocao: [
+      '曹操：卖了 {count} 双草鞋',
+      '曹操：写了 {count} 条营销文案',
+      '曹操：审核了 {count} 个供应链订单',
+      '曹操：发了 {count} 条朋友圈',
+    ],
+    wei_simayi: [
+      '司马懿：偷偷观察了 {count} 个竞争对手',
+      '司马懿：写了 {count} 页战略分析报告',
+      '司马懿：等了 {count} 个小时假装没空',
+    ],
+    wu_sunquan: [
+      '孙权：直播了 {count} 小时',
+      '孙权：卖了 {count} 个"赤壁烤鱼联名款"',
+      '孙权：回复了 {count} 条弹幕',
+      '孙权：和周瑜开了 {count} 次运营会',
+    ],
+    wu_zhouyu: [
+      '周瑜：写了 {count} 个直播脚本',
+      '周瑜：修了 {count} 次提词器',
+      '周瑜：弹了 {count} 首曲子缓解压力',
+    ],
+    qun_lvbu: [
+      '吕布：换了 {count} 个部门',
+      '吕布：更新了 {count} 次简历',
+      '吕布：在各个势力之间跳槽了 {count} 次',
+    ],
+    qun_diaochan: [
+      '貂蝉：发了 {count} 条短视频',
+      '貂蝉：收到了 {count} 个告白',
+      '貂蝉：跳了 {count} 支舞',
+    ],
+    qun_huatuo: [
+      '华佗：给 {count} 个伤员看了病',
+      '华佗：研究了 {count} 种新药方',
+      '华佗：在菜园种了 {count} 棵药草',
+    ],
   },
 };

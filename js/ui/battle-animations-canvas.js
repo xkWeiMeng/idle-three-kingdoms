@@ -23,6 +23,8 @@ var BattleAnimations = {
   _floatTexts: [],
   // 上一帧时间戳
   _lastTime: 0,
+  // 屏幕震动计时器（秒）
+  _shakeTimer: 0,
 
   // ===== 布局常量 =====
   ALLY_X: 55,
@@ -86,6 +88,7 @@ var BattleAnimations = {
     this._effects = [];
     this._floatTexts = [];
     this._lastTime = 0;
+    this._shakeTimer = 0;
 
     // 预加载（如果还没完成）
     if (!this._loaded) {
@@ -149,6 +152,11 @@ var BattleAnimations = {
         this._floatTexts.splice(j, 1);
       }
     }
+
+    // 更新屏幕震动计时器
+    if (this._shakeTimer > 0) {
+      this._shakeTimer = Math.max(0, this._shakeTimer - dt);
+    }
   },
 
   _draw: function () {
@@ -160,11 +168,22 @@ var BattleAnimations = {
     // 清除画布
     ctx.clearRect(0, 0, w, h);
 
+    // 屏幕震动：在绘制前应用随机位移
+    var shaking = this._shakeTimer > 0;
+    if (shaking) {
+      ctx.save();
+      var shakeIntensity = 4 * (this._shakeTimer / 0.3); // 随时间衰减
+      var shakeX = (Math.random() - 0.5) * 2 * shakeIntensity;
+      var shakeY = (Math.random() - 0.5) * 2 * shakeIntensity;
+      ctx.translate(shakeX, shakeY);
+    }
+
     // 背景
     this._drawBackground(ctx, w, h);
 
     if (!this._battleState || !this._loaded) {
       this._drawLoadingText(ctx, w, h);
+      if (shaking) ctx.restore();
       return;
     }
 
@@ -179,6 +198,9 @@ var BattleAnimations = {
 
     // 回合/状态指示
     this._drawStatusBadge(ctx, w);
+
+    // 结束屏幕震动变换
+    if (shaking) ctx.restore();
   },
 
   // ===== 背景 =====
@@ -666,6 +688,95 @@ var BattleAnimations = {
     });
   },
 
+  /**
+   * 播放闪避 MISS 飘字 (CAP-ERH-01)
+   * @param {string} targetUid
+   */
+  playDodge: function (targetUid) {
+    var target = this._unitPositions[targetUid];
+    if (!target) return;
+    this._floatTexts.push({
+      text: 'MISS',
+      x: target.x + (Math.random() - 0.5) * 16,
+      y: target.y - 10,
+      color: '#999999',
+      font: 'bold 13px sans-serif',
+      life: 1.0,
+      maxLife: 1.0
+    });
+  },
+
+  /**
+   * 播放终极技能增强飘字 + 屏幕震动 (CAP-ERH-02)
+   * @param {string} casterUid
+   * @param {string} targetUid
+   * @param {Object} skill - 终极技能对象 { name, ... }
+   * @param {number} value - 伤害值
+   */
+  playUltimate: function (casterUid, targetUid, skill, value) {
+    var caster = this._unitPositions[casterUid];
+    var target = this._unitPositions[targetUid];
+    if (!target) return;
+
+    // 超大金色伤害数字
+    this._floatTexts.push({
+      text: '-' + value,
+      x: target.x + (Math.random() - 0.5) * 16,
+      y: target.y - 10,
+      color: '#FFD700',
+      font: 'bold 18px sans-serif',
+      life: 1.5,
+      maxLife: 1.5
+    });
+
+    // 技能名称飘字（显示在施法者上方或目标上方偏上位置）
+    var skillName = (skill && skill.name) ? skill.name : '终极技能';
+    var nameX = caster ? caster.x : target.x;
+    this._floatTexts.push({
+      text: '【' + skillName + '】',
+      x: nameX + (Math.random() - 0.5) * 10,
+      y: (caster ? caster.y : target.y) - 25,
+      color: '#FFD700',
+      font: 'bold 14px sans-serif',
+      life: 1.8,
+      maxLife: 1.8
+    });
+
+    // 屏幕震动 0.3 秒
+    this._shakeTimer = 0.3;
+  },
+
+  /**
+   * 播放连杀飘字 (CAP-ERH-03)
+   * @param {number} count - 击杀数
+   */
+  playMultiKill: function (count) {
+    var text, color;
+    if (count >= 7) {
+      text = '👑 超神！';
+      color = '#9B59B6'; // 紫色
+    } else if (count >= 5) {
+      text = '⚡ 五杀！';
+      color = '#FFD700'; // 金色
+    } else if (count >= 3) {
+      text = '🔥 三杀！';
+      color = '#E74C3C'; // 红色
+    } else {
+      return; // 不满足阈值不显示
+    }
+
+    // 在画布中央显示大号文字，生存时间 2 秒
+    this._floatTexts.push({
+      text: text,
+      x: this._width / 2,
+      y: this._height / 2 - 20,
+      color: color,
+      font: 'bold 20px sans-serif',
+      life: 2.0,
+      maxLife: 2.0
+    });
+  },
+
   // ===== 辅助方法 =====
 
   _mapSkillToEffect: function (skill) {
@@ -699,5 +810,6 @@ var BattleAnimations = {
     this._effects = [];
     this._floatTexts = [];
     this._battleState = null;
+    this._shakeTimer = 0;
   }
 };

@@ -13,7 +13,20 @@ const RecruitPanel = {
     var self = this;
     EventBus.on('recruit:result', function (data) {
       self._lastResults = data.results;
-      self._render();
+
+      // CAP-ERH-10~15: 检查最高品质，决定是否启动演出
+      var maxQuality = 0;
+      for (var i = 0; i < data.results.length; i++) {
+        if (data.results[i].quality > maxQuality) maxQuality = data.results[i].quality;
+      }
+
+      if (maxQuality >= 3 && typeof RecruitAnimation !== 'undefined') {
+        RecruitAnimation.show(data.results, function () {
+          self._render();
+        });
+      } else {
+        self._render();
+      }
     });
     EventBus.on('resource:changed', function () { self._updateFooter(); });
   },
