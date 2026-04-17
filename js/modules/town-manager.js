@@ -1268,6 +1268,37 @@ var TownManager = {
     return false;
   },
 
+  // ---------- 章节门禁检查 ----------
+
+  /**
+   * 检查是否满足指定章节的建筑门禁要求
+   * @param {number} chapter - 章节号
+   * @returns {{ ok: boolean, missing: Array<{id,name,emoji,current,required}> }}
+   */
+  checkChapterGate: function (chapter) {
+    if (typeof ChapterGateData === 'undefined') return { ok: true, missing: [] };
+    var gate = ChapterGateData[chapter];
+    if (!gate) return { ok: true, missing: [] };
+
+    var missing = [];
+    for (var buildingId in gate) {
+      if (!gate.hasOwnProperty(buildingId)) continue;
+      var required = gate[buildingId];
+      var current = this.getBuildingLevel(buildingId);
+      if (current < required) {
+        var data = BuildingData[buildingId];
+        missing.push({
+          id: buildingId,
+          name: data ? data.name : buildingId,
+          emoji: data ? data.emoji : '🏗',
+          current: current,
+          required: required
+        });
+      }
+    }
+    return { ok: missing.length === 0, missing: missing };
+  },
+
   getState: function () {
     return Utils.deepClone(this._state);
   }

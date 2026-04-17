@@ -21,6 +21,7 @@ const BattlePanel = {
     EventBus.on('battle:log', function (entry) { self._addLogEntry(entry); });
     EventBus.on('resource:changed', function () { self._updateControls(); });
     EventBus.on('hero:team_changed', function () { self._render(); });
+    EventBus.on('town:building_upgraded', function () { self._render(); });
   },
 
   _initBattleScene: function () {
@@ -65,6 +66,12 @@ const BattlePanel = {
     html += '</div>';
     html += '<button class="battle-nav-btn battle-btn-next-stage">▶</button>';
     html += '</div>';
+
+    // --- 章节门禁提示 ---
+    var gateCheck = this._getChapterGate(stage);
+    if (gateCheck && !gateCheck.ok) {
+      html += this._renderChapterGate(stage, gateCheck);
+    }
 
     // --- SVG 战斗场景 ---
     html += '<div id="battle-scene" class="battle-scene-container">';
@@ -273,12 +280,16 @@ const BattlePanel = {
     var html = '';
     var hasTeam = HeroManager.getTeamUids().length > 0;
     var foodAvailable = stage ? ResourceManager.canAfford(CONSTANTS.RESOURCE.FOOD, stage.foodCost || 0) : false;
-    var canStart = !isFighting && hasTeam;
+    var gateCheck = this._getChapterGate(stage);
+    var isGated = gateCheck && !gateCheck.ok;
+    var canStart = !isFighting && hasTeam && !isGated;
 
     html += '<button class="btn battle-btn-main battle-btn-start"';
     if (!canStart) html += ' disabled';
     html += '>';
-    if (isFighting) {
+    if (isGated) {
+      html += '🔒 需要升级建筑';
+    } else if (isFighting) {
       html += '⚔️ 战斗中...';
     } else {
       html += '⚔️ 出战';
@@ -300,7 +311,7 @@ const BattlePanel = {
 
     if (stage && BattleManager.isStageCleared(stage.id)) {
       html += '<button class="btn battle-btn-side battle-btn-sweep"';
-      if (isFighting || !hasTeam) html += ' disabled';
+      if (isFighting || !hasTeam || isGated) html += ' disabled';
       html += '>⚡扫荡</button>';
     }
 
@@ -510,5 +521,35 @@ const BattlePanel = {
         if (arrow) arrow.textContent = collapsed ? '▶' : '▼';
       }
     });
+  },
+
+  // ===== 章节门禁 =====
+
+  _getChapterGate: function (stage) {
+    if (!stage || stage.stage !== 1 || stage.chapter < 2) return null;
+    if (typeof TownManager === 'undefined') return null;
+    return TownManager.checkChapterGate(stage.chapter);
+  },
+
+  _renderChapterGate: function (stage, gateCheck) {
+    var html = '<div class="chapter-gate-panel">';
+    html += '<div class="chapter-gate-title">🔒 第' + stage.chapter + '章解锁条件</div>';
+    html += '<div class="chapter-gate-desc">升级以下建筑即可进入新章节：</div>';
+    html += '<div class="chapter-gate-list">';
+    for (var i = 0; i < gateCheck.missing.length; i++) {
+      var m = gateCheck.missing[i];
+      html += '<div class="chapter-gate-item">';
+      html += '<span class="gate-icon">' + m.emoji + '</span>';
+      html += '<span class="gate-name">' + m.name + '</span>';
+      html += '<span class="gate-level">';
+      html += '<span class="gate-current">' + m.current + '</span>';
+      html += ' / ';
+      html += '<span class="gate-required">' + m.required + '</span>';
+      html += '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+    return html;
   }
 };

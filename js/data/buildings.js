@@ -639,3 +639,25 @@ var WORKER_CONFIG = {
     { trigger: 'town_hall_level',   requirement: 7,     workerCount: 5 }
   ]
 };
+
+/**
+ * 章节门禁数据 — 进入新章节需满足的建筑等级要求
+ * key = 章节号，value = { buildingId: requiredLevel }
+ * 第 1 章无要求（新手教程）
+ */
+var ChapterGateData = {
+  2:  { town_hall: 2, lumber_camp: 1 },
+  3:  { town_hall: 3, barracks: 1, quarry: 1 },
+  4:  { barracks: 3, city_wall: 1, farmland: 2 },
+  5:  { town_hall: 5, barracks: 5, city_wall: 3, training_ground: 2 },
+  6:  { town_hall: 6, barracks: 7, city_wall: 5, adventure_guild: 2 },
+  7:  { town_hall: 7, barracks: 10, city_wall: 7, blacksmith: 3 },
+  8:  { town_hall: 7, barracks: 12, city_wall: 9, weapon_workshop: 3, stable: 2 },
+  9:  { town_hall: 8, barracks: 14, city_wall: 11, blacksmith: 5, academy: 3 },
+  10: { town_hall: 8, barracks: 16, city_wall: 13, weapon_workshop: 5, stable: 4 },
+  11: { town_hall: 9, barracks: 18, city_wall: 15, blacksmith: 7, academy: 5 },
+  12: { town_hall: 9, barracks: 20, city_wall: 17, weapon_workshop: 7, adventure_guild: 5 },
+  13: { town_hall: 10, barracks: 22, city_wall: 19, blacksmith: 9, stable: 7 },
+  14: { town_hall: 10, barracks: 24, city_wall: 21, weapon_workshop: 10, academy: 7 },
+  15: { town_hall: 10, barracks: 25, city_wall: 23, blacksmith: 10, stable: 10, academy: 8 }
+};

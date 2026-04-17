@@ -86,6 +86,21 @@ const BattleManager = {
       return false;
     }
 
+    // 章节门禁检查：进入新章节需满足建筑等级要求
+    if (typeof TownManager !== 'undefined' && stage.stage === 1 && stage.chapter >= 2) {
+      var gateCheck = TownManager.checkChapterGate(stage.chapter);
+      if (!gateCheck.ok) {
+        var names = gateCheck.missing.map(function (m) {
+          return m.emoji + m.name + ' Lv.' + m.required;
+        });
+        EventBus.emit('toast:show', {
+          type: 'warning',
+          message: '🔒 进入第' + stage.chapter + '章需要：' + names.join('、')
+        });
+        return false;
+      }
+    }
+
     // 检查食物 — 新手首通免费 + 食物耗尽降低奖励而非阻止
     var cost = stage.foodCost || 0;
     var isFirstClear = this._state.clearedStages.indexOf(this._state.currentStage) === -1;
@@ -1126,7 +1141,19 @@ const BattleManager = {
       if (StageData[i].id === currentId) { idx = i; break; }
     }
     if (idx >= 0 && idx < StageData.length - 1) {
-      return StageData[idx + 1].id;
+      var next = StageData[idx + 1];
+      // 自动推图到新章节时检查门禁
+      if (typeof TownManager !== 'undefined' && next.stage === 1 && next.chapter >= 2) {
+        var gateCheck = TownManager.checkChapterGate(next.chapter);
+        if (!gateCheck.ok) {
+          EventBus.emit('toast:show', {
+            type: 'info',
+            message: '🔒 第' + next.chapter + '章需要升级建筑才能进入'
+          });
+          return null;
+        }
+      }
+      return next.id;
     }
     return null;
   },
