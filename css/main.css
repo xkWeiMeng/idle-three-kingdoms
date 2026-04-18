@@ -1882,6 +1882,117 @@ html, body, #app {
 .gate-current { color: var(--color-primary); font-weight: 700; }
 .gate-required { color: var(--color-gold); font-weight: 700; }
 
+/* ===== 关卡选择器 ===== */
+.stage-picker-hint {
+  font-size: 0.65rem;
+  opacity: 0.5;
+}
+.battle-stage-info:hover .stage-picker-hint {
+  opacity: 1;
+}
+.stage-picker {
+  max-height: 55vh;
+  display: flex;
+  flex-direction: column;
+}
+.stage-picker-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+.stage-picker-tab {
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  border: 1px solid var(--color-secondary);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-dark, #120e0a);
+  color: var(--color-text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-main);
+  white-space: nowrap;
+}
+.stage-picker-tab:hover {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+.stage-picker-tab.active {
+  background: var(--color-gold);
+  color: #1a1410;
+  border-color: var(--color-gold);
+  font-weight: 700;
+}
+.stage-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 40vh;
+  padding-right: 2px;
+}
+.stage-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  border: 1px solid var(--color-secondary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-dark, #120e0a);
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.stage-picker-item:hover:not(.locked) {
+  border-color: var(--color-gold);
+  background: rgba(245, 197, 24, 0.08);
+}
+.stage-picker-item.current {
+  border-color: var(--color-gold);
+  background: rgba(245, 197, 24, 0.12);
+  box-shadow: 0 0 8px rgba(245, 197, 24, 0.2);
+}
+.stage-picker-item.cleared {
+  border-color: var(--color-success);
+  opacity: 0.85;
+}
+.stage-picker-item.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.stage-picker-item.boss {
+  border-color: var(--color-primary);
+}
+.stage-picker-num {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-gold);
+}
+.stage-picker-name {
+  font-size: 0.65rem;
+  color: var(--color-text);
+  text-align: center;
+  margin: 2px 0;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stage-picker-status {
+  font-size: 0.85rem;
+}
+.stage-picker-boss {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.55rem;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
 .battle-bond-bar {
   display: flex;
   flex-wrap: wrap;

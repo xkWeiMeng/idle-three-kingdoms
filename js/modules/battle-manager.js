@@ -66,8 +66,24 @@ const BattleManager = {
         if (next) {
           this._state.currentStage = next;
           this.startBattle();
+        } else {
+          // 无法推进（章节门禁/已到最后关卡）→ 自动停止
+          this._state.isAutoFight = false;
+          EventBus.emit('toast:show', {
+            type: 'info',
+            message: '⏹ 已到达最远关卡，自动战斗已停止'
+          });
         }
       }
+    }
+
+    // 自动战斗：战败时自动停止
+    if (this._state.isAutoFight && bs && bs.phase === 'defeat') {
+      this._state.isAutoFight = false;
+      EventBus.emit('toast:show', {
+        type: 'info',
+        message: '⏹ 战斗失败，自动战斗已停止'
+      });
     }
   },
 
@@ -1179,10 +1195,6 @@ const BattleManager = {
       if (typeof TownManager !== 'undefined' && next.stage === 1 && next.chapter >= 2) {
         var gateCheck = TownManager.checkChapterGate(next.chapter);
         if (!gateCheck.ok) {
-          EventBus.emit('toast:show', {
-            type: 'info',
-            message: '🔒 第' + next.chapter + '章需要升级建筑才能进入'
-          });
           return null;
         }
       }
@@ -1286,6 +1298,16 @@ const BattleManager = {
 
   isStageCleared: function (stageId) {
     return this._state.clearedStages.indexOf(stageId) !== -1;
+  },
+
+  isStageUnlocked: function (stageId) {
+    for (var i = 0; i < StageData.length; i++) {
+      if (StageData[i].id === stageId) {
+        var cond = StageData[i].unlockCondition;
+        return !cond || this._state.clearedStages.indexOf(cond) !== -1;
+      }
+    }
+    return false;
   },
 
   getState: function () {

@@ -47,7 +47,7 @@ const BattlePanel = {
     // --- 关卡信息条 ---
     html += '<div class="battle-stage-bar">';
     html += '<button class="battle-nav-btn battle-btn-prev-stage">◀</button>';
-    html += '<div class="battle-stage-info">';
+    html += '<div class="battle-stage-info" style="cursor:pointer" title="点击选择关卡">';
     if (stage) {
       html += '<div class="battle-stage-name">';
       html += '<span class="battle-chapter-badge">' + stage.chapter + '-' + stage.stage + '</span>';
@@ -61,6 +61,7 @@ const BattlePanel = {
         if (stage.rewards.gold) html += '<span>💰' + stage.rewards.gold + '</span>';
         if (stage.rewards.exp) html += '<span>⭐' + stage.rewards.exp + '</span>';
       }
+      html += '<span class="stage-picker-hint">📋</span>';
       html += '</div>';
     }
     html += '</div>';
@@ -508,6 +509,15 @@ const BattlePanel = {
         }
       });
     }
+
+    // 点击关卡信息区域打开关卡选择器
+    var stageInfo = this._container.querySelector('.battle-stage-info');
+    if (stageInfo) {
+      stageInfo.addEventListener('click', function () {
+        if (BattleManager.isFighting()) return;
+        self._showStagePicker();
+      });
+    }
   },
 
   _bindLogToggle: function () {
@@ -551,5 +561,155 @@ const BattlePanel = {
     html += '</div>';
     html += '</div>';
     return html;
+  },
+
+  // ===== 关卡选择器 =====
+
+  _chapterNames: {
+    1: '外卖风云', 2: '草鞋争霸', 3: '直播大战', 4: '健身房保卫战', 5: '系统修复战',
+    6: '社区团购风波', 7: '网约车帝国', 8: '金融风暴', 9: '元宇宙入侵', 10: 'AI觉醒',
+    11: '跨境远征', 12: '暗网之战', 13: '量子纪元', 14: '时空裂缝', 15: '天命降临'
+  },
+
+  _showStagePicker: function () {
+    var self = this;
+    var currentStage = BattleManager.getCurrentStage();
+    var currentChapter = currentStage ? currentStage.chapter : 1;
+
+    // 按章节分组
+    var chapters = {};
+    for (var i = 0; i < StageData.length; i++) {
+      var s = StageData[i];
+      if (!chapters[s.chapter]) chapters[s.chapter] = [];
+      chapters[s.chapter].push(s);
+    }
+
+    // 找出最高已解锁章节
+    var maxUnlockedChapter = 1;
+    var chapterKeys = Object.keys(chapters);
+    for (var ci = 0; ci < chapterKeys.length; ci++) {
+      var ch = parseInt(chapterKeys[ci]);
+      var stages = chapters[ch];
+      for (var si = 0; si < stages.length; si++) {
+        if (BattleManager.isStageUnlocked(stages[si].id)) {
+          maxUnlockedChapter = Math.max(maxUnlockedChapter, ch);
+        }
+      }
+    }
+
+    // 构建章节标签
+    var html = '<div class="stage-picker">';
+    html += '<div class="stage-picker-tabs">';
+    for (var c = 1; c <= maxUnlockedChapter; c++) {
+      if (!chapters[c]) continue;
+      var isActive = c === currentChapter;
+      var chName = this._chapterNames[c] || ('第' + c + '章');
+      html += '<button class="stage-picker-tab' + (isActive ? ' active' : '') + '" data-chapter="' + c + '">';
+      html += c + '. ' + chName;
+      html += '</button>';
+    }
+    html += '</div>';
+
+    // 构建关卡网格（默认显示当前章节）
+    html += '<div class="stage-picker-grid" id="stage-picker-grid">';
+    html += this._renderStageGrid(chapters[currentChapter], currentStage);
+    html += '</div>';
+    html += '</div>';
+
+    // 缓存 chapters 数据供标签切换使用
+    this._pickerChapters = chapters;
+
+    Modal.show({
+      title: '📋 选择关卡',
+      content: html,
+      showCancel: false,
+      confirmText: '关闭'
+    });
+
+    // Modal.show 是同步渲染，直接绑定
+    setTimeout(function () { self._bindPickerEvents(); }, 50);
+  },
+
+  _renderStageGrid: function (stages, currentStage) {
+    if (!stages) return '';
+    var html = '';
+    for (var i = 0; i < stages.length; i++) {
+      var s = stages[i];
+      var isCleared = BattleManager.isStageCleared(s.id);
+      var isUnlocked = BattleManager.isStageUnlocked(s.id);
+      var isCurrent = currentStage && s.id === currentStage.id;
+      // 章节门禁
+      var isGated = false;
+      if (typeof TownManager !== 'undefined' && s.stage === 1 && s.chapter >= 2) {
+        var gateCheck = TownManager.checkChapterGate(s.chapter);
+        if (!gateCheck.ok) isGated = true;
+      }
+
+      var cls = 'stage-picker-item';
+      if (isCurrent) cls += ' current';
+      if (isCleared) cls += ' cleared';
+      if (!isUnlocked || isGated) cls += ' locked';
+      if (s.isBoss) cls += ' boss';
+
+      html += '<div class="' + cls + '" data-stage-id="' + s.id + '">';
+      html += '<div class="stage-picker-num">' + s.chapter + '-' + s.stage + '</div>';
+      html += '<div class="stage-picker-name">' + s.name + '</div>';
+      html += '<div class="stage-picker-status">';
+      if (!isUnlocked || isGated) {
+        html += '🔒';
+      } else if (isCleared) {
+        html += '✅';
+      } else if (isCurrent) {
+        html += '👉';
+      } else {
+        html += '⚔️';
+      }
+      html += '</div>';
+      if (s.isBoss) html += '<div class="stage-picker-boss">BOSS</div>';
+      html += '</div>';
+    }
+    return html;
+  },
+
+  _bindPickerEvents: function () {
+    var self = this;
+    var overlay = document.getElementById('modal-overlay');
+    if (!overlay) return;
+
+    // 章节标签切换
+    var tabs = overlay.querySelectorAll('.stage-picker-tab');
+    for (var t = 0; t < tabs.length; t++) {
+      tabs[t].addEventListener('click', function () {
+        var ch = parseInt(this.getAttribute('data-chapter'));
+        // 更新 active 标签
+        var allTabs = overlay.querySelectorAll('.stage-picker-tab');
+        for (var j = 0; j < allTabs.length; j++) allTabs[j].classList.remove('active');
+        this.classList.add('active');
+        // 更新网格
+        var grid = overlay.querySelector('#stage-picker-grid');
+        if (grid && self._pickerChapters[ch]) {
+          grid.innerHTML = self._renderStageGrid(self._pickerChapters[ch], BattleManager.getCurrentStage());
+          self._bindPickerStageClicks(overlay);
+        }
+      });
+    }
+
+    this._bindPickerStageClicks(overlay);
+  },
+
+  _bindPickerStageClicks: function (overlay) {
+    var self = this;
+    var items = overlay.querySelectorAll('.stage-picker-item:not(.locked)');
+    for (var i = 0; i < items.length; i++) {
+      items[i].addEventListener('click', function () {
+        var stageId = this.getAttribute('data-stage-id');
+        if (stageId) {
+          BattleManager.setCurrentStage(stageId);
+          self._resultOverlay = null;
+          Modal.hide();
+          self._render();
+        }
+      });
+    }
   }
 };
