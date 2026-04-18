@@ -34,6 +34,35 @@ var TownCharacters = {
   NPC_WANDER_RADIUS: 3,   // 格
   HERO_WANDER_RADIUS: 2,
   CHAR_MIN_DIST: 20,       // 角色间最小距离（像素）
+  COOP_CHECK_INTERVAL: 2,  // 协作检测间隔（秒）
+  GREET_DIST: 3,           // 互动触发距离（格）
+  GREET_COOLDOWN: 30,      // 互动冷却时间（秒）
+
+  // ── 角色职业 AI 配置 ──
+  _ROLE_PROFILES: {
+    guard:    { speed: 24, wanderRadius: 5, talkChance: 0.15, idleRange: [1, 3],  talkCooldown: [25, 40], patrol: true },
+    merchant: { speed: 15, wanderRadius: 1.5, talkChance: 0.5,  idleRange: [2, 4],  talkCooldown: [10, 18] },
+    farmer:   { speed: 18, wanderRadius: 2, talkChance: 0.25, idleRange: [4, 8],  talkCooldown: [20, 30], workTarget: 'farmland' },
+    child:    { speed: 28, wanderRadius: 5, talkChance: 0.4,  idleRange: [1, 2],  talkCooldown: [8, 15],  followChance: 0.3 },
+    craftsman:{ speed: 16, wanderRadius: 2, talkChance: 0.2,  idleRange: [5, 10], talkCooldown: [20, 35], workTarget: 'blacksmith' },
+    villager: { speed: 20, wanderRadius: 3, talkChance: 0.35, idleRange: [3, 6],  talkCooldown: [15, 25], socialChance: 0.25 },
+  },
+
+  _ROLE_MAP: {
+    '守卫': 'guard', '巡逻兵': 'guard',
+    '商贩': 'merchant', '农夫': 'farmer',
+    '小孩': 'child', '工匠': 'craftsman',
+    '村民': 'villager', '村妇': 'villager',
+  },
+
+  _COOP_LINES: {
+    greet:     ['你好啊！', '嘿！', '今天怎么样？', '吃了没？', '天气不错啊'],
+    guard_relay: ['前方一切正常！', '注意东门方向', '换岗了', '巡逻报告：平安'],
+    merchant_callout: ['来看看嘞！', '新鲜货！', '走过路过别错过！', '今天打折！'],
+    child_follow: ['等等我！', '哇好快！', '我也要去！', '一起玩！'],
+  },
+
+  _coopTimer: 0,
 
   // ── 初始化 ──
   init: function () {
@@ -79,16 +108,21 @@ var TownCharacters = {
       var s = spawns[i];
       var wx = s.gx * CELL + CELL / 2;
       var wy = s.gy * CELL + CELL / 2;
+      var role = this._ROLE_MAP[s.name] || 'villager';
+      var profile = this._ROLE_PROFILES[role];
       this._chars.push(this._createChar({
         id: 'npc_' + i,
         type: 'npc',
         name: s.name,
         sprite: s.sprite,
+        role: role,
         x: wx, y: wy,
         homeX: wx, homeY: wy,
-        speed: this.NPC_SPEED,
-        wanderRadius: this.NPC_WANDER_RADIUS,
-        talkCooldown: 15 + Math.random() * 25,
+        speed: profile.speed || this.NPC_SPEED,
+        wanderRadius: profile.wanderRadius || this.NPC_WANDER_RADIUS,
+        talkCooldown: profile.talkCooldown
+          ? profile.talkCooldown[0] + Math.random() * (profile.talkCooldown[1] - profile.talkCooldown[0])
+          : 15 + Math.random() * 25,
       }));
     }
   },
@@ -169,6 +203,7 @@ var TownCharacters = {
       heroUid: opts.heroUid || null,
       name: opts.name,
       sprite: opts.sprite,
+      role: opts.role || null,
       homeBuilding: opts.homeBuilding || null,
       quality: opts.quality || 1,
 
@@ -192,6 +227,12 @@ var TownCharacters = {
       // A* pathfinding state
       path: null,       // Array of {gx, gy} waypoints
       pathIndex: 0,     // Current waypoint index
+
+      // Role AI state
+      _patrolWaypoints: null,
+      _patrolIndex: 0,
+      _atWork: false,
+      _greetCooldown: 0,
     };
   },
 
@@ -214,6 +255,9 @@ var TownCharacters = {
       if (c.state === 'dragging') continue; // 拖拽中不更新 AI
       this._tickAI(c, dt);
     }
+
+    // NPC 协作互动检测（非战时）
+    if (!this._warMode) this._tickCooperation(dt);
   },
 
   _tickAI: function (c, dt) {
@@ -233,13 +277,9 @@ var TownCharacters = {
         // 战时：已隐藏的角色不更新
         if (this._warMode) return;
         c.stateTimer -= dt;
+        c._greetCooldown = Math.max(0, (c._greetCooldown || 0) - dt);
         if (c.stateTimer <= 0) {
-          // 决定下一步行为
-          if (c.talkCooldown <= 0 && Math.random() < 0.35) {
-            this._startTalking(c);
-          } else {
-            this._startWandering(c);
-          }
+          this._selectRoleBehavior(c);
         }
         break;
 
@@ -289,7 +329,354 @@ var TownCharacters = {
 
   _goIdle: function (c) {
     c.state = 'idle';
-    c.stateTimer = 3 + Math.random() * 5;
+    var profile = c.role ? this._ROLE_PROFILES[c.role] : null;
+    if (profile && profile.idleRange) {
+      c.stateTimer = profile.idleRange[0] + Math.random() * (profile.idleRange[1] - profile.idleRange[0]);
+    } else {
+      c.stateTimer = 3 + Math.random() * 5;
+    }
+  },
+
+  // ── 职业行为决策 ──
+  _selectRoleBehavior: function (c) {
+    var profile = c.role ? this._ROLE_PROFILES[c.role] : null;
+    var talkChance = profile ? profile.talkChance : 0.35;
+
+    if (c.talkCooldown <= 0 && Math.random() < talkChance) {
+      this._startTalking(c);
+      return;
+    }
+
+    if (!profile) {
+      this._startWandering(c);
+      return;
+    }
+
+    switch (c.role) {
+      case 'guard':
+        this._startPatrolling(c);
+        break;
+      case 'child':
+        if (Math.random() < (profile.followChance || 0)) {
+          this._startFollowing(c);
+        } else {
+          this._startWandering(c);
+        }
+        break;
+      case 'farmer':
+      case 'craftsman':
+        this._startCommuting(c);
+        break;
+      case 'villager':
+        if (Math.random() < (profile.socialChance || 0)) {
+          this._startSocializing(c);
+        } else {
+          this._startWandering(c);
+        }
+        break;
+      case 'merchant':
+        if (Math.random() < 0.7) {
+          this._startCallout(c);
+        } else {
+          this._startWandering(c);
+        }
+        break;
+      default:
+        this._startWandering(c);
+    }
+  },
+
+  // ── 守卫巡逻 ──
+  _startPatrolling: function (c) {
+    var CELL = TownWorld.CELL;
+    if (!c._patrolWaypoints) {
+      var homeGX = Math.floor(c.homeX / CELL);
+      var homeGY = Math.floor(c.homeY / CELL);
+      var r = 5;
+      var pts = [
+        { gx: homeGX + r, gy: homeGY },
+        { gx: homeGX + r, gy: homeGY + r },
+        { gx: homeGX,     gy: homeGY + r },
+        { gx: homeGX - r, gy: homeGY + r },
+        { gx: homeGX - r, gy: homeGY },
+        { gx: homeGX - r, gy: homeGY - r },
+        { gx: homeGX,     gy: homeGY - r },
+        { gx: homeGX + r, gy: homeGY - r },
+      ];
+      // 巡逻兵反向巡逻，与守卫形成对向路线
+      if (c.name === '巡逻兵') pts.reverse();
+      for (var i = 0; i < pts.length; i++) {
+        pts[i].gx = Math.max(1, Math.min(TownWorld.MAP_W - 2, pts[i].gx));
+        pts[i].gy = Math.max(1, Math.min(TownWorld.MAP_H - 2, pts[i].gy));
+      }
+      c._patrolWaypoints = pts;
+      c._patrolIndex = 0;
+    }
+
+    // 尝试找到可行走的巡逻点
+    var startIdx = c._patrolIndex;
+    for (var attempt = 0; attempt < c._patrolWaypoints.length; attempt++) {
+      var wp = c._patrolWaypoints[c._patrolIndex];
+      c._patrolIndex = (c._patrolIndex + 1) % c._patrolWaypoints.length;
+      var tx = wp.gx * CELL + CELL / 2;
+      var ty = wp.gy * CELL + CELL / 2;
+      if (!TownWorld.isPixelWalkable(tx, ty)) continue;
+
+      c.targetX = tx;
+      c.targetY = ty;
+      var fromGX = Math.floor(c.x / CELL);
+      var fromGY = Math.floor(c.y / CELL);
+      var path = this._findPath(fromGX, fromGY, wp.gx, wp.gy);
+      if (path && path.length > 0) {
+        c.path = path;
+        c.pathIndex = 0;
+        c.targetX = path[0].gx * CELL + CELL / 2;
+        c.targetY = path[0].gy * CELL + CELL / 2;
+      } else {
+        c.path = null;
+        c.pathIndex = 0;
+      }
+
+      c.state = 'walking';
+      c.direction = c.targetX >= c.x ? 1 : -1;
+      return;
+    }
+    // 所有巡逻点不可达，回退普通漫步
+    this._startWandering(c);
+  },
+
+  // ── 小孩跟随最近的非小孩角色 ──
+  _startFollowing: function (c) {
+    var nearest = this._getNearestChar(c, function (other) {
+      return other.role !== 'child' && other.state !== 'dragging';
+    });
+    if (!nearest) {
+      this._startWandering(c);
+      return;
+    }
+
+    var CELL = TownWorld.CELL;
+    var offsetAngle = Math.random() * Math.PI * 2;
+    var tx = nearest.x + Math.cos(offsetAngle) * CELL;
+    var ty = nearest.y + Math.sin(offsetAngle) * CELL;
+    tx = Math.max(CELL, Math.min(TownWorld.MAP_W * CELL - CELL, tx));
+    ty = Math.max(CELL, Math.min(TownWorld.MAP_H * CELL - CELL, ty));
+
+    if (!TownWorld.isPixelWalkable(tx, ty)) {
+      this._startWandering(c);
+      return;
+    }
+
+    c.targetX = tx;
+    c.targetY = ty;
+    var fromGX = Math.floor(c.x / CELL);
+    var fromGY = Math.floor(c.y / CELL);
+    var toGX = Math.floor(tx / CELL);
+    var toGY = Math.floor(ty / CELL);
+    var path = this._findPath(fromGX, fromGY, toGX, toGY);
+    if (path && path.length > 0) {
+      c.path = path;
+      c.pathIndex = 0;
+      c.targetX = path[0].gx * CELL + CELL / 2;
+      c.targetY = path[0].gy * CELL + CELL / 2;
+    } else {
+      c.path = null;
+      c.pathIndex = 0;
+    }
+
+    c.state = 'walking';
+    c.direction = c.targetX >= c.x ? 1 : -1;
+
+    if (!c.bubble && Math.random() < 0.4) {
+      var lines = this._COOP_LINES.child_follow;
+      c.bubble = { text: lines[Utils.randInt(0, lines.length - 1)], timer: 2, isClick: false };
+    }
+  },
+
+  // ── 农夫/工匠通勤：家 ↔ 工作建筑 ──
+  _startCommuting: function (c) {
+    var CELL = TownWorld.CELL;
+    var profile = this._ROLE_PROFILES[c.role];
+    var target;
+
+    if (!c._atWork && profile.workTarget) {
+      target = this._getBuildingFront(profile.workTarget);
+      if (target) c._atWork = true;
+    }
+
+    if (!target) {
+      c._atWork = false;
+      target = { x: c.homeX, y: c.homeY };
+    }
+
+    // 已在目标附近则切换目标、普通漫步
+    var dx = target.x - c.x;
+    var dy = target.y - c.y;
+    if (dx * dx + dy * dy < CELL * CELL * 4) {
+      c._atWork = !c._atWork;
+      this._startWandering(c);
+      return;
+    }
+
+    c.targetX = target.x;
+    c.targetY = target.y;
+    var fromGX = Math.floor(c.x / CELL);
+    var fromGY = Math.floor(c.y / CELL);
+    var toGX = Math.floor(target.x / CELL);
+    var toGY = Math.floor(target.y / CELL);
+    var path = this._findPath(fromGX, fromGY, toGX, toGY);
+    if (path && path.length > 0) {
+      c.path = path;
+      c.pathIndex = 0;
+      c.targetX = path[0].gx * CELL + CELL / 2;
+      c.targetY = path[0].gy * CELL + CELL / 2;
+    } else {
+      c.path = null;
+      c.pathIndex = 0;
+    }
+
+    c.state = 'walking';
+    c.direction = c.targetX >= c.x ? 1 : -1;
+  },
+
+  // ── 村民社交：走向最近的空闲角色 ──
+  _startSocializing: function (c) {
+    var nearest = this._getNearestChar(c, function (other) {
+      return other.state === 'idle';
+    });
+    if (!nearest) {
+      this._startWandering(c);
+      return;
+    }
+
+    var CELL = TownWorld.CELL;
+    var tx = nearest.x + (Math.random() - 0.5) * CELL;
+    var ty = nearest.y + (Math.random() - 0.5) * CELL;
+    tx = Math.max(CELL, Math.min(TownWorld.MAP_W * CELL - CELL, tx));
+    ty = Math.max(CELL, Math.min(TownWorld.MAP_H * CELL - CELL, ty));
+
+    if (!TownWorld.isPixelWalkable(tx, ty)) {
+      this._startWandering(c);
+      return;
+    }
+
+    c.targetX = tx;
+    c.targetY = ty;
+    c.path = null;
+    c.pathIndex = 0;
+    var fromGX = Math.floor(c.x / CELL);
+    var fromGY = Math.floor(c.y / CELL);
+    var toGX = Math.floor(tx / CELL);
+    var toGY = Math.floor(ty / CELL);
+    if (Math.abs(fromGX - toGX) + Math.abs(fromGY - toGY) > 2) {
+      var path = this._findPath(fromGX, fromGY, toGX, toGY);
+      if (path && path.length > 0) {
+        c.path = path;
+        c.pathIndex = 0;
+        c.targetX = path[0].gx * CELL + CELL / 2;
+        c.targetY = path[0].gy * CELL + CELL / 2;
+      }
+    }
+
+    c.state = 'walking';
+    c.direction = c.targetX >= c.x ? 1 : -1;
+  },
+
+  // ── 商贩叫卖 ──
+  _startCallout: function (c) {
+    var lines = this._COOP_LINES.merchant_callout;
+    var duration = 3 + Math.random() * 2;
+    c.bubble = { text: lines[Utils.randInt(0, lines.length - 1)], timer: duration, isClick: false };
+    c.state = 'talking';
+    c.stateTimer = duration;
+    var profile = this._ROLE_PROFILES[c.role];
+    c.talkCooldown = profile.talkCooldown[0] + Math.random() * (profile.talkCooldown[1] - profile.talkCooldown[0]);
+  },
+
+  // ── 获取建筑前方位置 ──
+  _getBuildingFront: function (buildingId) {
+    if (typeof TownManager === 'undefined') return null;
+    var CELL = TownWorld.CELL;
+    var placement = TownManager._state.placements[buildingId];
+    var defaultPos = TownWorld._defaultPositions ? TownWorld._defaultPositions[buildingId] : null;
+    var pos = placement || defaultPos;
+    if (!pos) return null;
+    var size = TownWorld._buildingSizes ? TownWorld._buildingSizes[buildingId] : { w: 2, h: 2 };
+    return {
+      x: (pos.gx + size.w / 2) * CELL,
+      y: (pos.gy + size.h + 0.5) * CELL
+    };
+  },
+
+  // ── 找最近角色 ──
+  _getNearestChar: function (c, filter) {
+    var best = null;
+    var bestDist = Infinity;
+    for (var i = 0; i < this._chars.length; i++) {
+      var other = this._chars[i];
+      if (other === c || other.hidden) continue;
+      if (filter && !filter(other)) continue;
+      var dx = other.x - c.x;
+      var dy = other.y - c.y;
+      var d = dx * dx + dy * dy;
+      if (d < bestDist) { bestDist = d; best = other; }
+    }
+    return best;
+  },
+
+  // ── NPC 协作互动检测 ──
+  _tickCooperation: function (dt) {
+    this._coopTimer -= dt;
+    if (this._coopTimer > 0) return;
+    this._coopTimer = this.COOP_CHECK_INTERVAL;
+
+    var CELL = TownWorld.CELL;
+    var greetDist2 = Math.pow(this.GREET_DIST * CELL, 2);
+
+    for (var i = 0; i < this._chars.length; i++) {
+      var a = this._chars[i];
+      if (a.state !== 'idle' || a.hidden || a.bubble) continue;
+      if ((a._greetCooldown || 0) > 0) continue;
+
+      for (var j = i + 1; j < this._chars.length; j++) {
+        var b = this._chars[j];
+        if (b.state !== 'idle' || b.hidden || b.bubble) continue;
+        if ((b._greetCooldown || 0) > 0) continue;
+
+        var dx = a.x - b.x;
+        var dy = a.y - b.y;
+        if (dx * dx + dy * dy > greetDist2) continue;
+
+        if (Math.random() > 0.3) continue;
+
+        // 面朝对方
+        a.direction = b.x > a.x ? 1 : -1;
+        b.direction = a.x > b.x ? 1 : -1;
+
+        // 根据角色职业选择互动台词
+        var linesA, linesB;
+        if (a.role === 'guard' && b.role === 'guard') {
+          linesA = this._COOP_LINES.guard_relay;
+          linesB = this._COOP_LINES.guard_relay;
+        } else if (a.role === 'merchant') {
+          linesA = this._COOP_LINES.merchant_callout;
+          linesB = this._COOP_LINES.greet;
+        } else if (b.role === 'merchant') {
+          linesA = this._COOP_LINES.greet;
+          linesB = this._COOP_LINES.merchant_callout;
+        } else {
+          linesA = this._COOP_LINES.greet;
+          linesB = this._COOP_LINES.greet;
+        }
+
+        a.bubble = { text: linesA[Utils.randInt(0, linesA.length - 1)], timer: 3, isClick: false };
+        b.bubble = { text: linesB[Utils.randInt(0, linesB.length - 1)], timer: 3, isClick: false };
+
+        a._greetCooldown = this.GREET_COOLDOWN;
+        b._greetCooldown = this.GREET_COOLDOWN;
+        break;
+      }
+    }
   },
 
   _startWandering: function (c) {
@@ -618,7 +1005,9 @@ var TownCharacters = {
     for (var i = 0; i < this._chars.length; i++) {
       var c = this._chars[i];
       if (c.state === 'dragging') continue;
-      c.speed = c.type === 'hero' ? this.HERO_SPEED : this.NPC_SPEED;
+      c.speed = c.type === 'hero' ? this.HERO_SPEED
+        : (c.role && this._ROLE_PROFILES[c.role]) ? this._ROLE_PROFILES[c.role].speed
+        : this.NPC_SPEED;
       c.bubble = null;
       c.hidden = false;
       c._fightTimer = 0;
@@ -709,7 +1098,13 @@ var TownCharacters = {
         text = hd.idle[Utils.randInt(0, hd.idle.length - 1)];
       }
     } else {
-      text = NpcDialogues.npcIdle[Utils.randInt(0, NpcDialogues.npcIdle.length - 1)];
+      // 优先使用职业专属台词（60%概率）
+      var roleLines = NpcDialogues.roleIdle && NpcDialogues.roleIdle[c.role];
+      if (roleLines && roleLines.length > 0 && Math.random() < 0.6) {
+        text = roleLines[Utils.randInt(0, roleLines.length - 1)];
+      } else {
+        text = NpcDialogues.npcIdle[Utils.randInt(0, NpcDialogues.npcIdle.length - 1)];
+      }
     }
 
     if (!text) {
@@ -721,10 +1116,15 @@ var TownCharacters = {
     c.bubble = { text: text, timer: duration, isClick: false };
     c.state = 'talking';
     c.stateTimer = duration;
-    // 重置冷却
-    c.talkCooldown = c.type === 'hero'
-      ? 12 + Math.random() * 13
-      : 18 + Math.random() * 22;
+    // 重置冷却（使用职业配置）
+    if (c.type === 'hero') {
+      c.talkCooldown = 12 + Math.random() * 13;
+    } else {
+      var profile = c.role ? this._ROLE_PROFILES[c.role] : null;
+      c.talkCooldown = (profile && profile.talkCooldown)
+        ? profile.talkCooldown[0] + Math.random() * (profile.talkCooldown[1] - profile.talkCooldown[0])
+        : 18 + Math.random() * 22;
+    }
   },
 
   // ── 点击交互 ──
