@@ -136,6 +136,231 @@ var AbyssPanel = {
   },
 
   /* ============================
+   * Jackpot Explosion — full-screen celebration for rare+ drops
+   * ============================ */
+  _JackpotExplosion: {
+    _overlay: null,
+    _particles: [],
+    _rays: null,
+    _rafId: null,
+    _startTime: 0,
+    _timers: [],
+    _duration: 3000,
+
+    // Particle emojis by quality tier
+    _TIER_EMOJIS: {
+      3: ['💎', '✨', '⭐', '🔹', '🔷'],
+      4: ['💎', '✨', '🌟', '🔮', '💜', '⚡'],
+      5: ['🏆', '💰', '🎊', '🌟', '👑', '💎', '🎁', '⭐'],
+      6: ['🏆', '🔥', '🎊', '🌟', '👑', '💎', '🎁', '⭐', '💰', '🐉']
+    },
+
+    /**
+     * Launch full-screen jackpot explosion
+     * @param {number} quality - equipment quality (3-6)
+     * @param {string} equipEmoji - equipment's emoji
+     * @param {string} equipName - equipment's name
+     * @param {string} qColor - quality color hex
+     * @param {string} qName - quality name string
+     */
+    start: function (quality, equipEmoji, equipName, qColor, qName) {
+      this.stop();
+
+      // Respect prefers-reduced-motion
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+      }
+
+      var overlay = document.createElement('div');
+      overlay.className = 'jackpot-overlay';
+      overlay.setAttribute('data-quality', quality);
+
+      // — Light rays from center —
+      // <!-- PLACEHOLDER: 中奖光线效果
+      //      位置：全屏中心放射
+      //      尺寸：100vw × 100vh
+      //      内容：从中心向外辐射的金色/品质色光线
+      //      替换方式：将下方 .jackpot-rays 的 CSS conic-gradient 替换为 <img src="assets/abyss/jackpot-rays.png"> -->
+      var rays = document.createElement('div');
+      rays.className = 'jackpot-rays';
+      rays.style.background = 'conic-gradient(from 0deg, '
+        + qColor + '33 0deg, transparent 15deg, '
+        + qColor + '33 30deg, transparent 45deg, '
+        + qColor + '33 60deg, transparent 75deg, '
+        + qColor + '33 90deg, transparent 105deg, '
+        + qColor + '33 120deg, transparent 135deg, '
+        + qColor + '33 150deg, transparent 165deg, '
+        + qColor + '33 180deg, transparent 195deg, '
+        + qColor + '33 210deg, transparent 225deg, '
+        + qColor + '33 240deg, transparent 255deg, '
+        + qColor + '33 270deg, transparent 285deg, '
+        + qColor + '33 300deg, transparent 315deg, '
+        + qColor + '33 330deg, transparent 345deg, '
+        + qColor + '33 360deg)';
+      overlay.appendChild(rays);
+      this._rays = rays;
+
+      // — Expanding ring —
+      var ring = document.createElement('div');
+      ring.className = 'jackpot-ring';
+      ring.style.borderColor = qColor;
+      overlay.appendChild(ring);
+
+      // — Center icon —
+      // <!-- PLACEHOLDER: 中奖装备展示框
+      //      位置：屏幕正中心
+      //      尺寸：120×120px
+      //      内容：品质光环 + 装备图标
+      //      替换方式：将 .jackpot-icon 的 emoji 替换为 <img src="assets/equip/<id>.png"> -->
+      var iconWrap = document.createElement('div');
+      iconWrap.className = 'jackpot-icon';
+      iconWrap.style.boxShadow = '0 0 40px ' + qColor + ', 0 0 80px ' + qColor + '88, inset 0 0 30px ' + qColor + '44';
+      iconWrap.style.borderColor = qColor;
+      iconWrap.innerHTML = '<span class="jackpot-icon__emoji">' + (equipEmoji || '⚔️') + '</span>';
+      overlay.appendChild(iconWrap);
+
+      // — Equipment name + quality —
+      var info = document.createElement('div');
+      info.className = 'jackpot-info';
+      info.innerHTML = '<div class="jackpot-info__name" style="color:' + qColor + ';text-shadow:0 0 16px ' + qColor + '">'
+        + equipName + '</div>'
+        + '<div class="jackpot-info__quality" style="color:' + qColor + '">' + qName + '</div>';
+      overlay.appendChild(info);
+
+      document.body.appendChild(overlay);
+      this._overlay = overlay;
+
+      // — Spawn particles flying outward from center —
+      var emojis = this._TIER_EMOJIS[quality] || this._TIER_EMOJIS[3];
+      var particleCount = quality >= 6 ? 60 : quality >= 5 ? 45 : quality >= 4 ? 30 : 20;
+      var cx = window.innerWidth / 2;
+      var cy = window.innerHeight / 2;
+
+      // Spawn in 2 waves for more drama
+      var self = this;
+      this._spawnWave(overlay, emojis, particleCount, cx, cy, quality, qColor, 0);
+      if (quality >= 4) {
+        var tid = setTimeout(function () {
+          self._spawnWave(overlay, emojis, Math.floor(particleCount * 0.6), cx, cy, quality, qColor, 1);
+        }, 400);
+        this._timers.push(tid);
+      }
+
+      // Screen shake for quality 5+
+      if (quality >= 5) {
+        document.body.classList.add('jackpot-shake');
+        var shakeTid = setTimeout(function () {
+          document.body.classList.remove('jackpot-shake');
+        }, 600);
+        this._timers.push(shakeTid);
+      }
+
+      // Start animation loop
+      this._startTime = performance.now();
+      this._duration = quality >= 6 ? 3500 : quality >= 5 ? 3000 : 2500;
+      this._rafId = requestAnimationFrame(this._tick.bind(this));
+
+      // Auto-cleanup
+      var cleanTid = setTimeout(function () {
+        self.stop();
+      }, this._duration + 200);
+      this._timers.push(cleanTid);
+    },
+
+    _spawnWave: function (overlay, emojis, count, cx, cy, quality, qColor, wave) {
+      for (var i = 0; i < count; i++) {
+        var angle = (Math.PI * 2 * i / count) + (wave * 0.3);
+        // Add randomness to angle and speed
+        angle += (Math.random() - 0.5) * 0.6;
+        var baseSpeed = 300 + Math.random() * 400;
+        if (quality >= 6) baseSpeed += 100;
+
+        var el = document.createElement('span');
+        el.className = 'jackpot-particle';
+        var emoji = emojis[Math.floor(Math.random() * emojis.length)];
+        el.textContent = emoji;
+        var size = 18 + Math.random() * 14;
+        el.style.fontSize = size + 'px';
+        el.style.left = cx + 'px';
+        el.style.top = cy + 'px';
+        overlay.appendChild(el);
+
+        this._particles.push({
+          el: el,
+          x: cx, y: cy,
+          vx: Math.cos(angle) * baseSpeed,
+          vy: Math.sin(angle) * baseSpeed,
+          rotation: Math.random() * 720 - 360,
+          scale: 0.5 + Math.random() * 0.8,
+          delay: wave * 400 + Math.random() * 200,
+          gravity: 80 + Math.random() * 60
+        });
+      }
+    },
+
+    _tick: function (now) {
+      if (!this._overlay) return;
+      var elapsed = now - this._startTime;
+      var duration = this._duration;
+
+      // Rotate light rays
+      if (this._rays) {
+        this._rays.style.transform = 'translate(-50%, -50%) rotate(' + (elapsed * 0.06) + 'deg)';
+      }
+
+      // Animate particles
+      for (var i = 0; i < this._particles.length; i++) {
+        var p = this._particles[i];
+        var t = Math.max(0, elapsed - p.delay) / 1000;
+        if (t <= 0) {
+          p.el.style.opacity = '0';
+          continue;
+        }
+
+        // Position: fly outward with slight gravity pull
+        var x = p.x + p.vx * t;
+        var y = p.y + p.vy * t + 0.5 * p.gravity * t * t;
+
+        // Rotation
+        var rot = p.rotation * t;
+
+        // Scale: pop in then maintain
+        var scale = Math.min(p.scale, p.scale * t * 4);
+
+        // Opacity: full until last 30% of duration, then fade
+        var fadeStart = duration * 0.65;
+        var opacity = elapsed < fadeStart ? 1 : Math.max(0, 1 - (elapsed - fadeStart) / (duration * 0.35));
+
+        p.el.style.transform = 'translate(' + (x - p.x) + 'px,' + (y - p.y) + 'px) rotate(' + rot + 'deg) scale(' + scale + ')';
+        p.el.style.opacity = opacity;
+      }
+
+      // Fade overlay background in last 20%
+      if (elapsed > duration * 0.8) {
+        var overlayOpacity = Math.max(0, 1 - (elapsed - duration * 0.8) / (duration * 0.2));
+        this._overlay.style.opacity = overlayOpacity;
+      }
+
+      if (elapsed < duration) {
+        this._rafId = requestAnimationFrame(this._tick.bind(this));
+      }
+    },
+
+    stop: function () {
+      if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+      for (var t = 0; t < this._timers.length; t++) clearTimeout(this._timers[t]);
+      this._timers = [];
+      if (this._overlay && this._overlay.parentNode) {
+        this._overlay.parentNode.removeChild(this._overlay);
+      }
+      this._overlay = null;
+      this._rays = null;
+      this._particles = [];
+      document.body.classList.remove('jackpot-shake');
+    }
+  },
+
+  /* ============================
    * Slot Machine Equipment Reveal
    * ============================ */
   _SlotMachine: {
@@ -336,46 +561,17 @@ var AbyssPanel = {
       nameDiv.textContent = (equip.emoji || '') + ' ' + equip.name + '（' + qName + '）';
       container.appendChild(nameDiv);
 
-      // Quality 4: purple full pulse (reuse existing animation)
-      if (quality === 4 && container.parentNode) {
-        container.parentNode.style.animation = 'pulse-glow-purple 0.8s ease';
-        var tid4 = setTimeout(function () {
-          if (container.parentNode) container.parentNode.style.animation = '';
-        }, 800);
-        this._timers.push(tid4);
-      }
-
-      // Quality 5+: celebration overlay
-      if (quality >= 5) {
-        var celebDiv = document.createElement('div');
-        celebDiv.className = 'slot-celebration';
-        var celebName = document.createElement('div');
-        celebName.className = 'slot-celebration__name';
-        celebName.style.color = qColor;
-        celebName.textContent = equip.name;
-        var celebQ = document.createElement('div');
-        celebQ.className = 'slot-celebration__quality';
-        celebQ.style.color = qColor;
-        celebQ.textContent = qName;
-        celebDiv.appendChild(celebName);
-        celebDiv.appendChild(celebQ);
-
-        if (container.parentNode) {
-          container.parentNode.style.position = 'relative';
-          container.parentNode.appendChild(celebDiv);
+      // Quality 3+: jackpot explosion (intensity scales with quality)
+      if (quality >= 3) {
+        // Quality 4: also add purple pulse to slot container
+        if (quality === 4 && container.parentNode) {
+          container.parentNode.style.animation = 'pulse-glow-purple 0.8s ease';
+          var tid4 = setTimeout(function () {
+            if (container.parentNode) container.parentNode.style.animation = '';
+          }, 800);
+          this._timers.push(tid4);
         }
-
-        // Gold particles via LootParticles if quality 5
-        if (quality === 5 && AbyssPanel._LootParticles && container.parentNode) {
-          var goldRewards = { gold: 2000, exp: 0, iron: 0, jade: 0 };
-          AbyssPanel._LootParticles.start(goldRewards, container.parentNode, function () {});
-        }
-
-        // Remove celebration after 2s
-        var tidCeleb = setTimeout(function () {
-          if (celebDiv.parentNode) celebDiv.parentNode.removeChild(celebDiv);
-        }, 2000);
-        this._timers.push(tidCeleb);
+        AbyssPanel._JackpotExplosion.start(quality, equip.emoji, equip.name, qColor, qName);
       }
 
       // Quality 6: mythic flash + shake before effect
@@ -383,11 +579,9 @@ var AbyssPanel = {
         var flash = document.createElement('div');
         flash.className = 'equip-mythic-flash';
         container.parentNode.appendChild(flash);
-        container.parentNode.style.animation = 'shake 0.1s ease 4';
 
         var tidFlash = setTimeout(function () {
           if (flash.parentNode) flash.parentNode.removeChild(flash);
-          if (container.parentNode) container.parentNode.style.animation = '';
         }, 1200);
         this._timers.push(tidFlash);
       }
@@ -412,16 +606,13 @@ var AbyssPanel = {
           }
         }
         // Remove all effects
-        var celebrations = this._container.parentNode ? this._container.parentNode.querySelectorAll('.slot-celebration') : [];
-        for (var c = 0; c < celebrations.length; c++) {
-          if (celebrations[c].parentNode) celebrations[c].parentNode.removeChild(celebrations[c]);
-        }
         var flashes = this._container.parentNode ? this._container.parentNode.querySelectorAll('.equip-mythic-flash') : [];
         for (var f = 0; f < flashes.length; f++) {
           if (flashes[f].parentNode) flashes[f].parentNode.removeChild(flashes[f]);
         }
       }
 
+      AbyssPanel._JackpotExplosion.stop();
       AbyssPanel._LootParticles.stop();
     },
 
@@ -1131,6 +1322,7 @@ var AbyssPanel = {
     this._LootParticles.stop();
     this._SlotMachine.stop();
     this._Transition.stop();
+    this._JackpotExplosion.stop();
     this._settlement.phase = null;
     this._settlement.skipped = false;
     this._settlement.run = null;

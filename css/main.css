@@ -1633,28 +1633,118 @@ img, svg { display: block; max-width: 100%; }
   box-shadow: 0 0 36px #ff2222, inset 0 0 18px rgba(255,34,34,0.3);
 }
 
-/* Full-screen celebration overlay */
-.slot-celebration {
-  position: absolute;
+/* Full-screen Jackpot Explosion */
+.jackpot-overlay {
+  position: fixed;
   inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.85) 100%);
+}
+.jackpot-rays {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200vmax;
+  height: 200vmax;
+  transform: translate(-50%, -50%);
+  opacity: 0.7;
+  animation: jackpotRaysPulse 1.5s ease-in-out infinite alternate;
+}
+.jackpot-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 3px solid;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: jackpotRingExpand 1.2s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  opacity: 0.6;
+}
+.jackpot-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 10;
-  pointer-events: none;
-  animation: celebrationRadial 2s ease forwards;
+  background: rgba(0,0,0,0.7);
+  animation: jackpotIconPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s forwards;
 }
-.slot-celebration__name {
-  font-size: 1.4rem;
+.jackpot-icon__emoji {
+  font-size: 2.8rem;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));
+}
+.jackpot-info {
+  position: absolute;
+  top: calc(50% + 70px);
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  animation: jackpotInfoSlide 0.5s ease 0.4s both;
+}
+.jackpot-info__name {
+  font-size: 1.6rem;
   font-weight: bold;
-  font-family: var(--font-title);
-  text-shadow: 0 0 12px currentColor;
-  animation: slideUp 0.4s ease;
+  font-family: var(--font-title, 'Microsoft YaHei');
+  white-space: nowrap;
 }
-.slot-celebration__quality {
-  font-size: 0.85rem;
+.jackpot-info__quality {
+  font-size: 0.9rem;
   margin-top: 4px;
+  opacity: 0.9;
+}
+.jackpot-particle {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+  opacity: 0;
+  animation: jackpotParticleIn 0.15s ease forwards;
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.4));
+}
+.jackpot-shake {
+  animation: jackpotShake 0.6s ease !important;
+}
+
+/* Jackpot keyframes */
+@keyframes jackpotRaysPulse {
+  0%   { opacity: 0.4; }
+  100% { opacity: 0.8; }
+}
+@keyframes jackpotRingExpand {
+  0%   { width: 20px; height: 20px; opacity: 0.8; border-width: 3px; }
+  100% { width: 120vmax; height: 120vmax; opacity: 0; border-width: 1px; }
+}
+@keyframes jackpotIconPop {
+  0%   { transform: translate(-50%, -50%) scale(0) rotate(-20deg); }
+  60%  { transform: translate(-50%, -50%) scale(1.2) rotate(5deg); }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+}
+@keyframes jackpotInfoSlide {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes jackpotParticleIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes jackpotShake {
+  0%, 100% { transform: translateX(0); }
+  10%  { transform: translateX(-6px) translateY(2px); }
+  20%  { transform: translateX(5px) translateY(-2px); }
+  30%  { transform: translateX(-4px) translateY(1px); }
+  40%  { transform: translateX(4px) translateY(-1px); }
+  50%  { transform: translateX(-3px); }
+  60%  { transform: translateX(2px); }
+  70%  { transform: translateX(-1px); }
 }
 
 /* Quick battle button */
@@ -1680,13 +1770,6 @@ img, svg { display: block; max-width: 100%; }
   50%  { opacity: 0.6; }
   100% { opacity: 1; }
 }
-@keyframes celebrationRadial {
-  0%   { background: radial-gradient(circle, rgba(212,168,73,0.5) 0%, transparent 60%); opacity: 0; }
-  20%  { opacity: 1; }
-  80%  { opacity: 1; }
-  100% { background: radial-gradient(circle, rgba(212,168,73,0) 0%, transparent 60%); opacity: 0; }
-}
-
 /* prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .loot-particle,
@@ -1695,12 +1778,19 @@ img, svg { display: block; max-width: 100%; }
   .equip-mythic-flash,
   .abyss-settlement__title,
   .slot-reel,
-  .slot-celebration,
+  .jackpot-overlay,
+  .jackpot-rays,
+  .jackpot-ring,
+  .jackpot-icon,
+  .jackpot-particle,
   .abyss-transition,
   .abyss-floor-clear,
   .abyss-quick-progress .progress-fill {
     animation: none !important;
     transition: none !important;
+  }
+  .jackpot-overlay {
+    display: none !important;
   }
 }
 
