@@ -30,6 +30,7 @@ var TownManager = {
       parking_lot:      { level: 0, buildEndTime: null, count: 0, buildType: null }
     },
     placements: {},
+    copyPlacements: {},
     roads: [],
     workers: 1,
     firstBuildingCompleted: false,
@@ -62,6 +63,9 @@ var TownManager = {
       this._state.buildings = this._getDefaultBuildings();
     }
     this._state.placements = (data && data.placements) ? data.placements : {};
+    this._state.copyPlacements = (data && data.copyPlacements) ? data.copyPlacements : {};
+    // Migrate old saves: if count > 1 but no copyPlacements, auto-place copies
+    this._migrateCopyPlacements();
     // Load roads from save or initialize empty
     if (data.roads && Array.isArray(data.roads)) {
       this._state.roads = data.roads.filter(function (r) {
@@ -149,7 +153,12 @@ var TownManager = {
       var b = this._state.buildings[id];
       if (b.buildEndTime && now >= b.buildEndTime) {
         if (b.buildType === 'copy') {
-          // 副本建造完成
+          // 副本建造完成 — 自动放置新副本到地图
+          var copyPos = this._findCopyPlacement(id);
+          if (copyPos) {
+            if (!this._state.copyPlacements[id]) this._state.copyPlacements[id] = [];
+            this._state.copyPlacements[id].push(copyPos);
+          }
           b.count++;
           b.buildEndTime = null;
           b.buildType = null;
@@ -293,6 +302,156 @@ var TownManager = {
     if (buildingId === 'warehouse' || buildingId === 'farmland') return count;
     // 战斗 & 功能建筑：递减倍率 1 + 0.5 × (count-1)
     return 1 + 0.5 * (count - 1);
+  },
+
+  // ---------- 副本位置管理 ----------
+
+  /** 获取建筑所有实例的位置（含原始 + 副本） */
+  getCopyPlacements: function (buildingId) {
+    var result = [];
+    // 原始位置
+    var primary = this._state.placements[buildingId]
+        || (typeof TownWorld !== 'undefined' ? TownWorld._defaultPositions[buildingId] : null)
+        || { gx: 0, gy: 0 };
+    result.push({ gx: primary.gx, gy: primary.gy });
+    // 副本位置
+    var copies = this._state.copyPlacements[buildingId];
+    if (copies && copies.length) {
+      for (var i = 0; i < copies.length; i++) {
+        result.push({ gx: copies[i].gx, gy: copies[i].gy });
+      }
+    }
+    return result;
+  },
+
+  /** 设置某个副本的位置 (copyIndex: 0=原始, 1+=副本) */
+  setCopyPlacement: function (buildingId, copyIndex, gx, gy) {
+    if (copyIndex === 0) {
+      if (!this._state.placements) this._state.placements = {};
+      this._state.placements[buildingId] = { gx: gx, gy: gy };
+    } else {
+      if (!this._state.copyPlacements[buildingId]) {
+        this._state.copyPlacements[buildingId] = [];
+      }
+      this._state.copyPlacements[buildingId][copyIndex - 1] = { gx: gx, gy: gy };
+    }
+  },
+
+  /** 获取所有已建造建筑实例（供渲染用） */
+  getAllBuildingInstances: function () {
+    var instances = [];
+    if (typeof TownWorld === 'undefined') return instances;
+    var buildingIds = Object.keys(TownWorld._buildingSizes);
+    for (var i = 0; i < buildingIds.length; i++) {
+      var id = buildingIds[i];
+      var bState = this._state.buildings[id];
+      if (!bState || bState.level <= 0) continue;
+      var count = bState.count || 1;
+      var positions = this.getCopyPlacements(id);
+      for (var ci = 0; ci < count && ci < positions.length; ci++) {
+        instances.push({
+          id: id,
+          copyIndex: ci,
+          gx: positions[ci].gx,
+          gy: positions[ci].gy,
+          state: bState
+        });
+      }
+    }
+    return instances;
+  },
+
+  /** 自动为新副本寻找放置位置 */
+  _findCopyPlacement: function (buildingId) {
+    if (typeof TownWorld === 'undefined') return null;
+    var size = TownWorld._buildingSizes[buildingId];
+    if (!size) return null;
+    var primary = this._state.placements[buildingId]
+        || TownWorld._defaultPositions[buildingId];
+    if (!primary) return null;
+
+    var cx = primary.gx;
+    var cy = primary.gy;
+    var MAP_W = TownWorld.MAP_W;
+    var MAP_H = TownWorld.MAP_H;
+
+    // Spiral search from the original position
+    for (var radius = 1; radius < 20; radius++) {
+      // Walk around the perimeter of the spiral at this radius
+      for (var dx = -radius; dx <= radius; dx++) {
+        for (var dy = -radius; dy <= radius; dy++) {
+          // Only check the perimeter cells for this radius
+          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+          var gx = cx + dx;
+          var gy = cy + dy;
+          if (gx < 0 || gy < 0 || gx + size.w > MAP_W || gy + size.h > MAP_H) continue;
+          if (this._isCopyPlacementValid(buildingId, gx, gy)) {
+            return { gx: gx, gy: gy };
+          }
+        }
+      }
+    }
+    return null;
+  },
+
+  /** 检查某位置是否可以放置建筑（考虑所有副本） */
+  _isCopyPlacementValid: function (buildingId, gx, gy) {
+    if (typeof TownWorld === 'undefined') return false;
+    var size = TownWorld._buildingSizes[buildingId];
+    if (!size) return false;
+    var MAP_W = TownWorld.MAP_W;
+    var MAP_H = TownWorld.MAP_H;
+
+    // Bounds check
+    if (gx < 0 || gy < 0 || gx + size.w > MAP_W || gy + size.h > MAP_H) return false;
+
+    // Check all cells occupied by this building
+    var allInstances = this.getAllBuildingInstances();
+    for (var cy = gy; cy < gy + size.h; cy++) {
+      for (var cx = gx; cx < gx + size.w; cx++) {
+        // Check against all existing building instances
+        for (var i = 0; i < allInstances.length; i++) {
+          var inst = allInstances[i];
+          var iSize = TownWorld._buildingSizes[inst.id];
+          if (!iSize) continue;
+          if (cx >= inst.gx && cx < inst.gx + iSize.w && cy >= inst.gy && cy < inst.gy + iSize.h) {
+            return false;
+          }
+        }
+        // Check against TD towers
+        if (typeof TowerDefenseManager !== 'undefined') {
+          var tdState = TowerDefenseManager.getState();
+          if (tdState && tdState.towers) {
+            for (var ti = 0; ti < tdState.towers.length; ti++) {
+              var tdt = tdState.towers[ti];
+              var tdSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(tdt.type) : { w: 1, h: 1 };
+              if (cx >= tdt.gridX && cx < tdt.gridX + tdSize.w && cy >= tdt.gridY && cy < tdt.gridY + tdSize.h) {
+                return false;
+              }
+            }
+          }
+        }
+      }
+    }
+    return true;
+  },
+
+  /** 旧存档迁移：为 count > 1 但没有 copyPlacements 的建筑自动寻位 */
+  _migrateCopyPlacements: function () {
+    for (var id in this._state.buildings) {
+      if (!this._state.buildings.hasOwnProperty(id)) continue;
+      var b = this._state.buildings[id];
+      if (!b || b.level <= 0 || (b.count || 1) <= 1) continue;
+      var copiesNeeded = (b.count || 1) - 1;
+      var existing = this._state.copyPlacements[id] || [];
+      for (var i = existing.length; i < copiesNeeded; i++) {
+        var pos = this._findCopyPlacement(id);
+        if (pos) {
+          if (!this._state.copyPlacements[id]) this._state.copyPlacements[id] = [];
+          this._state.copyPlacements[id].push(pos);
+        }
+      }
+    }
   },
 
   /** 检查是否可以建造新副本 */
@@ -846,6 +1005,11 @@ var TownManager = {
       var bld = this._state.buildings[earliestId];
       var completedAt = bld.buildEndTime;
       if (bld.buildType === 'copy') {
+        var offCopyPos = this._findCopyPlacement(earliestId);
+        if (offCopyPos) {
+          if (!this._state.copyPlacements[earliestId]) this._state.copyPlacements[earliestId] = [];
+          this._state.copyPlacements[earliestId].push(offCopyPos);
+        }
         bld.count++;
         bld.buildEndTime = null;
         bld.buildType = null;
@@ -1107,7 +1271,38 @@ var TownManager = {
     return null; // All directions blocked
   },
 
-  /** Check if a grid cell is occupied by any building other than excludeId */
+  /** 获取指定位置的建筑入口点（用于副本） */
+  _getBuildingEntranceAt: function (buildingId, placement) {
+    if (typeof TownWorld === 'undefined') return null;
+    if (!placement) return null;
+    var size = TownWorld._buildingSizes[buildingId];
+    if (!size) return null;
+
+    var MAP_W = TownWorld.MAP_W;
+    var MAP_H = TownWorld.MAP_H;
+
+    var egx = placement.gx + Math.floor(size.w / 2);
+    var egy = placement.gy + size.h;
+    if (egy < MAP_H && egx >= 0 && egx < MAP_W && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    egx = placement.gx + size.w;
+    egy = placement.gy + Math.floor(size.h / 2);
+    if (egx < MAP_W && egy >= 0 && egy < MAP_H && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    egx = placement.gx - 1;
+    egy = placement.gy + Math.floor(size.h / 2);
+    if (egx >= 0 && egy >= 0 && egy < MAP_H && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    egx = placement.gx + Math.floor(size.w / 2);
+    egy = placement.gy - 1;
+    if (egy >= 0 && egx >= 0 && egx < MAP_W && !this._isBuildingAt(egx, egy, buildingId)) {
+      return { gx: egx, gy: egy };
+    }
+    return null;
+  },
   _isBuildingAt: function (gx, gy, excludeId) {
     if (typeof TownWorld === 'undefined') return false;
     var buildingIds = Object.keys(TownWorld._buildingSizes);
@@ -1116,11 +1311,22 @@ var TownManager = {
       if (id === excludeId) continue;
       var b = this._state.buildings[id];
       if (!b || b.level <= 0) continue;
-      var p = this._state.placements[id] || TownWorld._defaultPositions[id];
       var s = TownWorld._buildingSizes[id];
-      if (!p || !s) continue;
-      if (gx >= p.gx && gx < p.gx + s.w && gy >= p.gy && gy < p.gy + s.h) {
+      if (!s) continue;
+      // Check primary placement
+      var p = this._state.placements[id] || TownWorld._defaultPositions[id];
+      if (p && gx >= p.gx && gx < p.gx + s.w && gy >= p.gy && gy < p.gy + s.h) {
         return true;
+      }
+      // Check copy placements
+      var copies = this._state.copyPlacements[id];
+      if (copies) {
+        for (var ci = 0; ci < copies.length; ci++) {
+          var cp = copies[ci];
+          if (cp && gx >= cp.gx && gx < cp.gx + s.w && gy >= cp.gy && gy < cp.gy + s.h) {
+            return true;
+          }
+        }
       }
     }
     return false;
@@ -1133,14 +1339,25 @@ var TownManager = {
 
   /** Recalculate road network using MST */
   recalcRoads: function () {
-    // 1. Collect entrance points for all built buildings
+    // 1. Collect entrance points for all built buildings (including copies)
     var entrances = [];
     for (var id in this._state.buildings) {
       if (!this._state.buildings.hasOwnProperty(id)) continue;
       if (this._state.buildings[id].level <= 0) continue;
+      // Primary building entrance
       var entrance = this._getBuildingEntrance(id);
       if (entrance) {
         entrances.push({ id: id, gx: entrance.gx, gy: entrance.gy });
+      }
+      // Copy entrances
+      var copies = this._state.copyPlacements[id];
+      if (copies) {
+        for (var ci = 0; ci < copies.length; ci++) {
+          var copyEntrance = this._getBuildingEntranceAt(id, copies[ci]);
+          if (copyEntrance) {
+            entrances.push({ id: id + '_copy_' + (ci + 2), gx: copyEntrance.gx, gy: copyEntrance.gy });
+          }
+        }
       }
     }
 

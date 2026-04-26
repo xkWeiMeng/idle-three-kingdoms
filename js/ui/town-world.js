@@ -47,58 +47,58 @@ var TownWorld = {
 
   // Building grid sizes
   _buildingSizes: {
-    town_hall: { w: 3, h: 3 },
-    lumber_camp: { w: 2, h: 2 },
-    quarry: { w: 2, h: 2 },
-    iron_mine: { w: 2, h: 2 },
-    farmland: { w: 2, h: 2 },
-    barracks: { w: 2, h: 2 },
-    training_ground: { w: 3, h: 2 },
-    blacksmith: { w: 2, h: 2 },
-    city_wall: { w: 3, h: 2 },
-    adventure_guild: { w: 2, h: 2 },
-    tavern: { w: 2, h: 2 },
-    warehouse: { w: 2, h: 2 },
-    market: { w: 3, h: 2 },
-    tax_office: { w: 2, h: 2 },
-    weapon_workshop: { w: 2, h: 2 },
-    stable: { w: 2, h: 2 },
-    academy: { w: 2, h: 2 },
-    watermill: { w: 2, h: 2 },
-    stone_mason: { w: 2, h: 2 },
-    smelter: { w: 2, h: 2 },
-    vegetable_garden: { w: 3, h: 2 },
-    compost_pit: { w: 2, h: 2 },
-    seed_shop: { w: 2, h: 2 },
-    parking_lot: { w: 5, h: 2 }
+    town_hall: { w: 5, h: 5 },
+    lumber_camp: { w: 3, h: 3 },
+    quarry: { w: 3, h: 3 },
+    iron_mine: { w: 3, h: 3 },
+    farmland: { w: 3, h: 3 },
+    barracks: { w: 3, h: 3 },
+    training_ground: { w: 5, h: 3 },
+    blacksmith: { w: 3, h: 3 },
+    city_wall: { w: 5, h: 3 },
+    adventure_guild: { w: 3, h: 3 },
+    tavern: { w: 3, h: 3 },
+    warehouse: { w: 3, h: 3 },
+    market: { w: 5, h: 3 },
+    tax_office: { w: 3, h: 3 },
+    weapon_workshop: { w: 3, h: 3 },
+    stable: { w: 3, h: 3 },
+    academy: { w: 3, h: 3 },
+    watermill: { w: 3, h: 3 },
+    stone_mason: { w: 3, h: 3 },
+    smelter: { w: 3, h: 3 },
+    vegetable_garden: { w: 5, h: 3 },
+    compost_pit: { w: 3, h: 3 },
+    seed_shop: { w: 3, h: 3 },
+    parking_lot: { w: 8, h: 3 }
   },
 
   // Default positions (when no saved data)
   _defaultPositions: {
-    town_hall:        { gx: 14, gy: 14 },
-    lumber_camp:      { gx: 8, gy: 9 },
-    quarry:           { gx: 21, gy: 8 },
-    iron_mine:        { gx: 8, gy: 19 },
-    farmland:         { gx: 21, gy: 19 },
-    barracks:         { gx: 11, gy: 10 },
-    training_ground:  { gx: 18, gy: 10 },
-    blacksmith:       { gx: 11, gy: 18 },
-    city_wall:        { gx: 14, gy: 7 },
-    adventure_guild:  { gx: 7, gy: 14 },
+    town_hall:        { gx: 16, gy: 14 },
+    lumber_camp:      { gx: 2, gy: 6 },
+    quarry:           { gx: 6, gy: 6 },
+    iron_mine:        { gx: 4, gy: 14 },
+    farmland:         { gx: 26, gy: 14 },
+    barracks:         { gx: 10, gy: 6 },
+    training_ground:  { gx: 14, gy: 6 },
+    blacksmith:       { gx: 10, gy: 14 },
+    city_wall:        { gx: 16, gy: 2 },
+    adventure_guild:  { gx: 10, gy: 10 },
     tavern:           { gx: 22, gy: 14 },
-    warehouse:        { gx: 14, gy: 21 },
-    market:           { gx: 18, gy: 18 },
-    tax_office:       { gx: 22, gy: 18 },
-    weapon_workshop:  { gx: 8, gy: 16 },
-    stable:           { gx: 22, gy: 11 },
-    academy:          { gx: 11, gy: 21 },
-    watermill:        { gx: 6, gy: 11 },
-    stone_mason:      { gx: 23, gy: 8 },
-    smelter:          { gx: 6, gy: 21 },
-    vegetable_garden: { gx: 3, gy: 4 },
-    compost_pit:      { gx: 6, gy: 4 },
-    seed_shop:        { gx: 3, gy: 7 },
-    parking_lot:      { gx: 4, gy: 28 }
+    warehouse:        { gx: 16, gy: 20 },
+    market:           { gx: 10, gy: 20 },
+    tax_office:       { gx: 22, gy: 20 },
+    weapon_workshop:  { gx: 6, gy: 10 },
+    stable:           { gx: 14, gy: 10 },
+    academy:          { gx: 4, gy: 20 },
+    watermill:        { gx: 2, gy: 10 },
+    stone_mason:      { gx: 20, gy: 6 },
+    smelter:          { gx: 4, gy: 24 },
+    vegetable_garden: { gx: 2, gy: 2 },
+    compost_pit:      { gx: 8, gy: 2 },
+    seed_shop:        { gx: 12, gy: 2 },
+    parking_lot:      { gx: 10, gy: 24 }
   },
 
   init: function () {
@@ -115,8 +115,9 @@ var TownWorld = {
 
     // Center camera on town hall
     var th = this._getPlacement('town_hall');
-    var cx = (th.gx + 1.5) * this.CELL - this._canvas.width / 2;
-    var cy = (th.gy + 1.5) * this.CELL - this._canvas.height / 2;
+    var thSize = this._buildingSizes['town_hall'];
+    var cx = (th.gx + thSize.w / 2) * this.CELL - this._canvas.width / 2;
+    var cy = (th.gy + thSize.h / 2) * this.CELL - this._canvas.height / 2;
     this._cam.x = cx;
     this._cam.y = cy;
 
@@ -226,12 +227,25 @@ var TownWorld = {
       if (self._roadGrid && self._roadGrid[d.gy] && self._roadGrid[d.gy][d.gx] > 0) {
         return false;
       }
-      var buildingIds = Object.keys(self._buildingSizes);
-      for (var i = 0; i < buildingIds.length; i++) {
-        var p = self._getPlacement(buildingIds[i]);
-        var s = self._buildingSizes[buildingIds[i]];
-        if (d.gx >= p.gx - 1 && d.gx <= p.gx + s.w && d.gy >= p.gy - 1 && d.gy <= p.gy + s.h) {
-          return false;
+      // Check against all building instances (primary + copies)
+      if (typeof TownManager !== 'undefined') {
+        var instances = TownManager.getAllBuildingInstances();
+        for (var i = 0; i < instances.length; i++) {
+          var inst = instances[i];
+          var s = self._buildingSizes[inst.id];
+          if (!s) continue;
+          if (d.gx >= inst.gx - 1 && d.gx <= inst.gx + s.w && d.gy >= inst.gy - 1 && d.gy <= inst.gy + s.h) {
+            return false;
+          }
+        }
+      } else {
+        var buildingIds = Object.keys(self._buildingSizes);
+        for (var bi = 0; bi < buildingIds.length; bi++) {
+          var p = self._getPlacement(buildingIds[bi]);
+          var s2 = self._buildingSizes[buildingIds[bi]];
+          if (d.gx >= p.gx - 1 && d.gx <= p.gx + s2.w && d.gy >= p.gy - 1 && d.gy <= p.gy + s2.h) {
+            return false;
+          }
         }
       }
       return true;
@@ -239,6 +253,45 @@ var TownWorld = {
   },
 
   // --- Placement Data ---
+
+  /** Parse instance key (e.g. "lumber_camp" or "lumber_camp_copy_1") into {id, copyIndex} */
+  _parseInstKey: function (instKey) {
+    var match = instKey.match(/^(.+)_copy_(\d+)$/);
+    if (match) {
+      return { id: match[1], copyIndex: parseInt(match[2], 10) };
+    }
+    return { id: instKey, copyIndex: 0 };
+  },
+
+  /** Get placement for an instance key (supports copy keys) */
+  _getInstancePlacement: function (instKey) {
+    var parsed = this._parseInstKey(instKey);
+    if (parsed.copyIndex === 0) {
+      return this._getPlacement(parsed.id);
+    }
+    // Copy placement
+    if (typeof TownManager !== 'undefined' && TownManager._state && TownManager._state.copyPlacements) {
+      var copies = TownManager._state.copyPlacements[parsed.id];
+      if (copies && copies[parsed.copyIndex - 1]) {
+        return copies[parsed.copyIndex - 1];
+      }
+    }
+    return { gx: 0, gy: 0 };
+  },
+
+  /** Set placement for an instance key (supports copy keys) */
+  _setInstancePlacement: function (instKey, gx, gy) {
+    var parsed = this._parseInstKey(instKey);
+    if (parsed.copyIndex === 0) {
+      this._setPlacement(parsed.id, gx, gy);
+    } else {
+      if (typeof TownManager !== 'undefined') {
+        TownManager.setCopyPlacement(parsed.id, parsed.copyIndex, gx, gy);
+      }
+      this.rebuildCollisionGrid();
+    }
+  },
+
   _getPlacement: function (buildingId) {
     if (typeof TownManager !== 'undefined' && TownManager._state && TownManager._state.placements
         && TownManager._state.placements[buildingId]) {
@@ -264,16 +317,32 @@ var TownWorld = {
         grid[y][x] = false;
       }
     }
-    var buildingIds = Object.keys(this._buildingSizes);
-    for (var i = 0; i < buildingIds.length; i++) {
-      var id = buildingIds[i];
-      var bState = this._getBuildingState(id);
-      if (!bState || bState.level <= 0) continue;
-      var p = this._getPlacement(id);
-      var s = this._buildingSizes[id];
-      for (var gy = p.gy; gy < p.gy + s.h && gy < this.MAP_H; gy++) {
-        for (var gx = p.gx; gx < p.gx + s.w && gx < this.MAP_W; gx++) {
-          if (gy >= 0 && gx >= 0) grid[gy][gx] = true;
+    // Mark all building instances (primary + copies)
+    if (typeof TownManager !== 'undefined') {
+      var instances = TownManager.getAllBuildingInstances();
+      for (var i = 0; i < instances.length; i++) {
+        var inst = instances[i];
+        var s = this._buildingSizes[inst.id];
+        if (!s) continue;
+        for (var gy = inst.gy; gy < inst.gy + s.h && gy < this.MAP_H; gy++) {
+          for (var gx = inst.gx; gx < inst.gx + s.w && gx < this.MAP_W; gx++) {
+            if (gy >= 0 && gx >= 0) grid[gy][gx] = true;
+          }
+        }
+      }
+    } else {
+      // Fallback: original-only
+      var buildingIds = Object.keys(this._buildingSizes);
+      for (var bi = 0; bi < buildingIds.length; bi++) {
+        var id = buildingIds[bi];
+        var bState = this._getBuildingState(id);
+        if (!bState || bState.level <= 0) continue;
+        var p = this._getPlacement(id);
+        var sz = this._buildingSizes[id];
+        for (var fy = p.gy; fy < p.gy + sz.h && fy < this.MAP_H; fy++) {
+          for (var fx = p.gx; fx < p.gx + sz.w && fx < this.MAP_W; fx++) {
+            if (fy >= 0 && fx >= 0) grid[fy][fx] = true;
+          }
         }
       }
     }
@@ -446,26 +515,41 @@ var TownWorld = {
   },
 
   _hitTestBuilding: function (wx, wy) {
-    var buildingIds = Object.keys(this._buildingSizes);
-    // Check in reverse so top-rendered buildings are checked first
-    // First pass: built buildings
-    for (var i = buildingIds.length - 1; i >= 0; i--) {
-      var id = buildingIds[i];
-      var bState = this._getBuildingState(id);
-      if (!bState || bState.level <= 0) continue;
+    // First pass: check all building instances (primary + copies), reverse Y for top-most
+    if (typeof TownManager !== 'undefined') {
+      var instances = TownManager.getAllBuildingInstances();
+      // Reverse iterate so higher-Y (closer to viewer) buildings are checked first
+      for (var i = instances.length - 1; i >= 0; i--) {
+        var inst = instances[i];
+        var s = this._buildingSizes[inst.id];
+        if (!s) continue;
+        var bx = inst.gx * this.CELL;
+        var by = inst.gy * this.CELL;
+        var bw = s.w * this.CELL;
+        var bh = s.h * this.CELL;
 
-      var p = this._getPlacement(id);
-      var s = this._buildingSizes[id];
-      var bx = p.gx * this.CELL;
-      var by = p.gy * this.CELL;
-      var bw = s.w * this.CELL;
-      var bh = s.h * this.CELL;
-
-      if (wx >= bx && wx <= bx + bw && wy >= by && wy <= by + bh) {
-        return id;
+        if (wx >= bx && wx <= bx + bw && wy >= by && wy <= by + bh) {
+          // Return building id for primary, or instKey for copies
+          return inst.copyIndex === 0 ? inst.id : inst.id + '_copy_' + inst.copyIndex;
+        }
+      }
+    } else {
+      var buildingIds = Object.keys(this._buildingSizes);
+      for (var fi = buildingIds.length - 1; fi >= 0; fi--) {
+        var fid = buildingIds[fi];
+        var fbState = this._getBuildingState(fid);
+        if (!fbState || fbState.level <= 0) continue;
+        var fp = this._getPlacement(fid);
+        var fs = this._buildingSizes[fid];
+        var fbx = fp.gx * this.CELL;
+        var fby = fp.gy * this.CELL;
+        if (wx >= fbx && wx <= fbx + fs.w * this.CELL && wy >= fby && wy <= fby + fs.h * this.CELL) {
+          return fid;
+        }
       }
     }
     // Second pass: unbuilt buildings (clickable ghost outlines)
+    var buildingIds = Object.keys(this._buildingSizes);
     for (var j = buildingIds.length - 1; j >= 0; j--) {
       var id2 = buildingIds[j];
       var bState2 = this._getBuildingState(id2);
@@ -556,8 +640,8 @@ var TownWorld = {
       : null;
 
     if (this._editMode && hit) {
-      // Start building drag
-      var p = this._getPlacement(hit);
+      // Start building drag (supports copy instance keys)
+      var p = this._getInstancePlacement(hit);
       this._buildingDrag = {
         id: hit,
         startGX: p.gx,
@@ -589,7 +673,7 @@ var TownWorld = {
       if (hit) {
         self._editMode = true;
         self._selectedBuilding = hit;
-        var p = self._getPlacement(hit);
+        var p = self._getInstancePlacement(hit);
         self._buildingDrag = {
           id: hit,
           startGX: p.gx,
@@ -616,12 +700,13 @@ var TownWorld = {
 
     if (this._buildingDrag) {
       var world = this._screenToWorld(pos.x, pos.y);
+      var parsed = this._parseInstKey(this._buildingDrag.id);
       var newGX = Math.round((world.x - this._buildingDrag.offsetX) / this.CELL);
       var newGY = Math.round((world.y - this._buildingDrag.offsetY) / this.CELL);
-      var s = this._buildingSizes[this._buildingDrag.id];
+      var s = this._buildingSizes[parsed.id];
       newGX = Math.max(0, Math.min(this.MAP_W - s.w, newGX));
       newGY = Math.max(0, Math.min(this.MAP_H - s.h, newGY));
-      this._setPlacement(this._buildingDrag.id, newGX, newGY);
+      this._setInstancePlacement(this._buildingDrag.id, newGX, newGY);
       this._buildingDrag.moved = true;
       return;
     }
@@ -658,16 +743,18 @@ var TownWorld = {
     if (this._buildingDrag) {
       if (this._buildingDrag.moved) {
         // Validate placement
-        var p = this._getPlacement(this._buildingDrag.id);
-        if (this._checkPlacementValid(this._buildingDrag.id, p.gx, p.gy)) {
+        var parsed = this._parseInstKey(this._buildingDrag.id);
+        var p = this._getInstancePlacement(this._buildingDrag.id);
+        if (this._checkPlacementValid(parsed.id, p.gx, p.gy, this._buildingDrag.id)) {
           this._confirmMove();
         } else {
           EventBus.emit('toast:show', { type: 'warning', message: '此位置无法放置' });
-          this._setPlacement(this._buildingDrag.id, this._buildingDrag.startGX, this._buildingDrag.startGY);
+          this._setInstancePlacement(this._buildingDrag.id, this._buildingDrag.startGX, this._buildingDrag.startGY);
         }
       } else {
-        // Tap on building in edit mode → show details
-        this._showBuildingDetail(this._buildingDrag.id);
+        // Tap on building in edit mode → show details (use base building id)
+        var parsed2 = this._parseInstKey(this._buildingDrag.id);
+        this._showBuildingDetail(parsed2.id);
         this._finishMove();
       }
       this._buildingDrag = null;
@@ -706,7 +793,9 @@ var TownWorld = {
         var hit = this._hitTestBuilding(world.x, world.y);
         if (hit) {
           this._selectedBuilding = hit;
-          this._showBuildingDetail(hit);
+          // Show building detail using base building id
+          var parsedHit = this._parseInstKey(hit);
+          this._showBuildingDetail(parsedHit.id);
         } else {
           // Check TD building click
           var tdClicked = false;
@@ -1171,7 +1260,8 @@ var TownWorld = {
     if (!bState || bState.level <= 0) return;
     this._editMode = true;
     this._selectedBuilding = buildingId;
-    this._moveOrigPos = { gx: this._getPlacement(buildingId).gx, gy: this._getPlacement(buildingId).gy };
+    var origP = this._getInstancePlacement(buildingId);
+    this._moveOrigPos = { gx: origP.gx, gy: origP.gy };
     if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
     EventBus.emit('toast:show', { type: 'info', message: UIIcons.icon('manage') + ' 拖拽建筑到新位置，点击空地确认' });
     EventBus.emit('town:edit_mode', { active: true });
@@ -1186,7 +1276,7 @@ var TownWorld = {
 
   _cancelMove: function () {
     if (this._moveOrigPos && this._selectedBuilding) {
-      this._setPlacement(this._selectedBuilding, this._moveOrigPos.gx, this._moveOrigPos.gy);
+      this._setInstancePlacement(this._selectedBuilding, this._moveOrigPos.gx, this._moveOrigPos.gy);
     }
     this._finishMove();
     EventBus.emit('toast:show', { type: 'info', message: '已取消移动' });
@@ -1194,7 +1284,7 @@ var TownWorld = {
 
   _confirmMove: function () {
     if (this._selectedBuilding) {
-      var p = this._getPlacement(this._selectedBuilding);
+      var p = this._getInstancePlacement(this._selectedBuilding);
       EventBus.emit('town:building_moved', { buildingId: this._selectedBuilding, x: p.gx, y: p.gy });
     }
     this._finishMove();
@@ -1216,21 +1306,48 @@ var TownWorld = {
     EventBus.emit('town:edit_mode', { active: false });
   },
 
-  _checkPlacementValid: function (buildingId, gx, gy) {
+  _checkPlacementValid: function (buildingId, gx, gy, excludeInstKey) {
     var s = this._buildingSizes[buildingId];
     if (!s) return false;
     if (gx < 0 || gy < 0 || gx + s.w > this.MAP_W || gy + s.h > this.MAP_H) return false;
-    // Check overlap with other buildings
-    var buildingIds = Object.keys(this._buildingSizes);
-    for (var i = 0; i < buildingIds.length; i++) {
-      var otherId = buildingIds[i];
-      if (otherId === buildingId) continue;
-      var otherState = this._getBuildingState(otherId);
-      if (!otherState || otherState.level <= 0) continue;
-      var op = this._getPlacement(otherId);
-      var os = this._buildingSizes[otherId];
-      if (gx < op.gx + os.w && gx + s.w > op.gx && gy < op.gy + os.h && gy + s.h > op.gy) {
-        return false;
+    // Check overlap with all building instances (including copies)
+    if (typeof TownManager !== 'undefined') {
+      var instances = TownManager.getAllBuildingInstances();
+      for (var i = 0; i < instances.length; i++) {
+        var inst = instances[i];
+        var instKey = inst.copyIndex === 0 ? inst.id : inst.id + '_copy_' + inst.copyIndex;
+        if (instKey === (excludeInstKey || buildingId)) continue;
+        var os = this._buildingSizes[inst.id];
+        if (!os) continue;
+        if (gx < inst.gx + os.w && gx + s.w > inst.gx && gy < inst.gy + os.h && gy + s.h > inst.gy) {
+          return false;
+        }
+      }
+    } else {
+      var buildingIds = Object.keys(this._buildingSizes);
+      for (var bi = 0; bi < buildingIds.length; bi++) {
+        var otherId = buildingIds[bi];
+        if (otherId === buildingId) continue;
+        var otherState = this._getBuildingState(otherId);
+        if (!otherState || otherState.level <= 0) continue;
+        var op = this._getPlacement(otherId);
+        var os2 = this._buildingSizes[otherId];
+        if (gx < op.gx + os2.w && gx + s.w > op.gx && gy < op.gy + os2.h && gy + s.h > op.gy) {
+          return false;
+        }
+      }
+    }
+    // Check TD towers
+    if (typeof TowerDefenseManager !== 'undefined') {
+      var tdState = TowerDefenseManager.getState();
+      if (tdState && tdState.towers) {
+        for (var ti = 0; ti < tdState.towers.length; ti++) {
+          var tdt = tdState.towers[ti];
+          var tdSize = typeof TDGetTowerSize !== 'undefined' ? TDGetTowerSize(tdt.type) : { w: 1, h: 1 };
+          if (gx < tdt.gridX + tdSize.w && gx + s.w > tdt.gridX && gy < tdt.gridY + tdSize.h && gy + s.h > tdt.gridY) {
+            return false;
+          }
+        }
       }
     }
     return true;
@@ -1656,14 +1773,27 @@ var TownWorld = {
       ctx.restore();
     }
 
-    // --- Draw built buildings (Y-sorted) ---
+    // --- Draw built buildings (Y-sorted, including copies) ---
     var sorted = [];
-    for (var i = 0; i < buildingIds.length; i++) {
-      var id = buildingIds[i];
-      var bState = this._getBuildingState(id);
-      if (!bState || bState.level <= 0) continue;
-      var p = this._getPlacement(id);
-      sorted.push({ id: id, gy: p.gy, state: bState });
+    if (typeof TownManager !== 'undefined') {
+      var instances = TownManager.getAllBuildingInstances();
+      for (var ai = 0; ai < instances.length; ai++) {
+        sorted.push({
+          id: instances[ai].id,
+          copyIndex: instances[ai].copyIndex,
+          gx: instances[ai].gx,
+          gy: instances[ai].gy,
+          state: instances[ai].state
+        });
+      }
+    } else {
+      for (var i = 0; i < buildingIds.length; i++) {
+        var id = buildingIds[i];
+        var bState = this._getBuildingState(id);
+        if (!bState || bState.level <= 0) continue;
+        var p = this._getPlacement(id);
+        sorted.push({ id: id, copyIndex: 0, gx: p.gx, gy: p.gy, state: bState });
+      }
     }
     sorted.sort(function (a, b) { return a.gy - b.gy; });
 
@@ -1671,15 +1801,14 @@ var TownWorld = {
       var item = sorted[j];
       var bId = item.id;
       var s = this._buildingSizes[bId];
-      var p2 = this._getPlacement(bId);
-      var px = p2.gx * this.CELL;
-      var py = p2.gy * this.CELL;
+      var px = item.gx * this.CELL;
+      var py = item.gy * this.CELL;
       var pw = s.w * this.CELL;
       var ph = s.h * this.CELL;
-      var isSelected = this._selectedBuilding === bId;
-      var isBuildingNow = item.state.buildEndTime && item.state.buildEndTime > now;
-
-      // Shadow is baked into SVG — no canvas shadow needed
+      var instKey = item.copyIndex === 0 ? bId : bId + '_copy_' + item.copyIndex;
+      var isSelected = this._selectedBuilding === instKey;
+      // Only primary instance (copyIndex 0) shows construction state
+      var isBuildingNow = item.copyIndex === 0 && item.state.buildEndTime && item.state.buildEndTime > now;
 
       // Dim non-selected buildings when one is selected
       if (this._selectedBuilding && !isSelected) {
@@ -1694,7 +1823,7 @@ var TownWorld = {
         }
 
         // Edit mode drag preview: semi-transparent
-        if (this._editMode && this._buildingDrag && this._buildingDrag.id === bId) {
+        if (this._editMode && this._buildingDrag && this._buildingDrag.id === instKey) {
           ctx.globalAlpha = 0.6;
         }
 
@@ -1737,9 +1866,8 @@ var TownWorld = {
       ctx.textBaseline = 'middle';
       ctx.fillText(item.state.level, px + pw - badgeR - 2, py + 4 + badgeR);
 
-      // Count badge (if > 1)
-      var bCopyCount = item.state.count || 1;
-      if (bCopyCount > 1) {
+      // Copy index badge (for copies, show which copy this is)
+      if (item.copyIndex > 0) {
         ctx.fillStyle = 'rgba(30,80,30,0.8)';
         ctx.beginPath();
         ctx.arc(px + badgeR + 2, py + 4 + badgeR, badgeR, 0, Math.PI * 2);
@@ -1748,7 +1876,7 @@ var TownWorld = {
         ctx.font = 'bold 9px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('×' + bCopyCount, px + badgeR + 2, py + 4 + badgeR);
+        ctx.fillText('#' + (item.copyIndex + 1), px + badgeR + 2, py + 4 + badgeR);
       }
 
       // Selection highlight
@@ -1789,8 +1917,8 @@ var TownWorld = {
         }
       }
 
-      // Upgradeable indicator: green arrow (breathing animation)
-      if (!isBuildingNow && !isSelected && typeof TownManager !== 'undefined') {
+      // Upgradeable indicator: green arrow (only on primary instance)
+      if (item.copyIndex === 0 && !isBuildingNow && !isSelected && typeof TownManager !== 'undefined') {
         var canUp = TownManager.canUpgrade(bId);
         if (canUp && canUp.ok) {
           var arrowAlpha = 0.5 + 0.5 * Math.sin(now / 600);
@@ -1803,8 +1931,8 @@ var TownWorld = {
       }
 
       // Edit mode: valid/invalid placement overlay
-      if (this._editMode && this._buildingDrag && this._buildingDrag.id === bId && this._buildingDrag.moved) {
-        var valid = this._checkPlacementValid(bId, p2.gx, p2.gy);
+      if (this._editMode && this._buildingDrag && this._buildingDrag.id === instKey && this._buildingDrag.moved) {
+        var valid = this._checkPlacementValid(bId, item.gx, item.gy);
         ctx.fillStyle = valid ? 'rgba(93,138,72,0.25)' : 'rgba(179,58,58,0.25)';
         ctx.fillRect(px, py, pw, ph);
         ctx.strokeStyle = valid ? '#5d8a48' : '#b33a3a';
