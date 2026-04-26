@@ -17,131 +17,6 @@ var AbyssPanel = {
   },
 
   /* ============================
-   * Loot Particles System
-   * ============================ */
-  _LootParticles: {
-    _container: null,
-    _particles: [],
-    _rafId: null,
-    _startTime: 0,
-    _onComplete: null,
-    DURATION: 2000,
-
-    start: function (rewards, containerEl, onComplete) {
-      this.stop();
-      this._onComplete = onComplete;
-
-      var container = document.createElement('div');
-      container.className = 'loot-particle-container';
-      // Use full-screen overlay instead of small container
-      container.style.position = 'fixed';
-      container.style.inset = '0';
-      container.style.zIndex = '9998';
-      container.style.pointerEvents = 'none';
-      container.style.overflow = 'hidden';
-      document.body.appendChild(container);
-      this._container = container;
-
-      var counts = this._calcCounts(rewards);
-      var particles = [];
-      var types = [
-        { emoji: UIIcons.icon('gold'), count: counts.gold },
-        { emoji: UIIcons.icon('exp'), count: counts.exp },
-        { emoji: UIIcons.icon('iron'), count: counts.iron },
-        { emoji: UIIcons.icon('jade'), count: counts.jade }
-      ];
-
-      var cx = window.innerWidth / 2;
-      var cy = window.innerHeight / 2;
-
-      for (var t = 0; t < types.length; t++) {
-        for (var p = 0; p < types[t].count; p++) {
-          var angle = Math.random() * Math.PI * 2;
-          var speed = 200 + Math.random() * 200;
-          var el = document.createElement('span');
-          el.className = 'loot-particle';
-          el.innerHTML = types[t].emoji;
-          el.style.fontSize = (16 + Math.random() * 8) + 'px';
-          el.style.left = cx + 'px';
-          el.style.top = cy + 'px';
-          container.appendChild(el);
-          particles.push({
-            el: el,
-            x: cx, y: cy,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed * -0.8,
-            phase: 0
-          });
-        }
-      }
-      this._particles = particles;
-      this._startTime = performance.now();
-      this._rafId = requestAnimationFrame(this._tick.bind(this));
-    },
-
-    _calcCounts: function (r) {
-      var g = r.gold > 0 ? Math.max(3, Math.min(30, Math.floor(r.gold / 500))) : 0;
-      var e = r.exp > 0 ? Math.max(2, Math.min(15, Math.floor(r.exp / 500))) : 0;
-      var i = r.iron > 0 ? Math.max(1, Math.min(10, Math.floor(r.iron / 50))) : 0;
-      var j = r.jade > 0 ? Math.max(1, Math.min(8, Math.floor(r.jade / 5))) : 0;
-      var total = g + e + i + j;
-      if (total > 60) {
-        var ratio = 60 / total;
-        g = Math.max(1, Math.floor(g * ratio));
-        e = Math.max(1, Math.floor(e * ratio));
-        i = Math.max(1, Math.floor(i * ratio));
-        j = Math.max(1, Math.floor(j * ratio));
-      }
-      return { gold: g, exp: e, iron: i, jade: j };
-    },
-
-    _tick: function (now) {
-      if (!this._container || !this._container.parentNode) {
-        this.stop();
-        return;
-      }
-      var elapsed = now - this._startTime;
-      var gravity = 300;
-
-      for (var i = 0; i < this._particles.length; i++) {
-        var p = this._particles[i];
-        var dt = elapsed / 1000;
-
-        // Position: initial + velocity*t + 0.5*gravity*t^2
-        var x = p.x + p.vx * dt + Math.sin(dt * Math.PI * 4) * 10;
-        var y = p.y + p.vy * dt + 0.5 * gravity * dt * dt;
-
-        // Opacity: fade out in last 600ms
-        var opacity = 1;
-        if (elapsed > 1400) {
-          opacity = Math.max(0, 1 - (elapsed - 1400) / 600);
-        }
-
-        p.el.style.transform = 'translate(' + (x - p.x) + 'px,' + (y - p.y) + 'px)';
-        p.el.style.opacity = opacity;
-      }
-
-      if (elapsed >= this.DURATION) {
-        var cb = this._onComplete;
-        this.stop();
-        if (cb) cb();
-      } else {
-        this._rafId = requestAnimationFrame(this._tick.bind(this));
-      }
-    },
-
-    stop: function () {
-      if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
-      if (this._container && this._container.parentNode) {
-        this._container.parentNode.removeChild(this._container);
-      }
-      this._container = null;
-      this._particles = [];
-      this._onComplete = null;
-    }
-  },
-
-  /* ============================
    * Jackpot Explosion — full-screen celebration for rare+ drops
    * ============================ */
   _JackpotExplosion: {
@@ -619,7 +494,6 @@ var AbyssPanel = {
       }
 
       AbyssPanel._JackpotExplosion.stop();
-      AbyssPanel._LootParticles.stop();
     },
 
     stop: function () {
@@ -1131,20 +1005,16 @@ var AbyssPanel = {
     stitle.style.opacity = '1';
     stitle.style.animation = 'slideUp 0.3s ease';
 
-    // Phase 2: Particles (500ms) — full-screen via document.body
+    // Phase 2: CountUp (after 500ms title display)
     var t2 = setTimeout(function () {
       if (self._settlement.skipped) return;
-      self._settlement.phase = 'particles';
-      EventBus.emit('abyss:loot_explosion_start', { abyssId: run.abyssId, floor: run.currentFloor, rewards: run.rewards });
-      self._LootParticles.start(run.rewards, document.body, function () {
-        EventBus.emit('abyss:loot_explosion_end', { abyssId: run.abyssId });
-        // Phase 3: CountUp
-        self._startCountUp(run, resourcesEl, function () {
-          // Phase 4: Equipment reveal
-          self._startEquipReveal(run, equipRevealEl, function () {
-            // Phase 5: Summary
-            self._showFinalSummary(summaryArea);
-          });
+      self._settlement.phase = 'countup';
+      // Phase 3: CountUp
+      self._startCountUp(run, resourcesEl, function () {
+        // Phase 4: Equipment reveal
+        self._startEquipReveal(run, equipRevealEl, function () {
+          // Phase 5: Summary
+          self._showFinalSummary(summaryArea);
         });
       });
     }, 500);
@@ -1265,9 +1135,6 @@ var AbyssPanel = {
       this._settlement.countUpRafId = null;
     }
 
-    // Stop particles
-    this._LootParticles.stop();
-
     // Skip/stop slot machine
     this._SlotMachine.skip();
 
@@ -1328,7 +1195,6 @@ var AbyssPanel = {
       cancelAnimationFrame(this._settlement.countUpRafId);
       this._settlement.countUpRafId = null;
     }
-    this._LootParticles.stop();
     this._SlotMachine.stop();
     this._Transition.stop();
     this._JackpotExplosion.stop();

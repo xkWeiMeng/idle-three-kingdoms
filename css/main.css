@@ -1275,22 +1275,6 @@ img, svg { display: block; max-width: 100%; }
   50%      { box-shadow: 0 0 36px rgba(255, 34, 34, 0.7); }
 }
 
-/* --- Particle container & particles --- */
-.loot-particle-container {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 10;
-}
-.loot-particle {
-  position: absolute;
-  will-change: transform, opacity;
-  pointer-events: none;
-  user-select: none;
-}
-
 /* --- Settlement layout --- */
 .abyss-settlement {
   position: relative;
@@ -1772,7 +1756,6 @@ img, svg { display: block; max-width: 100%; }
 }
 /* prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
-  .loot-particle,
   .equip-reveal-card__inner,
   .equip-light-pillar,
   .equip-mythic-flash,
