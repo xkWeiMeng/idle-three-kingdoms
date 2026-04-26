@@ -89,6 +89,79 @@ var HeroBonds = [
     description: '吕布上阵：个人攻击+8%，速度+5%（仅限吕布）',
     selfOnly: true
   }
+,
+  {
+    id: 'wuzi',
+    name: '五子良将',
+    icon: '⚔️',
+    heroIds: ['wei_zhangliao', 'wei_zhanghe', 'wei_xuchu', 'wei_yujin', 'wei_lidian', 'wei_yuejin'],
+    minRequired: 3,
+    effects: { atkPercent: 0.18, spdPercent: 0.08 },
+    description: '五子良将中任意3人上阵：全队攻击+18%，速度+8%'
+  },
+  {
+    id: 'jiangdong_shuangbi',
+    name: '江东双璧',
+    icon: '💎',
+    heroIds: ['wu_sunce', 'wu_zhouyu'],
+    minRequired: 2,
+    effects: { atkPercent: 0.15, spdPercent: 0.1 },
+    description: '孙策与周瑜同时上阵：全队攻击+15%，速度+10%'
+  },
+  {
+    id: 'sishi_sangong',
+    name: '四世三公',
+    icon: '🏛️',
+    heroIds: ['qun_yuanshao', 'qun_yuanshu'],
+    minRequired: 2,
+    effects: { hpPercent: 0.15, defPercent: 0.1 },
+    description: '袁绍与袁术兄弟同时上阵：全队生命+15%，防御+10%'
+  },
+  {
+    id: 'fuqi_naicha',
+    name: '奶茶父女档',
+    icon: '🧋',
+    heroIds: ['qun_lvbu', 'qun_lvlingqi'],
+    minRequired: 2,
+    effects: { atkPercent: 0.12, defPercent: 0.08 },
+    description: '吕布与吕玲绮父女同时上阵：全队攻击+12%，防御+8%'
+  },
+  {
+    id: 'nanman_wangting',
+    name: '南蛮王庭',
+    icon: '🐘',
+    heroIds: ['qun_menghuo', 'qun_zhurong'],
+    minRequired: 2,
+    effects: { atkPercent: 0.12, hpPercent: 0.1 },
+    description: '孟获与祝融夫妻同时上阵：全队攻击+12%，生命+10%'
+  },
+  {
+    id: 'hufu_huzi',
+    name: '虎父虎子',
+    icon: '🐅',
+    heroIds: ['shu_guanyu', 'shu_guanping', 'shu_guanxing'],
+    minRequired: 2,
+    effects: { atkPercent: 0.12, defPercent: 0.08 },
+    description: '关羽父子任意2人上阵：全队攻击+12%，防御+8%'
+  },
+  {
+    id: 'yishen_chuancheng',
+    name: '医神传承',
+    icon: '💊',
+    heroIds: ['qun_huatuo', 'qun_zhangzhongjing'],
+    minRequired: 2,
+    effects: { healPerRound: 0.03, hpPercent: 0.1 },
+    description: '华佗与张仲景同时上阵：每回合回复3%HP，全队生命+10%'
+  },
+  {
+    id: 'weiguo_wenchen',
+    name: '魏国文臣',
+    icon: '📜',
+    heroIds: ['wei_xunyu', 'wei_guojia', 'wei_jiaxu', 'wei_chengyu'],
+    minRequired: 2,
+    effects: { defPercent: 0.12, spdPercent: 0.08 },
+    description: '魏国文臣任意2人上阵：全队防御+12%，速度+8%'
+  },
 ];
 
 /**

@@ -1,6 +1,6 @@
 /**
  * 武将数据表 — 幻想三国
- * 40 名武将 + 4 种普通兵种
+ * 76 名武将 + 4 种普通兵种
  */
 const HeroData = [
   // ==================== 蜀·外卖公司 ====================
@@ -898,6 +898,807 @@ const HeroData = [
       effect: null
     }
   }
+,
+
+  // ==================== 蜀·外卖公司（新增） ====================
+  {
+    id: 'shu_fazheng',
+    name: '法正',
+    title: '产品经理',
+    faction: 'shu',
+    quality: 4,
+    emoji: '📐',
+    baseAtk: 40,
+    baseDef: 35,
+    baseHp: 290,
+    baseSpd: 36,
+    skill: {
+      id: 'skill_fz',
+      name: '奇谋需求文档',
+      description: '用精准需求砸懵对手，ATK×180%单体伤害',
+      type: 'damage',
+      multiplier: 1.8,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'shu_huangyueying',
+    name: '黄月英',
+    title: '硬件极客',
+    faction: 'shu',
+    quality: 4,
+    emoji: '🔧',
+    baseAtk: 38,
+    baseDef: 38,
+    baseHp: 310,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_hyy',
+      name: '木牛流马快递车',
+      description: '释放自动驾驶快递车撞击全场，ATK×130%全体伤害',
+      type: 'damage',
+      multiplier: 1.3,
+      target: 'all',
+      cooldown: 4,
+      effect: null
+    }
+  },
+  {
+    id: 'shu_guanping',
+    name: '关平',
+    title: '健身教练助理',
+    faction: 'shu',
+    quality: 3,
+    emoji: '🏃',
+    baseAtk: 42,
+    baseDef: 32,
+    baseHp: 290,
+    baseSpd: 36,
+    skill: {
+      id: 'skill_gp',
+      name: '器械辅助训练',
+      description: '辅助教学反手一击，ATK×160%单体伤害',
+      type: 'damage',
+      multiplier: 1.6,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'shu_guanxing',
+    name: '关兴',
+    title: '健身房前台',
+    faction: 'shu',
+    quality: 3,
+    emoji: '💳',
+    baseAtk: 40,
+    baseDef: 30,
+    baseHp: 280,
+    baseSpd: 38,
+    skill: {
+      id: 'skill_gx',
+      name: '会员卡连击',
+      description: '刷卡连击猛砸，ATK×150%单体伤害',
+      type: 'damage',
+      multiplier: 1.5,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'shu_zhangbao',
+    name: '张苞',
+    title: '拳击教练',
+    faction: 'shu',
+    quality: 3,
+    emoji: '🥊',
+    baseAtk: 46,
+    baseDef: 28,
+    baseHp: 275,
+    baseSpd: 36,
+    skill: {
+      id: 'skill_zb',
+      name: '暴力组合拳',
+      description: '继承老爹的暴力基因连环出拳，ATK×170%单体伤害',
+      type: 'damage',
+      multiplier: 1.7,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'shu_masu',
+    name: '马谡',
+    title: '纸上谈兵UP主',
+    faction: 'shu',
+    quality: 2,
+    emoji: '📝',
+    baseAtk: 30,
+    baseDef: 24,
+    baseHp: 250,
+    baseSpd: 32,
+    skill: {
+      id: 'skill_ms',
+      name: '山顶扎营直播',
+      description: '在山顶直播教学翻车，ATK×140%单体伤害',
+      type: 'damage',
+      multiplier: 1.4,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'shu_yanyan',
+    name: '严颜',
+    title: '退休城管',
+    faction: 'shu',
+    quality: 2,
+    emoji: '👴',
+    baseAtk: 28,
+    baseDef: 28,
+    baseHp: 270,
+    baseSpd: 28,
+    skill: {
+      id: 'skill_yy',
+      name: '断头不屈罚单',
+      description: '开出最后的罚单绝不低头，ATK×130%单体伤害',
+      type: 'damage',
+      multiplier: 1.3,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'shu_liaohua',
+    name: '廖化',
+    title: '万年实习生',
+    faction: 'shu',
+    quality: 2,
+    emoji: '📎',
+    baseAtk: 26,
+    baseDef: 26,
+    baseHp: 260,
+    baseSpd: 30,
+    skill: {
+      id: 'skill_lh',
+      name: '实习生逆袭',
+      description: '实习了一辈子终于转正爆发，全体队友ATK+12%持续2回合',
+      type: 'buff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'atk', ratio: 0.12, duration: 2 }
+    }
+  },
+  {
+    id: 'shu_wangping',
+    name: '王平',
+    title: '文盲快递站长',
+    faction: 'shu',
+    quality: 2,
+    emoji: '📦',
+    baseAtk: 30,
+    baseDef: 28,
+    baseHp: 265,
+    baseSpd: 30,
+    skill: {
+      id: 'skill_wp',
+      name: '不识字但能打',
+      description: '看不懂快递单但拳头认识你，ATK×140%单体伤害',
+      type: 'damage',
+      multiplier: 1.4,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+
+  // ==================== 魏·草鞋电商帝国（新增） ====================
+  {
+    id: 'wei_jiaxu',
+    name: '贾诩',
+    title: '毒舌HR总监',
+    faction: 'wei',
+    quality: 5,
+    emoji: '🐍',
+    baseAtk: 44,
+    baseDef: 40,
+    baseHp: 340,
+    baseSpd: 38,
+    skill: {
+      id: 'skill_jx',
+      name: '毒计裁员通知',
+      description: '发出无法拒绝的裁员通知，全体敌人ATK-20%持续2回合',
+      type: 'debuff',
+      multiplier: 0.2,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'atk', ratio: -0.2, duration: 2 }
+    }
+  },
+  {
+    id: 'wei_zhangchunhua',
+    name: '张春华',
+    title: '虎妻CEO',
+    faction: 'wei',
+    quality: 4,
+    emoji: '👩‍💼',
+    baseAtk: 42,
+    baseDef: 38,
+    baseHp: 310,
+    baseSpd: 36,
+    skill: {
+      id: 'skill_zch',
+      name: '河东狮吼·董事会版',
+      description: '在董事会上咆哮震慑全场，ATK×140%全体伤害',
+      type: 'damage',
+      multiplier: 1.4,
+      target: 'all',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wei_caopi',
+    name: '曹丕',
+    title: '二代接班人',
+    faction: 'wei',
+    quality: 4,
+    emoji: '🤴',
+    baseAtk: 40,
+    baseDef: 36,
+    baseHp: 300,
+    baseSpd: 38,
+    skill: {
+      id: 'skill_cp',
+      name: '七步裁员诗',
+      description: '限你七步内交出工牌，ATK×160%单体伤害',
+      type: 'damage',
+      multiplier: 1.6,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wei_yujin',
+    name: '于禁',
+    title: '纪律委员',
+    faction: 'wei',
+    quality: 3,
+    emoji: '📏',
+    baseAtk: 38,
+    baseDef: 35,
+    baseHp: 300,
+    baseSpd: 32,
+    skill: {
+      id: 'skill_yj',
+      name: '军纪处分通知',
+      description: '下达严厉处分降低士气，全体敌人DEF-12%持续2回合',
+      type: 'debuff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'def', ratio: -0.12, duration: 2 }
+    }
+  },
+  {
+    id: 'wei_lidian',
+    name: '李典',
+    title: '图书管理员',
+    faction: 'wei',
+    quality: 3,
+    emoji: '📖',
+    baseAtk: 36,
+    baseDef: 34,
+    baseHp: 295,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_ld',
+      name: '书山压顶',
+      description: '用成堆的书籍砸向敌人，ATK×150%单体伤害',
+      type: 'damage',
+      multiplier: 1.5,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wei_yuejin',
+    name: '乐进',
+    title: '矮个子拆迁队',
+    faction: 'wei',
+    quality: 3,
+    emoji: '⛏️',
+    baseAtk: 44,
+    baseDef: 30,
+    baseHp: 270,
+    baseSpd: 40,
+    skill: {
+      id: 'skill_yje',
+      name: '先登强拆',
+      description: '第一个冲上楼强行拆除，ATK×170%单体伤害',
+      type: 'damage',
+      multiplier: 1.7,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wei_chengyu',
+    name: '程昱',
+    title: '黑心食堂大厨',
+    faction: 'wei',
+    quality: 2,
+    emoji: '🍖',
+    baseAtk: 28,
+    baseDef: 26,
+    baseHp: 260,
+    baseSpd: 30,
+    skill: {
+      id: 'skill_cy',
+      name: '黑暗料理投毒',
+      description: '用来路不明的食材做饭，全体敌人SPD-12%持续2回合',
+      type: 'debuff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'spd', ratio: -0.12, duration: 2 }
+    }
+  },
+  {
+    id: 'wei_manchong',
+    name: '满宠',
+    title: '城管执法队长',
+    faction: 'wei',
+    quality: 2,
+    emoji: '🚨',
+    baseAtk: 30,
+    baseDef: 30,
+    baseHp: 270,
+    baseSpd: 28,
+    skill: {
+      id: 'skill_mc2',
+      name: '暴力执法',
+      description: '强行取缔违规摊位，ATK×140%单体伤害',
+      type: 'damage',
+      multiplier: 1.4,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wei_caohong',
+    name: '曹洪',
+    title: '守财奴会计',
+    faction: 'wei',
+    quality: 2,
+    emoji: '🧮',
+    baseAtk: 26,
+    baseDef: 28,
+    baseHp: 280,
+    baseSpd: 28,
+    skill: {
+      id: 'skill_ch',
+      name: '铁公鸡防线',
+      description: '一毛不拔构建钢铁防线，全体队友DEF+12%持续2回合',
+      type: 'buff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'def', ratio: 0.12, duration: 2 }
+    }
+  },
+
+  // ==================== 吴·直播娱乐（新增） ====================
+  {
+    id: 'wu_sunce',
+    name: '孙策',
+    title: '格斗游戏主播',
+    faction: 'wu',
+    quality: 5,
+    emoji: '🎮',
+    baseAtk: 55,
+    baseDef: 38,
+    baseHp: 320,
+    baseSpd: 40,
+    skill: {
+      id: 'skill_sc',
+      name: '小霸王连招',
+      description: '用格斗游戏连招暴击全场，ATK×200%单体伤害',
+      type: 'damage',
+      multiplier: 2,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wu_lusu',
+    name: '鲁肃',
+    title: '商务谈判专家',
+    faction: 'wu',
+    quality: 4,
+    emoji: '🤝',
+    baseAtk: 34,
+    baseDef: 40,
+    baseHp: 330,
+    baseSpd: 32,
+    skill: {
+      id: 'skill_ls',
+      name: '和平谈判术',
+      description: '以理服人让队友回血，恢复全体ATK×100%HP',
+      type: 'heal',
+      multiplier: 1,
+      target: 'all',
+      cooldown: 4,
+      effect: null
+    }
+  },
+  {
+    id: 'wu_xusheng',
+    name: '徐盛',
+    title: '道具大师',
+    faction: 'wu',
+    quality: 3,
+    emoji: '🎭',
+    baseAtk: 40,
+    baseDef: 34,
+    baseHp: 290,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_xs',
+      name: '疑兵假墙术',
+      description: '用道具布置假城墙吓退敌人，全体敌人ATK-12%持续2回合',
+      type: 'debuff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'atk', ratio: -0.12, duration: 2 }
+    }
+  },
+  {
+    id: 'wu_dingfeng',
+    name: '丁奉',
+    title: '老年电竞选手',
+    faction: 'wu',
+    quality: 3,
+    emoji: '🎯',
+    baseAtk: 44,
+    baseDef: 30,
+    baseHp: 280,
+    baseSpd: 38,
+    skill: {
+      id: 'skill_df',
+      name: '雪中奋短兵',
+      description: '老年人不讲武德近身暴击，ATK×170%单体伤害',
+      type: 'damage',
+      multiplier: 1.7,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wu_chengpu',
+    name: '程普',
+    title: '元老级主播',
+    faction: 'wu',
+    quality: 3,
+    emoji: '🎙️',
+    baseAtk: 38,
+    baseDef: 36,
+    baseHp: 300,
+    baseSpd: 32,
+    skill: {
+      id: 'skill_cpu',
+      name: '三朝元老威压',
+      description: '资历压人提升全队士气，全体队友DEF+12%持续2回合',
+      type: 'buff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'def', ratio: 0.12, duration: 2 }
+    }
+  },
+  {
+    id: 'wu_handang',
+    name: '韩当',
+    title: '综艺老兵',
+    faction: 'wu',
+    quality: 2,
+    emoji: '📺',
+    baseAtk: 32,
+    baseDef: 28,
+    baseHp: 265,
+    baseSpd: 30,
+    skill: {
+      id: 'skill_hd',
+      name: '综艺体能挑战',
+      description: '综艺节目特训暴走，ATK×130%单体伤害',
+      type: 'damage',
+      multiplier: 1.3,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wu_lingtong',
+    name: '凌统',
+    title: '复仇系网文作者',
+    faction: 'wu',
+    quality: 2,
+    emoji: '✍️',
+    baseAtk: 34,
+    baseDef: 24,
+    baseHp: 250,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_lt',
+      name: '怒火执笔',
+      description: '把怒火写进小说化为攻击，ATK×150%单体伤害',
+      type: 'damage',
+      multiplier: 1.5,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'wu_panzhang',
+    name: '潘璋',
+    title: '二手交易贩子',
+    faction: 'wu',
+    quality: 2,
+    emoji: '🔄',
+    baseAtk: 30,
+    baseDef: 26,
+    baseHp: 260,
+    baseSpd: 32,
+    skill: {
+      id: 'skill_pz',
+      name: '收缴战利品',
+      description: '趁乱搜刮敌方装备削弱对手，全体敌人DEF-10%持续2回合',
+      type: 'debuff',
+      multiplier: 0.1,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'def', ratio: -0.1, duration: 2 }
+    }
+  },
+  {
+    id: 'wu_buzhi',
+    name: '步骘',
+    title: '行政文员',
+    faction: 'wu',
+    quality: 2,
+    emoji: '📋',
+    baseAtk: 25,
+    baseDef: 30,
+    baseHp: 275,
+    baseSpd: 30,
+    skill: {
+      id: 'skill_bz',
+      name: '公文流转加速',
+      description: '高效公文处理提升全队效率，全体队友SPD+12%持续2回合',
+      type: 'buff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'spd', ratio: 0.12, duration: 2 }
+    }
+  },
+
+  // ==================== 群·自由职业者（新增） ====================
+  {
+    id: 'qun_zhangzhongjing',
+    name: '张仲景',
+    title: '中医科普大V',
+    faction: 'qun',
+    quality: 4,
+    emoji: '💊',
+    baseAtk: 30,
+    baseDef: 36,
+    baseHp: 330,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_zzj',
+      name: '伤寒杂病论直播',
+      description: '在线义诊治愈全队，恢复全体ATK×110%HP',
+      type: 'heal',
+      multiplier: 1.1,
+      target: 'all',
+      cooldown: 4,
+      effect: null
+    }
+  },
+  {
+    id: 'qun_yuanshu',
+    name: '袁术',
+    title: '山寨手机厂长',
+    faction: 'qun',
+    quality: 3,
+    emoji: '📱',
+    baseAtk: 36,
+    baseDef: 32,
+    baseHp: 295,
+    baseSpd: 30,
+    skill: {
+      id: 'skill_ysh',
+      name: '山寨皇帝印',
+      description: '掏出自封的皇帝大印砸人，ATK×150%单体伤害',
+      type: 'damage',
+      multiplier: 1.5,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'qun_yanliang',
+    name: '颜良',
+    title: '保镖A',
+    faction: 'qun',
+    quality: 3,
+    emoji: '🅰️',
+    baseAtk: 48,
+    baseDef: 28,
+    baseHp: 280,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_yl',
+      name: '保镖A号冲锋',
+      description: '职业保镖全力冲锋，ATK×170%单体伤害',
+      type: 'damage',
+      multiplier: 1.7,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'qun_wenchou',
+    name: '文丑',
+    title: '保镖B',
+    faction: 'qun',
+    quality: 3,
+    emoji: '🅱️',
+    baseAtk: 46,
+    baseDef: 30,
+    baseHp: 285,
+    baseSpd: 36,
+    skill: {
+      id: 'skill_wc',
+      name: '保镖B号突击',
+      description: '与A号配合双人突击，ATK×160%单体伤害',
+      type: 'damage',
+      multiplier: 1.6,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'qun_lvlingqi',
+    name: '吕玲绮',
+    title: '奶茶店继承人',
+    faction: 'qun',
+    quality: 4,
+    emoji: '🧋',
+    baseAtk: 44,
+    baseDef: 32,
+    baseHp: 290,
+    baseSpd: 40,
+    skill: {
+      id: 'skill_llq',
+      name: '方天画戟·mini版',
+      description: '迷你搅拌器高速旋转攻击，ATK×180%单体伤害',
+      type: 'damage',
+      multiplier: 1.8,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'qun_zhurong',
+    name: '祝融',
+    title: '户外探险主播',
+    faction: 'qun',
+    quality: 4,
+    emoji: '🔥',
+    baseAtk: 46,
+    baseDef: 30,
+    baseHp: 300,
+    baseSpd: 38,
+    skill: {
+      id: 'skill_zr',
+      name: '飞刀烤肉秀',
+      description: '边烤肉边飞刀的极限直播，ATK×140%全体伤害',
+      type: 'damage',
+      multiplier: 1.4,
+      target: 'all',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'qun_gaoshun',
+    name: '高顺',
+    title: '特种兵教官',
+    faction: 'qun',
+    quality: 3,
+    emoji: '🎖️',
+    baseAtk: 42,
+    baseDef: 35,
+    baseHp: 300,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_gs',
+      name: '陷阵营突破',
+      description: '率领精锐小队突破防线，ATK×160%单体伤害',
+      type: 'damage',
+      multiplier: 1.6,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
+  {
+    id: 'qun_chengong',
+    name: '陈宫',
+    title: '跳槽专家',
+    faction: 'qun',
+    quality: 3,
+    emoji: '🚪',
+    baseAtk: 34,
+    baseDef: 32,
+    baseHp: 280,
+    baseSpd: 36,
+    skill: {
+      id: 'skill_cg',
+      name: '离职策划书',
+      description: '写一份致命的离职策划拖垮对手，全体敌人SPD-12%持续2回合',
+      type: 'debuff',
+      multiplier: 0.12,
+      target: 'all',
+      cooldown: 4,
+      effect: { stat: 'spd', ratio: -0.12, duration: 2 }
+    }
+  },
+  {
+    id: 'qun_zhangxiu',
+    name: '张绣',
+    title: '反复横跳UP主',
+    faction: 'qun',
+    quality: 2,
+    emoji: '🔀',
+    baseAtk: 32,
+    baseDef: 26,
+    baseHp: 255,
+    baseSpd: 34,
+    skill: {
+      id: 'skill_zx',
+      name: '反复横跳突袭',
+      description: '反复跳槽积累经验后突然暴起，ATK×150%单体伤害',
+      type: 'damage',
+      multiplier: 1.5,
+      target: 'single',
+      cooldown: 3,
+      effect: null
+    }
+  },
 ];
 
 // 普通兵种模板
@@ -958,10 +1759,10 @@ const CommonUnits = [
 
 // 按品质分组的武将池（用于抽卡）
 const HeroPoolByQuality = {
-  5: ['shu_zhugeliang', 'shu_liubei', 'shu_guanyu', 'wei_caocao', 'wei_simayi', 'wu_sunquan', 'qun_lvbu', 'qun_dongzhuo', 'qun_zhangjiao'],
-  4: ['shu_zhangfei', 'shu_zhaoyun', 'shu_huangzhong', 'wei_xiahoudun', 'wu_zhouyu', 'qun_diaochan', 'qun_huatuo', 'shu_jiangwei', 'shu_pangtong', 'wei_guojia', 'wu_lvmeng', 'wu_luxun', 'qun_yuanshao', 'qun_zuoci', 'qun_caiwenji'],
-  3: ['shu_machao', 'wei_zhangliao', 'wei_dianwei', 'wu_sunshangxiang', 'shu_weiyan', 'wei_xuchu', 'wei_caoren', 'wei_zhanghe', 'wu_ganning', 'wu_huanggai', 'wu_daqiao', 'wu_xiaoqiao', 'qun_gongsunzan', 'qun_menghuo'],
-  2: ['wei_xunyu', 'wu_taishici'],
+  5: ['shu_zhugeliang', 'shu_liubei', 'shu_guanyu', 'wei_caocao', 'wei_simayi', 'wu_sunquan', 'qun_lvbu', 'qun_dongzhuo', 'qun_zhangjiao', 'wei_jiaxu', 'wu_sunce'],
+  4: ['shu_zhangfei', 'shu_zhaoyun', 'shu_huangzhong', 'wei_xiahoudun', 'wu_zhouyu', 'qun_diaochan', 'qun_huatuo', 'shu_jiangwei', 'shu_pangtong', 'wei_guojia', 'wu_lvmeng', 'wu_luxun', 'qun_yuanshao', 'qun_zuoci', 'qun_caiwenji', 'shu_fazheng', 'shu_huangyueying', 'wei_zhangchunhua', 'wei_caopi', 'wu_lusu', 'qun_zhangzhongjing', 'qun_lvlingqi', 'qun_zhurong'],
+  3: ['shu_machao', 'wei_zhangliao', 'wei_dianwei', 'wu_sunshangxiang', 'shu_weiyan', 'wei_xuchu', 'wei_caoren', 'wei_zhanghe', 'wu_ganning', 'wu_huanggai', 'wu_daqiao', 'wu_xiaoqiao', 'qun_gongsunzan', 'qun_menghuo', 'shu_guanping', 'shu_guanxing', 'shu_zhangbao', 'wei_yujin', 'wei_lidian', 'wei_yuejin', 'wu_xusheng', 'wu_dingfeng', 'wu_chengpu', 'qun_yuanshu', 'qun_yanliang', 'qun_wenchou', 'qun_gaoshun', 'qun_chengong'],
+  2: ['wei_xunyu', 'wu_taishici', 'shu_masu', 'shu_yanyan', 'shu_liaohua', 'shu_wangping', 'wei_chengyu', 'wei_manchong', 'wei_caohong', 'wu_handang', 'wu_lingtong', 'wu_panzhang', 'wu_buzhi', 'qun_zhangxiu'],
   1: ['common_soldier', 'common_archer', 'common_cavalry', 'common_guard']
 };
 

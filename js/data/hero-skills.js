@@ -514,5 +514,871 @@ var HeroSkillData = {
       baseMult: 2.5, growthMult: 0.10,
       baseCd: 5, cdLevels: [5, 9], maxLevel: 10
     }
-  ]
+  ],
+
+  // ==================== 新增36武将技能 ====================
+  'shu_fazheng': [
+    {
+      id: 'fz_s1', name: '奇谋需求文档', icon: '📐',
+      desc: '用精准需求砸懵对手，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.8, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'fz_s2', name: '睚眦必报KPI', icon: '📊',
+      desc: '给每个敌人设不可能完成的KPI，降低全体敌人防御',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'fz_s3', name: '反杀复盘会', icon: '⚡',
+      desc: '深度复盘后精准反杀，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2.2, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_huangyueying': [
+    {
+      id: 'hyy_s1', name: '木牛流马快递车', icon: '🤖',
+      desc: '释放自动驾驶快递车撞击全场，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.2, growthMult: 0.06,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'hyy_s2', name: '诸葛连弩·改', icon: '🔧',
+      desc: '改装后的连弩扫射，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.3, growthMult: 0.06,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'hyy_s3', name: '科技赋能全队', icon: '💡',
+      desc: '用黑科技装备提升全队战力，提升全体攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_guanping': [
+    {
+      id: 'gp_s1', name: '器械辅助训练', icon: '🏋️',
+      desc: '用健身器械猛击对手，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.6, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'gp_s2', name: '跑步机追击', icon: '🏃',
+      desc: '开最大速度的跑步机追人，提升自身速度',
+      type: 'buff', target: 'self',
+      baseRatio: 0.2, growthRatio: 0.03, effectStat: 'spd', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'gp_s3', name: '私教课暴击', icon: '💥',
+      desc: '一对一私教课全力输出，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_guanxing': [
+    {
+      id: 'gx_s1', name: '会员卡连击', icon: '💳',
+      desc: '刷卡连击猛砸，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'gx_s2', name: '年卡促销', icon: '🏷️',
+      desc: '推出年卡优惠活动激励全队，提升全体攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'gx_s3', name: '前台怒砸键盘', icon: '⌨️',
+      desc: '前台小哥终于爆发把键盘砸向全场，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.2, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_zhangbao': [
+    {
+      id: 'zb_s1', name: '暴力组合拳', icon: '🥊',
+      desc: '继承老爹的暴力基因连环出拳，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.7, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'zb_s2', name: '沙袋特训', icon: '🥋',
+      desc: '疯狂训练大幅提升自身攻击力',
+      type: 'buff', target: 'self',
+      baseRatio: 0.25, growthRatio: 0.03, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'zb_s3', name: '父子联合暴击', icon: '💪',
+      desc: '脑补老爹附体双倍暴击，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_masu': [
+    {
+      id: 'ms_s1', name: '山顶扎营直播', icon: '⛺',
+      desc: '在山顶直播教学然后翻车，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.4, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'ms_s2', name: '兵法理论课', icon: '📚',
+      desc: '给全队上一节理论课，提升全体防御力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.1, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'ms_s3', name: '纸上谈兵大招', icon: '📝',
+      desc: '理论完美但实践翻车的大招，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_yanyan': [
+    {
+      id: 'yy_s1', name: '断头不屈罚单', icon: '📋',
+      desc: '开出最后的罚单绝不低头，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.3, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'yy_s2', name: '老骥伏枥', icon: '👴',
+      desc: '老当益壮气势提升，提升自身攻击力',
+      type: 'buff', target: 'self',
+      baseRatio: 0.2, growthRatio: 0.03, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'yy_s3', name: '退休城管终极执法', icon: '🚔',
+      desc: '退休前最后一次强力执法，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.8, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_liaohua': [
+    {
+      id: 'lh_s1', name: '实习生逆袭', icon: '📎',
+      desc: '实习了一辈子终于爆发，提升全体队友攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'lh_s2', name: '万年打杂积累', icon: '🔨',
+      desc: '打了一辈子杂的经验爆发，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.3, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'lh_s3', name: '先锋实习生冲锋', icon: '🚀',
+      desc: '蜀中无大将实习生当先锋，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'shu_wangping': [
+    {
+      id: 'wp_s1', name: '不识字但能打', icon: '👊',
+      desc: '看不懂快递单但拳头认识你，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.4, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'wp_s2', name: '包裹防线', icon: '📦',
+      desc: '用快递包裹堆成防线，提升全体防御力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.1, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'wp_s3', name: '暴力分拣', icon: '💢',
+      desc: '暴力分拣快递砸向全场，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.1, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_jiaxu': [
+    {
+      id: 'jx_s1', name: '毒计裁员通知', icon: '🐍',
+      desc: '发出无法拒绝的裁员通知，降低全体敌人攻击力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.18, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'jx_s2', name: '背刺晋升术', icon: '🗡️',
+      desc: '暗中使绊子精准打击，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'jx_s3', name: '乱世求生指南', icon: '📕',
+      desc: '分享职场生存秘籍提升全队战力，提升全体攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.18, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_zhangchunhua': [
+    {
+      id: 'zch_s1', name: '河东狮吼·董事会版', icon: '🗣️',
+      desc: '在董事会上咆哮震慑全场，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.3, growthMult: 0.06,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'zch_s2', name: '虎妻管理学', icon: '👩‍💼',
+      desc: '严格管理提升全队纪律，提升全体队友防御力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'zch_s3', name: '灭族式清盘', icon: '💀',
+      desc: '彻底清除竞争对手，对全体敌人造成巨额伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_caopi': [
+    {
+      id: 'cp_s1', name: '七步裁员诗', icon: '📜',
+      desc: '限你七步内交出工牌，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.6, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'cp_s2', name: '禅让式收购', icon: '🤴',
+      desc: '和平接管对手公司，降低全体敌人防御力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'cp_s3', name: '二代CEO光环', icon: '👔',
+      desc: '发挥二代光环提升全队士气，提升全体攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_yujin': [
+    {
+      id: 'yj_s1', name: '军纪处分通知', icon: '📏',
+      desc: '下达严厉处分降低士气，降低全体敌人防御力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'yj_s2', name: '铁面执法', icon: '⚖️',
+      desc: '铁面无私执法打击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'yj_s3', name: '军令状突击', icon: '📋',
+      desc: '签下军令状全力突击，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.2, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_lidian': [
+    {
+      id: 'ld_s1', name: '书山压顶', icon: '📖',
+      desc: '用成堆的书籍砸向敌人，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'ld_s2', name: '知识就是力量', icon: '🎓',
+      desc: '用知识武装全队，提升全体防御力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'ld_s3', name: '百科全书攻击', icon: '📚',
+      desc: '把整套百科全书砸向全场，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.2, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_yuejin': [
+    {
+      id: 'yje_s1', name: '先登强拆', icon: '⛏️',
+      desc: '第一个冲上楼强行拆除，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.7, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'yje_s2', name: '小个子爆发', icon: '💢',
+      desc: '身高不够气势来凑，大幅提升自身攻击力',
+      type: 'buff', target: 'self',
+      baseRatio: 0.25, growthRatio: 0.03, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'yje_s3', name: '拆迁风暴', icon: '🌪️',
+      desc: '掀起拆迁风暴横扫全场，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.3, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_chengyu': [
+    {
+      id: 'cy_s1', name: '黑暗料理投毒', icon: '🍖',
+      desc: '用来路不明的食材做饭，降低全体敌人速度',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'spd', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'cy_s2', name: '食堂突击检查', icon: '🔍',
+      desc: '突击检查发现违规精准打击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.3, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'cy_s3', name: '满汉全席·毒版', icon: '🍽️',
+      desc: '做一桌全是问题的满汉全席，降低全体敌人攻击力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_manchong': [
+    {
+      id: 'mc2_s1', name: '暴力执法', icon: '🚨',
+      desc: '强行取缔违规摊位，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.4, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'mc2_s2', name: '城管巡逻', icon: '🚔',
+      desc: '加强巡逻力度提升全队防御',
+      type: 'buff', target: 'all',
+      baseRatio: 0.1, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'mc2_s3', name: '联合执法大扫荡', icon: '🧹',
+      desc: '联合多部门大扫荡，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.1, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wei_caohong': [
+    {
+      id: 'ch_s1', name: '铁公鸡防线', icon: '🧮',
+      desc: '一毛不拔构建钢铁防线，提升全体队友防御力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'ch_s2', name: '算盘连珠', icon: '🔢',
+      desc: '用算盘珠子连珠弹射，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.3, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'ch_s3', name: '吝啬鬼之怒', icon: '💰',
+      desc: '被要求请客吃饭后暴怒，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_sunce': [
+    {
+      id: 'sc_s1', name: '小霸王连招', icon: '🎮',
+      desc: '用格斗游戏连招暴击对手，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'sc_s2', name: '霸王举鼎直播', icon: '🏆',
+      desc: '直播举铁激励全队，提升全体攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.18, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'sc_s3', name: '江东猛虎咆哮', icon: '🐯',
+      desc: '霸气咆哮震慑全场，对全体敌人造成巨额伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.6, growthMult: 0.08,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_lusu': [
+    {
+      id: 'ls_s1', name: '和平谈判术', icon: '🤝',
+      desc: '以理服人让队友回血，恢复全体队友生命',
+      type: 'heal', target: 'all',
+      baseMult: 1, growthMult: 0.06,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'ls_s2', name: '商务午餐会', icon: '🍽️',
+      desc: '请全队吃商务午餐补充体力，恢复最低血量队友生命',
+      type: 'heal', target: 'ally_lowest_hp',
+      baseMult: 1.8, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'ls_s3', name: '外交斡旋·最终方案', icon: '📋',
+      desc: '抛出最终谈判方案，提升全体攻防',
+      type: 'buff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_xusheng': [
+    {
+      id: 'xs_s1', name: '疑兵假墙术', icon: '🧱',
+      desc: '用道具布置假城墙吓退敌人，降低全体敌人攻击力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'xs_s2', name: '道具砸人', icon: '🎭',
+      desc: '用各种道具砸向对手，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'xs_s3', name: '全场布景术', icon: '🎪',
+      desc: '把整个战场变成道具间，降低全体敌人防御力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_dingfeng': [
+    {
+      id: 'df_s1', name: '雪中奋短兵', icon: '❄️',
+      desc: '老年人不讲武德近身暴击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.7, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'df_s2', name: '老将回春', icon: '🌿',
+      desc: '老年电竞选手喝枸杞回血，恢复自身生命',
+      type: 'heal', target: 'self',
+      baseMult: 1.2, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'df_s3', name: '夕阳红暴走', icon: '🌅',
+      desc: '夕阳红战队全力输出，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.3, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_chengpu': [
+    {
+      id: 'cpu_s1', name: '三朝元老威压', icon: '🎙️',
+      desc: '资历压人提升全队士气，提升全体队友防御力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'cpu_s2', name: '经验之谈', icon: '📖',
+      desc: '用多年直播经验精准打击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'cpu_s3', name: '元老级直播间', icon: '📡',
+      desc: '开启元老级直播间全场助威，提升全体攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_handang': [
+    {
+      id: 'hd_s1', name: '综艺体能挑战', icon: '📺',
+      desc: '综艺节目特训暴走，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.3, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'hd_s2', name: '老兵不死', icon: '🎖️',
+      desc: '老兵坚韧提升自身防御',
+      type: 'buff', target: 'self',
+      baseRatio: 0.2, growthRatio: 0.03, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'hd_s3', name: '综艺大乱斗', icon: '🎉',
+      desc: '综艺节目大乱斗环节全场混战，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_lingtong': [
+    {
+      id: 'lt_s1', name: '怒火执笔', icon: '✍️',
+      desc: '把怒火写进小说化为攻击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'lt_s2', name: '复仇信念', icon: '🔥',
+      desc: '复仇的信念提升自身攻击力',
+      type: 'buff', target: 'self',
+      baseRatio: 0.25, growthRatio: 0.03, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'lt_s3', name: '连载完结暴击', icon: '📕',
+      desc: '小说完结篇爆发全部怒火，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_panzhang': [
+    {
+      id: 'pz_s1', name: '收缴战利品', icon: '🔄',
+      desc: '趁乱搜刮敌方装备削弱对手，降低全体敌人防御力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.1, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'pz_s2', name: '二手武器攻击', icon: '⚔️',
+      desc: '用收来的二手武器猛击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.4, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'pz_s3', name: '黑市大甩卖', icon: '💸',
+      desc: '倾销劣质货搞乱市场，降低全体敌人攻击力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'wu_buzhi': [
+    {
+      id: 'bz_s1', name: '公文流转加速', icon: '📋',
+      desc: '高效公文处理提升全队效率，提升全体队友速度',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'spd', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'bz_s2', name: '文件夹砸人', icon: '📁',
+      desc: '用厚厚的文件夹砸人，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.2, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'bz_s3', name: '行政效率提升', icon: '📈',
+      desc: '优化行政流程提升全队防御，提升全体防御力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_zhangzhongjing': [
+    {
+      id: 'zzj_s1', name: '伤寒杂病论直播', icon: '📺',
+      desc: '在线义诊治愈全队，恢复全体队友生命',
+      type: 'heal', target: 'all',
+      baseMult: 1, growthMult: 0.06,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'zzj_s2', name: '经方特效药', icon: '💊',
+      desc: '开出特效药方精准治疗，恢复最低血量队友大量生命',
+      type: 'heal', target: 'ally_lowest_hp',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'zzj_s3', name: '医圣降临', icon: '✨',
+      desc: '医圣全力施为回血拉满，恢复全体队友大量生命',
+      type: 'heal', target: 'all',
+      baseMult: 1.4, growthMult: 0.08,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_yuanshu': [
+    {
+      id: 'ysh_s1', name: '山寨皇帝印', icon: '👑',
+      desc: '掏出自封的皇帝大印砸人，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'ysh_s2', name: '仿冒品发布会', icon: '📱',
+      desc: '开山寨产品发布会迷惑对手，降低全体敌人攻击力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'ysh_s3', name: '皇帝梦碎暴走', icon: '💥',
+      desc: '皇帝梦破碎后暴怒冲击全场，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.2, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_yanliang': [
+    {
+      id: 'yl_s1', name: '保镖A号冲锋', icon: '🅰️',
+      desc: '职业保镖全力冲锋，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.7, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'yl_s2', name: '金牌保镖气场', icon: '💪',
+      desc: '展现金牌保镖气场，提升自身攻击力',
+      type: 'buff', target: 'self',
+      baseRatio: 0.25, growthRatio: 0.03, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'yl_s3', name: 'AB联合护卫', icon: '🛡️',
+      desc: '双保镖联合护卫全力攻击，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_wenchou': [
+    {
+      id: 'wc_s1', name: '保镖B号突击', icon: '🅱️',
+      desc: '与A号配合双人突击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.6, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'wc_s2', name: '双人配合战术', icon: '🤜',
+      desc: '保镖AB组合战术提升全队速度',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'spd', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'wc_s3', name: '保镖暴走模式', icon: '😤',
+      desc: '保镖B号进入暴走模式，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.3, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_lvlingqi': [
+    {
+      id: 'llq_s1', name: '方天画戟·mini版', icon: '🧋',
+      desc: '迷你搅拌器高速旋转攻击，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.8, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'llq_s2', name: '奶茶新品研发', icon: '🧪',
+      desc: '研发新品奶茶提振士气，提升全体攻击力',
+      type: 'buff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'llq_s3', name: '女武神降临', icon: '⚡',
+      desc: '继承父亲的战斗天赋全力爆发，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.4, growthMult: 0.06,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_zhurong': [
+    {
+      id: 'zr_s1', name: '飞刀烤肉秀', icon: '🔥',
+      desc: '边烤肉边飞刀的极限直播，对全体敌人造成伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.3, growthMult: 0.06,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'zr_s2', name: '丛林求生技能', icon: '🌿',
+      desc: '野外求生技能自我治疗，恢复自身生命',
+      type: 'heal', target: 'self',
+      baseMult: 1.3, growthMult: 0.08,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'zr_s3', name: '火神祭祀', icon: '🌋',
+      desc: '召唤火神之力焚烧全场，对全体敌人造成巨额伤害',
+      type: 'damage', target: 'all',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_gaoshun': [
+    {
+      id: 'gs_s1', name: '陷阵营突破', icon: '🎖️',
+      desc: '率领精锐小队突破防线，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.6, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'gs_s2', name: '特种训练', icon: '🏋️',
+      desc: '严格特种兵训练提升全队防御',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'gs_s3', name: '精锐突击', icon: '💀',
+      desc: '陷阵营全力突击冲破一切，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 2, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_chengong': [
+    {
+      id: 'cg_s1', name: '离职策划书', icon: '📄',
+      desc: '写一份致命的离职策划拖垮对手，降低全体敌人速度',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'spd', duration: 2,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'cg_s2', name: '跳槽经验分享', icon: '🚪',
+      desc: '丰富的跳槽经验提升全队速度',
+      type: 'buff', target: 'all',
+      baseRatio: 0.12, growthRatio: 0.02, effectStat: 'spd', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'cg_s3', name: '最后的献策', icon: '💔',
+      desc: '临走前最后一个完美方案，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.8, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
+  'qun_zhangxiu': [
+    {
+      id: 'zx_s1', name: '反复横跳突袭', icon: '🔀',
+      desc: '反复跳槽积累经验后突然暴起，对单体造成伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.5, growthMult: 0.08,
+      baseCd: 3, cdLevels: [4, 8], maxLevel: 10
+    },
+    {
+      id: 'zx_s2', name: '墙头草防御', icon: '🌾',
+      desc: '两面讨好两面防御，提升自身防御力',
+      type: 'buff', target: 'self',
+      baseRatio: 0.2, growthRatio: 0.03, effectStat: 'def', duration: 2,
+      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+    },
+    {
+      id: 'zx_s3', name: '临阵倒戈一击', icon: '⚡',
+      desc: '关键时刻突然倒戈背刺，对单体造成巨额伤害',
+      type: 'damage', target: 'single',
+      baseMult: 1.8, growthMult: 0.1,
+      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+    }
+  ],
+
 };
