@@ -33,7 +33,13 @@ var AbyssPanel = {
 
       var container = document.createElement('div');
       container.className = 'loot-particle-container';
-      containerEl.appendChild(container);
+      // Use full-screen overlay instead of small container
+      container.style.position = 'fixed';
+      container.style.inset = '0';
+      container.style.zIndex = '9998';
+      container.style.pointerEvents = 'none';
+      container.style.overflow = 'hidden';
+      document.body.appendChild(container);
       this._container = container;
 
       var counts = this._calcCounts(rewards);
@@ -45,8 +51,8 @@ var AbyssPanel = {
         { emoji: UIIcons.icon('jade'), count: counts.jade }
       ];
 
-      var cx = container.offsetWidth / 2 || 180;
-      var cy = container.offsetHeight / 2 || 200;
+      var cx = window.innerWidth / 2;
+      var cy = window.innerHeight / 2;
 
       for (var t = 0; t < types.length; t++) {
         for (var p = 0; p < types[t].count; p++) {
