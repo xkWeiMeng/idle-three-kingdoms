@@ -219,5 +219,150 @@ var AbyssData = {
       gold: 20000,
       jade: 80
     }
+  },
+
+  abyss_changban: {
+    id: 'abyss_changban',
+    name: '深渊·长坂坡',
+    description: '赵云七进七出的传说之地，你能活着走出来吗？',
+    emoji: '🐉',
+    bgGradient: ['#0a1520', '#0a2540'],
+    particleColor: 'rgba(100,200,255,0.3)',
+    bossFrameColor: '#00aaff',
+    unlockCondition: { stage: 'stage_7_5' },
+    ticketCost: { jade: 100, gold: 15000, iron: 600 },
+    cooldown: 0,
+    floors: [
+      {
+        floor: 1,
+        boss: {
+          id: 'abyss_wenpin', name: '文聘',
+          atk: 130, def: 80, hp: 3500, spd: 26,
+          skill: { name: '拦江射箭', type: 'damage', target: 'random3', multiplier: 1.6, cooldown: 3 }
+        },
+        rewards: { gold: 3000, exp: 1500 },
+        equipDrop: { 4: 0.25, 5: 0.08 }
+      },
+      {
+        floor: 2,
+        boss: {
+          id: 'abyss_caoren_a', name: '曹仁',
+          atk: 110, def: 110, hp: 4500, spd: 22,
+          skill: { name: '铁壁防线', type: 'buff', target: 'self',
+            effect: { stat: 'def', ratio: 0.60, duration: 3 }, cooldown: 4 }
+        },
+        rewards: { gold: 4000, exp: 2000 },
+        equipDrop: { 4: 0.25, 5: 0.08 }
+      },
+      {
+        floor: 3,
+        boss: {
+          id: 'abyss_zhanghe_a', name: '张郃',
+          atk: 140, def: 75, hp: 4000, spd: 30,
+          skill: { name: '巧变连击', type: 'damage', target: 'random3', multiplier: 1.8, cooldown: 4 }
+        },
+        rewards: { gold: 5000, exp: 2500 },
+        equipDrop: { 4: 0.30, 5: 0.10 }
+      },
+      {
+        floor: 4,
+        boss: {
+          id: 'abyss_xiahouen', name: '夏侯恩',
+          atk: 150, def: 65, hp: 3800, spd: 34,
+          skill: { name: '青釭剑', type: 'damage', target: 'single', multiplier: 3.2, cooldown: 4 }
+        },
+        rewards: { gold: 6000, exp: 3000, iron: 200 },
+        equipDrop: { 4: 0.25, 5: 0.12 }
+      },
+      {
+        floor: 5,
+        boss: {
+          id: 'abyss_caocao_changban', name: '曹操·长坂',
+          atk: 190, def: 120, hp: 12000, spd: 32,
+          skill: { name: '百万雄师', type: 'damage', target: 'all', multiplier: 2.2, cooldown: 4 }
+        },
+        rewards: { gold: 10000, exp: 6000, iron: 400, jade: 15 },
+        mythicDrop: { chance: 0.06, pool: ['equip_mythic_azure_blade'] },
+        equipDrop: { 5: 0.18 }
+      }
+    ],
+    firstClearReward: {
+      blueprint: 'blueprint_azure_spear',
+      gold: 25000,
+      jade: 100
+    }
+  },
+
+  abyss_wuzhang: {
+    id: 'abyss_wuzhang',
+    name: '深渊·五丈原',
+    description: '诸葛亮的最后战场，星落秋风，谁能改变命运？',
+    emoji: '⭐',
+    bgGradient: ['#0f0520', '#200a30'],
+    particleColor: 'rgba(200,150,255,0.4)',
+    bossFrameColor: '#cc66ff',
+    unlockCondition: { stage: 'stage_10_5' },
+    ticketCost: { jade: 150, gold: 20000, iron: 800 },
+    cooldown: 0,
+    floors: [
+      {
+        floor: 1,
+        boss: {
+          id: 'abyss_guohuai', name: '郭淮',
+          atk: 135, def: 90, hp: 4200, spd: 28,
+          skill: { name: '坚壁清野', type: 'debuff', target: 'all',
+            effect: { stat: 'atk', ratio: 0.20, duration: 2 }, cooldown: 4 }
+        },
+        rewards: { gold: 4000, exp: 2000 },
+        equipDrop: { 4: 0.25, 5: 0.10 }
+      },
+      {
+        floor: 2,
+        boss: {
+          id: 'abyss_zhanghe_wuzhang', name: '张郃·五丈',
+          atk: 155, def: 85, hp: 4800, spd: 32,
+          skill: { name: '巧变千军', type: 'damage', target: 'all', multiplier: 1.6, cooldown: 3 }
+        },
+        rewards: { gold: 5000, exp: 2500 },
+        equipDrop: { 4: 0.30, 5: 0.10 }
+      },
+      {
+        floor: 3,
+        boss: {
+          id: 'abyss_simayi_wuzhang', name: '司马懿·五丈',
+          atk: 120, def: 120, hp: 6000, spd: 26,
+          skill: { name: '深谋远虑', type: 'buff', target: 'self',
+            effect: { stat: 'def', ratio: 0.80, duration: 99 }, cooldown: 99 }
+        },
+        rewards: { gold: 6000, exp: 3000 },
+        equipDrop: { 4: 0.25, 5: 0.12 }
+      },
+      {
+        floor: 4,
+        boss: {
+          id: 'abyss_deng_ai', name: '邓艾',
+          atk: 170, def: 80, hp: 5500, spd: 36,
+          skill: { name: '偷渡阴平', type: 'damage', target: 'single', multiplier: 3.5, cooldown: 4 }
+        },
+        rewards: { gold: 8000, exp: 4000, iron: 300 },
+        equipDrop: { 4: 0.30, 5: 0.15 }
+      },
+      {
+        floor: 5,
+        boss: {
+          id: 'abyss_zhugeliang', name: '诸葛亮·星落',
+          atk: 200, def: 130, hp: 15000, spd: 35,
+          skill: { name: '出师未捷·终章', type: 'damage', target: 'all', multiplier: 2.5, cooldown: 4 }
+        },
+        rewards: { gold: 15000, exp: 8000, iron: 500, jade: 20 },
+        mythicDrop: { chance: 0.08, pool: ['equip_mythic_feather_fan'] },
+        equipDrop: { 5: 0.20 }
+      }
+    ],
+    firstClearReward: {
+      blueprint: 'blueprint_feather_fan',
+      gold: 30000,
+      jade: 120
+    }
   }
 };

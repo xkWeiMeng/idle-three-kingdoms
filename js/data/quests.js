@@ -204,6 +204,164 @@ var QuestTemplates = [
     target: 1,
     category: 'abyss',
     rewards: { gold: 500, jade: 10, exp: 300 }
+  },
+
+  // --- 新增：进阶战斗类 ---
+  {
+    id: 'battle_20',
+    title: '百战老兵',
+    desc: '完成20场战斗',
+    event: 'battle:ended',
+    target: 20,
+    category: 'battle',
+    rewards: { gold: 800, exp: 500, jade: 10 }
+  },
+  {
+    id: 'battle_win_10',
+    title: '所向无敌',
+    desc: '赢得10场战斗',
+    event: 'battle:ended',
+    filter: function (data) { return data && data.result === 'victory'; },
+    target: 10,
+    category: 'battle',
+    rewards: { gold: 600, exp: 400, jade: 10 }
+  },
+
+  // --- 新增：英雄进阶 ---
+  {
+    id: 'hero_levelup_5',
+    title: '日夜操练',
+    desc: '升级武将5次',
+    event: 'hero:levelup',
+    target: 5,
+    category: 'hero',
+    rewards: { gold: 800, exp: 400, jade: 15 }
+  },
+  {
+    id: 'hero_ascend_1',
+    title: '破星而出',
+    desc: '突破武将1次',
+    event: 'hero:ascended',
+    target: 1,
+    category: 'hero',
+    rewards: { gold: 1000, jade: 20 }
+  },
+
+  // --- 新增：装备进阶 ---
+  {
+    id: 'equip_reinforce_5',
+    title: '千锤百炼',
+    desc: '强化装备5次',
+    event: 'equip:reinforce',
+    target: 5,
+    category: 'equip',
+    rewards: { gold: 600, jade: 10 }
+  },
+  {
+    id: 'equip_equip_3',
+    title: '全副武装',
+    desc: '穿戴3件装备',
+    event: 'equip:changed',
+    target: 3,
+    category: 'equip',
+    rewards: { gold: 400, exp: 200 }
+  },
+
+  // --- 新增：招募进阶 ---
+  {
+    id: 'recruit_3',
+    title: '求贤若渴',
+    desc: '进行3次招募',
+    event: 'recruit:result',
+    target: 3,
+    category: 'recruit',
+    rewards: { gold: 800, jade: 15 }
+  },
+
+  // --- 新增：城镇进阶 ---
+  {
+    id: 'building_upgrade_3',
+    title: '城邦林立',
+    desc: '升级建筑3次',
+    event: 'town:building_upgraded',
+    target: 3,
+    category: 'town',
+    rewards: { gold: 800, exp: 500, jade: 10 }
+  },
+  {
+    id: 'town_trade_1',
+    title: '通商互市',
+    desc: '进行1次资源交易',
+    event: 'town:trade',
+    target: 1,
+    category: 'town',
+    rewards: { gold: 300, exp: 150 }
+  },
+
+  // --- 新增：种菜进阶 ---
+  {
+    id: 'farm_harvest_5',
+    title: '大丰收',
+    desc: '收获5次作物',
+    event: 'farm:harvested',
+    target: 5,
+    category: 'farm',
+    rewards: { gold: 400, exp: 200, jade: 5 }
+  },
+  {
+    id: 'farm_cook_3',
+    title: '御厨',
+    desc: '烹饪3道料理',
+    event: 'farm:cooked',
+    target: 3,
+    category: 'farm',
+    rewards: { gold: 500, jade: 10 }
+  },
+
+  // --- 新增：锻造进阶 ---
+  {
+    id: 'forge_start_3',
+    title: '熔炉不息',
+    desc: '开始3次锻造',
+    event: 'forge:started',
+    target: 3,
+    category: 'forge',
+    rewards: { gold: 500, exp: 300, jade: 5 }
+  },
+
+  // --- 新增：资源进阶 ---
+  {
+    id: 'earn_gold_5000',
+    title: '金玉满堂',
+    desc: '累计获得5000金币',
+    event: 'resource:changed',
+    filter: function (type, amount) { return type === 'gold' && amount > 0; },
+    accumulate: function (type, amount) { return (type === 'gold' && amount > 0) ? amount : 0; },
+    target: 5000,
+    category: 'resource',
+    rewards: { jade: 20, exp: 500 }
+  },
+  {
+    id: 'earn_jade_10',
+    title: '美玉无瑕',
+    desc: '累计获得10玉璧',
+    event: 'resource:changed',
+    filter: function (type, amount) { return type === 'jade' && amount > 0; },
+    accumulate: function (type, amount) { return (type === 'jade' && amount > 0) ? amount : 0; },
+    target: 10,
+    category: 'resource',
+    rewards: { gold: 1000, exp: 300 }
+  },
+
+  // --- 新增：深渊进阶 ---
+  {
+    id: 'abyss_attempt_3',
+    title: '深渊猎手',
+    desc: '挑战深渊3次',
+    event: 'abyss:floor_cleared',
+    target: 3,
+    category: 'abyss',
+    rewards: { gold: 1000, jade: 20, exp: 500 }
   }
 ];
 

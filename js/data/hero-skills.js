@@ -1381,4 +1381,106 @@ var HeroSkillData = {
     }
   ],
 
+  // ==================== 补全原有武将技能 ====================
+
+  'shu_jiangwei': [
+    { id: 'jw_s1', name: '九伐中原计划书', icon: '📋', desc: '制定详尽的加班计划，对单体造成伤害', type: 'damage', target: 'single', baseMult: 1.7, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'jw_s2', name: '传承丞相遗志', icon: '🌟', desc: '继承前辈精神提升全队攻击', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'jw_s3', name: '北伐加班风暴', icon: '⚡', desc: '永不放弃的加班精神对全体造成伤害', type: 'damage', target: 'all', baseMult: 1.4, growthMult: 0.06, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'shu_pangtong': [
+    { id: 'pt_s1', name: '连环Bug部署', icon: '🐛', desc: '在敌方系统中埋下连环Bug', type: 'damage', target: 'all', baseMult: 1.3, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'pt_s2', name: '丑萌卖萌', icon: '🥺', desc: '用丑萌外表迷惑敌人降低攻击', type: 'debuff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'pt_s3', name: '落凤坡代码审查', icon: '💀', desc: '终极代码审查让敌人崩溃', type: 'damage', target: 'single', baseMult: 2.2, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'shu_weiyan': [
+    { id: 'wy_s1', name: '反骨暴击', icon: '💢', desc: '叛逆之力的暴击攻击', type: 'damage', target: 'single', baseMult: 1.8, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'wy_s2', name: '摸鱼摸出经验', icon: '🎣', desc: '摸鱼的智慧提升自身攻击', type: 'buff', target: 'self', baseRatio: 0.25, growthRatio: 0.03, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'wy_s3', name: '离职前の怒火', icon: '🔥', desc: '离职前的终极爆发对全体造成伤害', type: 'damage', target: 'all', baseMult: 1.4, growthMult: 0.06, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wei_guojia': [
+    { id: 'gj_s1', name: '十胜十败PPT', icon: '📊', desc: '展示完美分析报告降低敌方士气', type: 'debuff', target: 'all', baseRatio: 0.18, growthRatio: 0.02, effectStat: 'def', duration: 2, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'gj_s2', name: '天才预判', icon: '🔮', desc: '天才般的预判提升全队速度', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'spd', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'gj_s3', name: '遗计安天下', icon: '📜', desc: '终极智慧的结晶对单体造成巨额伤害', type: 'damage', target: 'single', baseMult: 2.0, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wei_xuchu': [
+    { id: 'xc_s1', name: '裸衣斗地主', icon: '🃏', desc: '裸奔吓人的暴力攻击', type: 'damage', target: 'single', baseMult: 1.7, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'xc_s2', name: '蛋白粉冲剂', icon: '💪', desc: '猛灌蛋白粉提升自身攻击和防御', type: 'buff', target: 'self', baseRatio: 0.30, growthRatio: 0.03, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'xc_s3', name: '虎痴无双', icon: '🐯', desc: '虎痴模式全力一击', type: 'damage', target: 'single', baseMult: 2.3, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wei_caoren': [
+    { id: 'cr_s1', name: '城防加固方案', icon: '🏰', desc: '加固防线提升全队防御', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'cr_s2', name: '物业催缴', icon: '💰', desc: '催缴物业费对单体造成伤害', type: 'damage', target: 'single', baseMult: 1.5, growthMult: 0.08, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'cr_s3', name: '铁壁坚守', icon: '🛡️', desc: '坚守到底大幅提升全队防御', type: 'buff', target: 'all', baseRatio: 0.20, growthRatio: 0.02, effectStat: 'def', duration: 3, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wei_zhanghe': [
+    { id: 'zh_s1', name: '巧变走秀', icon: '👗', desc: '华丽的时装秀攻击', type: 'damage', target: 'single', baseMult: 1.6, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'zh_s2', name: '穿搭推荐', icon: '👔', desc: '推荐最优穿搭提升全队速度', type: 'buff', target: 'all', baseRatio: 0.12, growthRatio: 0.02, effectStat: 'spd', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'zh_s3', name: '时尚风暴', icon: '🌈', desc: '时尚的力量横扫全场', type: 'damage', target: 'all', baseMult: 1.3, growthMult: 0.06, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wu_lvmeng': [
+    { id: 'lm_s1', name: '士别三日鸡汤', icon: '🍜', desc: '用鸡汤恢复最弱队友', type: 'heal', target: 'ally_lowest_hp', baseMult: 1.8, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'lm_s2', name: '学霸光环', icon: '📚', desc: '逆袭学霸提升全队攻击', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'lm_s3', name: '白衣渡江', icon: '⛵', desc: '伪装偷袭对单体造成巨额伤害', type: 'damage', target: 'single', baseMult: 2.2, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wu_luxun': [
+    { id: 'lx_s1', name: '火烧连营企划', icon: '🔥', desc: '放火烧全场', type: 'damage', target: 'all', baseMult: 1.4, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'lx_s2', name: '学生会动员', icon: '📣', desc: '学生会长号召提升全队攻击', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'lx_s3', name: '毕业大火', icon: '🎓', desc: '毕业季の终极大火对全体造成巨额伤害', type: 'damage', target: 'all', baseMult: 1.6, growthMult: 0.08, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wu_ganning': [
+    { id: 'gn_s1', name: '百骑劫营秀', icon: '🏴‍☠️', desc: '海盗式突袭对全体造成伤害', type: 'damage', target: 'all', baseMult: 1.3, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'gn_s2', name: '铃铛威吓', icon: '🔔', desc: '铃铛声震慑降低敌人速度', type: 'debuff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'spd', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'gn_s3', name: '海盗王一击', icon: '⚓', desc: '前海盗的终极一击', type: 'damage', target: 'single', baseMult: 2.1, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wu_huanggai': [
+    { id: 'hg_s1', name: '苦肉计营销', icon: '🤕', desc: '自残营销博取同情，反伤敌人', type: 'damage', target: 'all', baseMult: 1.2, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'hg_s2', name: '打一巴掌给颗糖', icon: '🍬', desc: '挨打后恢复全队生命', type: 'heal', target: 'all', baseMult: 0.9, growthMult: 0.06, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'hg_s3', name: '苦肉终极奥义', icon: '💥', desc: '承受所有痛苦后的终极爆发', type: 'damage', target: 'single', baseMult: 2.0, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wu_daqiao': [
+    { id: 'dq_s1', name: '江东花茶', icon: '🌸', desc: '泡一壶花茶恢复最弱队友', type: 'heal', target: 'ally_lowest_hp', baseMult: 1.6, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'dq_s2', name: '后勤补给', icon: '📦', desc: '后勤支援恢复全队生命', type: 'heal', target: 'all', baseMult: 0.8, growthMult: 0.06, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'dq_s3', name: '贤内助光环', icon: '✨', desc: '贤内助光环提升全队防御', type: 'buff', target: 'all', baseRatio: 0.18, growthRatio: 0.02, effectStat: 'def', duration: 2, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'wu_xiaoqiao': [
+    { id: 'xq_s1', name: '天籁治愈曲', icon: '🎵', desc: '演奏治愈音乐恢复全体生命', type: 'heal', target: 'all', baseMult: 0.9, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'xq_s2', name: '才艺直播', icon: '📱', desc: '才艺展示提升全队速度', type: 'buff', target: 'all', baseRatio: 0.12, growthRatio: 0.02, effectStat: 'spd', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'xq_s3', name: '绝世天音', icon: '🎶', desc: '终极音乐降低全体敌人攻击', type: 'debuff', target: 'all', baseRatio: 0.18, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'qun_yuanshao': [
+    { id: 'ys_s1', name: '四世三公名片', icon: '💎', desc: '亮出家族名片震慑全场', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'ys_s2', name: '砸钱攻势', icon: '💸', desc: '用金钱的力量攻击', type: 'damage', target: 'single', baseMult: 1.7, growthMult: 0.08, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'ys_s3', name: '官渡大决战', icon: '⚔️', desc: '倾尽家产的终极一战', type: 'damage', target: 'all', baseMult: 1.4, growthMult: 0.06, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'qun_dongzhuo': [
+    { id: 'dz_s1', name: '焚城拆迁令', icon: '😈', desc: '下达强拆通知火烧全场', type: 'damage', target: 'all', baseMult: 1.5, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'dz_s2', name: '暴力征税', icon: '💰', desc: '暴力征税降低敌方防御', type: 'debuff', target: 'all', baseRatio: 0.18, growthRatio: 0.02, effectStat: 'def', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'dz_s3', name: '焚城！', icon: '🏚️', desc: '终极拆迁焚烧全场', type: 'damage', target: 'all', baseMult: 1.8, growthMult: 0.08, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'qun_zhangjiao': [
+    { id: 'zj_s1', name: '苍天已死直播', icon: '⛈️', desc: '在线算命引发天雷', type: 'damage', target: 'all', baseMult: 1.4, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'zj_s2', name: '黄巾洗脑术', icon: '🧠', desc: '洗脑降低全体敌人速度', type: 'debuff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'spd', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'zj_s3', name: '太平要术·天雷', icon: '⚡', desc: '召唤终极天雷轰击全场', type: 'damage', target: 'all', baseMult: 1.8, growthMult: 0.08, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'qun_gongsunzan': [
+    { id: 'gsz_s1', name: '白马义从冲锋', icon: '🐎', desc: '率领白马骑兵团冲锋', type: 'damage', target: 'single', baseMult: 1.6, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'gsz_s2', name: '赛马加速', icon: '🏇', desc: '赛马精神提升全队速度', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'spd', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'gsz_s3', name: '白马银枪', icon: '🏁', desc: '白马将军的终极冲锋', type: 'damage', target: 'single', baseMult: 2.1, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'qun_zuoci': [
+    { id: 'zc_s1', name: '仙术整蛊', icon: '🎩', desc: '施展魔术戏弄敌人降低速度', type: 'debuff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'spd', duration: 2, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'zc_s2', name: '变脸术', icon: '🎭', desc: '魔术变脸恢复全队生命', type: 'heal', target: 'all', baseMult: 0.9, growthMult: 0.06, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'zc_s3', name: '仙人指路', icon: '☁️', desc: '仙人一指对单体造成巨额伤害', type: 'damage', target: 'single', baseMult: 2.0, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'qun_caiwenji': [
+    { id: 'cwj_s1', name: '胡笳十八拍', icon: '🎻', desc: '演奏悲壮乐曲治愈全场', type: 'heal', target: 'all', baseMult: 1.1, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'cwj_s2', name: '悲歌降敌', icon: '😢', desc: '悲伤的歌声降低全体敌人攻击', type: 'debuff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'cwj_s3', name: '文姬归汉', icon: '🏡', desc: '归汉决心大幅恢复全队生命', type: 'heal', target: 'all', baseMult: 1.5, growthMult: 0.08, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ],
+  'qun_menghuo': [
+    { id: 'mh_s1', name: '南蛮象冲', icon: '🐘', desc: '骑大象横冲直撞', type: 'damage', target: 'single', baseMult: 1.7, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
+    { id: 'mh_s2', name: '七擒七纵', icon: '🔄', desc: '屡败屡战提升自身攻击', type: 'buff', target: 'self', baseRatio: 0.30, growthRatio: 0.03, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'mh_s3', name: '南蛮大军', icon: '🌿', desc: '召唤南蛮大军对全体造成伤害', type: 'damage', target: 'all', baseMult: 1.4, growthMult: 0.06, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+  ]
 };
