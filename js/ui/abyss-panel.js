@@ -745,6 +745,8 @@ var AbyssPanel = {
   },
 
   _showQuickProgress: function (run, abyssId) {
+    // Clean up any settlement animation triggered synchronously by quickBattle's abyss:completed event
+    this._cleanupSettlement();
     var self = this;
     var abyss = AbyssData[abyssId];
     var totalFloors = abyss ? abyss.floors.length : 5;
