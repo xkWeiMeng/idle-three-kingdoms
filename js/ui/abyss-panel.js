@@ -1084,6 +1084,13 @@ var AbyssPanel = {
     html += '<div class="abyss-settlement__actions">';
     html += '<button class="btn abyss-retry" data-abyss-id="' + run.abyssId + '" style="' + (canAfford ? '' : 'opacity:0.5;') + '">';
     html += UIIcons.icon('battle') + ' 再次挑战<div class="abyss-retry-cost">' + costParts.join(' ') + '</div></button>';
+
+    // Quick battle on settlement: available after first clear
+    var inst = AbyssManager.getInstance(run.abyssId);
+    if (inst && inst.firstCleared) {
+      html += '<button class="btn abyss-quick-btn abyss-quick-enter" data-abyss-id="' + run.abyssId + '">⚡ 快速战斗</button>';
+    }
+
     html += '<button class="btn abyss-leave" style="background:var(--color-secondary);">离开</button>';
     html += '</div>';
 
@@ -1433,6 +1440,11 @@ var AbyssPanel = {
           content: '<div style="text-align:center;">将消耗入场券资源<br>一键完成全部楼层战斗</div>',
           confirmText: '开始',
           onConfirm: function () {
+            // If in settlement, clean up first
+            if (self._settlement.phase || self._settlement.run) {
+              self._cleanupSettlement();
+            }
+            AbyssManager.clearRun();
             if (AbyssManager.quickBattle(aid)) {
               self._showQuickProgress(AbyssManager.getCurrentRun(), aid);
             }
