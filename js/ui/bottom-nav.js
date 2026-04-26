@@ -5,28 +5,28 @@
 var BottomNav = {
   _el: null,
   _buttons: [
-    { id: 'town',    icon: '🏰', label: '城镇', action: 'town' },
-    { id: 'heroes',  icon: '⚔️', label: '武将', action: 'panel' },
-    { id: 'battle',  icon: '🗡️', label: '战斗', action: 'panel' },
-    { id: 'recruit', icon: '🎯', label: '招募', action: 'panel' },
-    { id: 'more',    icon: '⋯',  label: '更多', action: 'more' }
+    { id: 'town',    icon: 'town',    label: '城镇', action: 'town' },
+    { id: 'heroes',  icon: 'heroes',  label: '武将', action: 'panel' },
+    { id: 'battle',  icon: 'battle',  label: '战斗', action: 'panel' },
+    { id: 'recruit', icon: 'recruit', label: '招募', action: 'panel' },
+    { id: 'more',    icon: 'more',    label: '更多', action: 'more' }
   ],
   _moreItems: [
-    { id: 'adventure', icon: '🗺️', label: '冒险' },
-    { id: 'quest',     icon: '📋', label: '任务' },
-    { id: 'equipment', icon: '🛡️', label: '装备' },
-    { id: 'merchant',  icon: '🏪', label: '商人' },
-    { id: 'forge',     icon: '🔨', label: '锻造' },
-    { id: 'td',        icon: '🏰', label: '城防' },
-    { id: 'abyss',     icon: '🔥', label: '深渊' },
-    { id: 'roguelike', icon: '🏯', label: '试炼' },
-    { id: 'daily',     icon: '📅', label: '日挑' },
-    { id: 'farm',      icon: '🥬', label: '菜园' },
-    { id: 'parking',   icon: '🐴', label: '驿站' },
-    { id: 'achievement', icon: '🏆', label: '成就' },
-    { id: 'economy',   icon: '📊', label: '经济' },
-    { id: 'story',     icon: '📜', label: '剧情' },
-    { id: 'settings',  icon: '⚙️', label: '设置' }
+    { id: 'adventure', icon: 'adventure',   label: '冒险' },
+    { id: 'quest',     icon: 'quest',       label: '任务' },
+    { id: 'equipment', icon: 'equipment',   label: '装备' },
+    { id: 'merchant',  icon: 'merchant',    label: '商人' },
+    { id: 'forge',     icon: 'forge',       label: '锻造' },
+    { id: 'td',        icon: 'defense',     label: '城防' },
+    { id: 'abyss',     icon: 'abyss',       label: '深渊' },
+    { id: 'roguelike', icon: 'trial',       label: '试炼' },
+    { id: 'daily',     icon: 'daily',       label: '日挑' },
+    { id: 'farm',      icon: 'farm',        label: '菜园' },
+    { id: 'parking',   icon: 'parking',     label: '驿站' },
+    { id: 'achievement', icon: 'achievement', label: '成就' },
+    { id: 'economy',   icon: 'economy',     label: '经济' },
+    { id: 'story',     icon: 'story',       label: '剧情' },
+    { id: 'settings',  icon: 'settings',    label: '设置' }
   ],
   _moreOpen: false,
 
@@ -44,7 +44,7 @@ var BottomNav = {
     for (var i = 0; i < this._buttons.length; i++) {
       var btn = this._buttons[i];
       html += '<button class="bnav-btn" data-id="' + btn.id + '" data-action="' + btn.action + '">';
-      html += '<span class="bnav-icon">' + btn.icon + '</span>';
+      html += '<span class="bnav-icon">' + UIIcons.icon(btn.icon) + '</span>';
       html += '<span class="bnav-label">' + btn.label + '</span>';
       html += '</button>';
     }
@@ -55,7 +55,7 @@ var BottomNav = {
     for (var j = 0; j < this._moreItems.length; j++) {
       var item = this._moreItems[j];
       html += '<button class="bnav-more-item" data-id="' + item.id + '">';
-      html += '<span class="bnav-more-icon">' + item.icon + '</span>';
+      html += '<span class="bnav-more-icon">' + UIIcons.icon(item.icon) + '</span>';
       html += '<span class="bnav-more-label">' + item.label + '</span>';
       html += '</button>';
     }
@@ -136,15 +136,15 @@ var BottomNav = {
     }
 
     var titles = {
-      heroes: '⚔️ 武将',
-      battle: '🗡️ 战斗',
-      recruit: '🎯  招募',
-      adventure: '🗺️ 冒险',
-      equipment: '🛡️ 装备',
-      economy: '📊 经济',
-      story: '📜 剧情',
-      settings: '⚙️ 设置',
-      town: '🏰 城镇'
+      heroes: UIIcons.icon('heroes') + ' 武将',
+      battle: UIIcons.icon('battle') + ' 战斗',
+      recruit: UIIcons.icon('recruit') + ' 招募',
+      adventure: UIIcons.icon('adventure') + ' 冒险',
+      equipment: UIIcons.icon('equipment') + ' 装备',
+      economy: UIIcons.icon('economy') + ' 经济',
+      story: UIIcons.icon('story') + ' 剧情',
+      settings: UIIcons.icon('settings') + ' 设置',
+      town: UIIcons.icon('town') + ' 城镇'
     };
     if (typeof OverlayPanel !== 'undefined') {
       OverlayPanel.showPanel(panelId, titles[panelId] || panelId);

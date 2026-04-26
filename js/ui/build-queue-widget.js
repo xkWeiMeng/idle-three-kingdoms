@@ -47,7 +47,7 @@ var BuildQueueWidget = {
     var queue = TownManager.getBuildQueue();
 
     var html = '<div class="bqw-collapsed" data-action="expand">';
-    html += '<span class="bqw-icon">🔨</span> ';
+    html += '<span class="bqw-icon">' + UIIcons.icon('hammer') + '</span> ';
     html += '<span class="bqw-status">' + active + '/' + workers;
     if (queue.length > 0) html += ' +' + queue.length;
     html += '</span>';
@@ -90,12 +90,12 @@ var BuildQueueWidget = {
 
     var html = '<div class="bqw-header">';
     html += '<span class="bqw-title">建造队列</span>';
-    html += '<button class="bqw-close" data-action="collapse">🔽 关闭</button>';
+    html += '<button class="bqw-close" data-action="collapse">' + UIIcons.icon('close') + ' 关闭</button>';
     html += '</div>';
 
     // Active builds section
     html += '<div class="bqw-section">';
-    html += '<div class="bqw-section-title">⚡ 施工中</div>';
+    html += '<div class="bqw-section-title">' + UIIcons.icon('speed') + ' 施工中</div>';
 
     var activeBuilds = this._getActiveBuilds();
     if (activeBuilds.length === 0) {
@@ -110,7 +110,7 @@ var BuildQueueWidget = {
 
         html += '<div class="bqw-active-card">';
         html += '<div class="bqw-card-header">';
-        html += '<span>' + (data ? data.emoji : '🏗') + ' ' + (data ? data.name : ab.id) + ' Lv.' + level + '→' + (level + 1) + '</span>';
+        html += '<span>' + (data ? data.emoji : UIIcons.icon('build')) + ' ' + (data ? data.name : ab.id) + ' Lv.' + level + '→' + (level + 1) + '</span>';
         html += '<button class="bqw-cancel-active" data-cancel-active="' + ab.id + '">取消</button>';
         html += '</div>';
         html += '<div class="bqw-progress-row">';
@@ -126,10 +126,10 @@ var BuildQueueWidget = {
 
     // Queue section
     html += '<div class="bqw-section">';
-    html += '<div class="bqw-section-title">📋 等待队列</div>';
+    html += '<div class="bqw-section-title">' + UIIcons.icon('list') + ' 等待队列</div>';
 
     if (queue.length === 0) {
-      html += '<div class="bqw-empty bqw-guide">💡 在建筑面板中点击建造可添加到队列</div>';
+      html += '<div class="bqw-empty bqw-guide">' + UIIcons.icon('idea') + ' 在建筑面板中点击建造可添加到队列</div>';
     } else {
       html += '<div class="bqw-queue-list" data-bqw-queue-list>';
       for (var j = 0; j < queue.length; j++) {
@@ -137,7 +137,13 @@ var BuildQueueWidget = {
         var qdata = BuildingData[qi.buildingId];
         html += '<div class="bqw-queue-item" data-queue-id="' + qi.id + '" draggable="true">';
         html += '<span class="bqw-drag-handle">≡</span>';
-        html += '<span class="bqw-queue-name">' + (qdata ? qdata.emoji : '🏗') + ' ' + (qdata ? qdata.name : qi.buildingId) + ' Lv.' + (qi.targetLevel - 1) + '→' + qi.targetLevel + '</span>';
+        var qNameText = '';
+        if (qi.type === 'copy') {
+          qNameText = (qdata ? qdata.emoji : UIIcons.icon('build')) + ' ' + (qdata ? qdata.name : qi.buildingId) + ' 副本扩建';
+        } else {
+          qNameText = (qdata ? qdata.emoji : UIIcons.icon('build')) + ' ' + (qdata ? qdata.name : qi.buildingId) + ' Lv.' + (qi.targetLevel - 1) + '→' + qi.targetLevel;
+        }
+        html += '<span class="bqw-queue-name">' + qNameText + '</span>';
         html += '<button class="bqw-remove-queue" data-remove-queue="' + qi.id + '">✕</button>';
         html += '</div>';
       }

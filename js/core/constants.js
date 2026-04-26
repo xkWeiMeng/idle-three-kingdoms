@@ -23,10 +23,16 @@ const CONSTANTS = {
     IRON: 'iron',       // 铁矿 (建筑资源)
   },
 
-  // 资源图标
+  // 资源图标 — 使用 UIIcons（延迟初始化，因 UIIcons 可能还未加载）
+  RESOURCE_ICON: {
+    gold: 'gold', jade: 'jade', exp: 'exp', food: 'food',
+    wood: 'wood', stone: 'stone', iron: 'iron',
+  },
+
+  // 资源图标 HTML（由 UIIcons 生成，在 main.js 初始化时填充）
   RESOURCE_EMOJI: {
-    gold: '💰', jade: '💎', exp: '⭐', food: '🍚',
-    wood: '🪵', stone: '🪨', iron: '⛏️',
+    gold: '', jade: '', exp: '', food: '',
+    wood: '', stone: '', iron: '',
   },
 
   // 基础资源上限

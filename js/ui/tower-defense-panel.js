@@ -26,18 +26,18 @@ var TowerDefensePanel = {
 
   // 塔类型 emoji 映射
   _towerEmoji: {
-    td_arrow_tower: '🏹', td_crossbow: '⚔', td_catapult: '🪨',
-    td_beacon: '🔥', td_oil_tower: '🫕', td_repeater: '🏹',
-    td_wood_fence: '🪵', td_stone_wall: '🧱', td_iron_wall: '🛡',
-    td_spike: '⚔', td_pitfall: '🕳', td_oil_pool: '🔥', td_trip_rope: '🪢'
+    td_arrow_tower: UIIcons.icon('attack'), td_crossbow: UIIcons.icon('battle'), td_catapult: UIIcons.icon('stone'),
+    td_beacon: UIIcons.icon('flame'), td_oil_tower: UIIcons.icon('flame'), td_repeater: UIIcons.icon('attack'),
+    td_wood_fence: UIIcons.icon('wood'), td_stone_wall: UIIcons.icon('defense'), td_iron_wall: UIIcons.icon('defense'),
+    td_spike: UIIcons.icon('battle'), td_pitfall: UIIcons.icon('battle'), td_oil_pool: UIIcons.icon('flame'), td_trip_rope: UIIcons.icon('battle')
   },
 
   // 敌人 emoji 映射
   _enemyEmoji: {
-    td_militia: '⚔', td_spearman: '🗡', td_heavy_infantry: '🛡',
-    td_cavalry: '🐴', td_iron_cavalry: '🐎', td_siege_ram: '🔨',
-    td_siege_ladder: '🪜', td_siege_catapult: '🪨', td_battering_ram: '🔨',
-    td_assassin: '🗡', td_horse_archer: '🏹', td_enemy_general: '👑'
+    td_militia: UIIcons.icon('battle'), td_spearman: UIIcons.icon('weapon'), td_heavy_infantry: UIIcons.icon('defense'),
+    td_cavalry: UIIcons.icon('mount'), td_iron_cavalry: UIIcons.icon('mount'), td_siege_ram: UIIcons.icon('hammer'),
+    td_siege_ladder: UIIcons.icon('build'), td_siege_catapult: UIIcons.icon('stone'), td_battering_ram: UIIcons.icon('hammer'),
+    td_assassin: UIIcons.icon('weapon'), td_horse_archer: UIIcons.icon('attack'), td_enemy_general: UIIcons.icon('crown')
   },
 
   // ========== T13: init + 事件注册 ==========
@@ -175,7 +175,7 @@ var TowerDefensePanel = {
     html += '</div>';
 
     OverlayPanel.show({
-      title: '🏰 城防作战',
+      title: UIIcons.icon('town') + ' 城防作战',
       content: html,
       panelId: 'td-chapters',
       height: 'full'
@@ -230,7 +230,7 @@ var TowerDefensePanel = {
     if (isCleared) {
       // 已通关：提供练习模式按钮
       Modal.show({
-        title: '⚔ 出击确认',
+        title: UIIcons.icon('battle') + ' 出击确认',
         content: html,
         confirmText: '开始战斗',
         cancelText: '练习模式',
@@ -248,7 +248,7 @@ var TowerDefensePanel = {
       });
     } else {
       Modal.show({
-        title: '⚔ 出击确认',
+        title: UIIcons.icon('battle') + ' 出击确认',
         content: html,
         confirmText: '开始战斗',
         cancelText: '取消',
@@ -879,7 +879,7 @@ var TowerDefensePanel = {
 
       // 紧急技能
       var eSkills = TowerDefenseManager.getEmergencySkills();
-      var eNames = { arrow_rain: '🏹万箭', battle_charge: '🥁冲锋', iron_wall: '🛡铁壁' };
+      var eNames = { arrow_rain: UIIcons.iconText('attack', '万箭'), battle_charge: UIIcons.iconText('battle', '冲锋'), iron_wall: UIIcons.iconText('defense', '铁壁') };
       var eIds = ['arrow_rain', 'battle_charge', 'iron_wall'];
       for (var ei = 0; ei < eIds.length; ei++) {
         var eId = eIds[ei];
@@ -1220,7 +1220,7 @@ var TowerDefensePanel = {
       html += '<div class="card" style="margin:8px 0;padding:12px;' + (!isUnlocked ? 'opacity:0.5;' : '') + '">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
       html += '<b style="color:var(--color-gold);">城主府 Lv.' + level + '</b>';
-      html += '<span style="font-size:12px;color:' + (isUnlocked ? 'var(--color-success)' : 'var(--color-text-dim)') + ';">' + (isUnlocked ? '✅ 已解锁' : '🔒 未解锁') + '</span>';
+      html += '<span style="font-size:12px;color:' + (isUnlocked ? 'var(--color-success)' : 'var(--color-text-dim)') + ';">' + (isUnlocked ? '✅ 已解锁' : UIIcons.icon('lock') + ' 未解锁') + '</span>';
       html += '</div>';
       
       html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
@@ -1325,7 +1325,7 @@ var TowerDefensePanel = {
     html += '</div>';
 
     OverlayPanel.show({
-      title: '⚔ 防守武将',
+      title: UIIcons.icon('battle') + ' 防守武将',
       content: html,
       panelId: 'td-heroes',
       height: 'half'
@@ -1476,15 +1476,15 @@ var TowerDefensePanel = {
     var self = this;
     var steps = [
       {
-        title: '🛡 城防指南 (1/3)',
+        title: UIIcons.icon('defense') + ' 城防指南 (1/3)',
         content: '<div style="text-align:center;line-height:1.8;"><p>从底部工具栏选择防御塔</p><p>然后点击地图上的 <span style="color:#4caf50;">绿色格子</span> 放置</p><p style="font-size:18px;margin-top:8px;">🏹 试试放置一座箭塔！</p></div>'
       },
       {
-        title: '🛡 城防指南 (2/3)',
+        title: UIIcons.icon('defense') + ' 城防指南 (2/3)',
         content: '<div style="text-align:center;line-height:1.8;"><p>敌人将从地图边缘进攻</p><p>防守 <span style="color:var(--color-gold);">城主府 🏯</span> 不被攻破！</p><p style="font-size:12px;color:var(--color-text-dim);margin-top:8px;">敌人会沿路径向城主府推进<br>墙体可以阻挡敌人前进</p></div>'
       },
       {
-        title: '🛡 城防指南 (3/3)',
+        title: UIIcons.icon('defense') + ' 城防指南 (3/3)',
         content: '<div style="text-align:center;line-height:1.8;"><p>准备好后点击</p><p style="color:var(--color-primary);font-size:16px;font-weight:bold;">⚔ 开始波次</p><p style="font-size:12px;color:var(--color-text-dim);margin-top:8px;">通关波次获得金币和经验奖励<br>手动操作比自动防守收益更高！</p></div>'
       }
     ];

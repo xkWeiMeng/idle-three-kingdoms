@@ -22,7 +22,7 @@ var MerchantPanel = {
   show: function () {
     var html = this._render();
     OverlayPanel.show({
-      title: '🏪 糜竺的商铺',
+      title: UIIcons.icon('merchant') + ' 糋竺的商铺',
       content: html,
       panelId: 'merchant',
       height: 'full'
@@ -48,7 +48,7 @@ var MerchantPanel = {
     // Normal stock
     html += '<div class="card">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-    html += '<span style="font-weight:bold;font-size:0.9rem;">📦 今日货架</span>';
+    html += '<span style="font-weight:bold;font-size:0.9rem;">' + UIIcons.icon('chest') + ' 今日货架</span>';
     html += '<span style="font-size:0.75rem;color:var(--color-text-dim);">' + timeStr + ' 后刷新</span>';
     html += '</div>';
 
@@ -59,7 +59,7 @@ var MerchantPanel = {
 
       html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;';
       html += 'border-radius:6px;background:var(--color-bg);' + opacity + '">';
-      html += '<span style="font-size:1.1rem;">' + (item.emoji || '📦') + '</span>';
+      html += '<span style="font-size:1.1rem;">' + (item.emoji || UIIcons.icon('chest')) + '</span>';
       html += '<div style="flex:1;">';
       html += '<span style="color:' + col + ';font-size:0.85rem;font-weight:bold;">' + item.name + '</span>';
       html += '<span style="font-size:0.68rem;color:var(--color-text-dim);margin-left:4px;">[' + this._qualityNames[item.quality] + ']</span>';
@@ -75,7 +75,7 @@ var MerchantPanel = {
     }
 
     html += '<div style="text-align:center;margin-top:8px;">';
-    html += '<button class="btn merchant-refresh" style="font-size:0.75rem;padding:4px 14px;background:var(--color-secondary);">💎30 立即刷新</button>';
+    html += '<button class="btn merchant-refresh" style="font-size:0.75rem;padding:4px 14px;background:var(--color-secondary);">' + UIIcons.icon('jade') + '30 立即刷新</button>';
     html += '</div>';
     html += '</div>';
 
@@ -92,7 +92,7 @@ var MerchantPanel = {
 
       html += '<div style="padding:8px;margin-bottom:8px;border-radius:8px;background:rgba(255,34,34,0.08);' + soldStyle + '">';
       html += '<div style="display:flex;align-items:center;gap:8px;">';
-      html += '<span style="font-size:1.2rem;">' + (pt.emoji || '💎') + '</span>';
+      html += '<span style="font-size:1.2rem;">' + (pt.emoji || UIIcons.icon('jade')) + '</span>';
       html += '<div style="flex:1;">';
       html += '<span style="color:#ff2222;font-weight:bold;font-size:0.9rem;">' + pt.name + '</span>';
       html += '<span style="font-size:0.65rem;color:#ff2222;margin-left:4px;">[神话]</span>';
@@ -108,7 +108,7 @@ var MerchantPanel = {
         html += '<div style="text-align:right;margin-top:4px;">';
         html += '<button class="btn merchant-buy-perm" data-equip-id="' + pi.equipId + '" ';
         html += 'style="font-size:0.78rem;padding:4px 14px;background:#ff222233;color:#ff2222;border:1px solid #ff2222;">';
-        html += '💰' + Utils.formatNumber(pi.price) + '</button>';
+        html += UIIcons.icon('gold') + Utils.formatNumber(pi.price) + '</button>';
         html += '</div>';
       }
       html += '</div>';

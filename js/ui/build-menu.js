@@ -9,10 +9,10 @@ var BuildMenu = {
 
     // 城镇管理入口
     html += '<div class="bm-manage-bar">' +
-      '<button class="btn btn-small bm-manage-btn" onclick="BuildMenu._openTownPanel()">📋 城镇管理</button>' +
+      '<button class="btn btn-small bm-manage-btn" onclick="BuildMenu._openTownPanel()">' + UIIcons.icon('list') + ' 城镇管理</button>' +
       '</div>';
 
-    var categories = { core: '🏛️ 核心', production: '⛏️ 生产', combat: '⚔️ 战斗', functional: '🔧 功能', defense: '🏰 防御' };
+    var categories = { core: UIIcons.icon('core') + ' 核心', production: UIIcons.icon('production') + ' 生产', combat: UIIcons.icon('attack') + ' 战斗', functional: UIIcons.icon('functional') + ' 功能', defense: UIIcons.icon('defense') + ' 防御' };
 
     for (var catId in categories) {
       if (!categories.hasOwnProperty(catId)) continue;
@@ -48,21 +48,28 @@ var BuildMenu = {
         var isBuilt = level > 0;
 
         html += '<div class="bm-item' + (isBuilt ? ' built' : '') + '">';
-        html += '<img src="assets/img/buildings/' + b.id + '.svg" class="bm-icon" alt="' + b.name + '" onerror="this.style.display=\'none\'"/>';
+        html += '<img src="assets/buildings/' + b.id + '.png" class="bm-icon" alt="' + b.name + '" onerror="this.style.display=\'none\'"/>';
         html += '<div class="bm-info">';
         html += '<span class="bm-name">' + b.emoji + ' ' + b.name + '</span>';
         if (isBuilding) {
           var remain = TownManager.getRemainingBuildTime(b.id);
           html += '<span class="bm-level" style="color:var(--color-gold)">⏱ 施工中 ' + BuildMenu._formatTime(remain) + '</span>';
         } else if (isBuilt) {
-          html += '<span class="bm-level">Lv.' + level + '</span>';
+          var bmCount = TownManager.getBuildingCount(b.id);
+          var bmMaxCount = TownManager.getMaxCount(b.id);
+          var countStr = bmMaxCount > 1 ? ' ×' + bmCount + '/' + bmMaxCount : '';
+          html += '<span class="bm-level">Lv.' + level + countStr + '</span>';
           if (check.ok) {
             html += '<button class="btn btn-sm" onclick="BuildMenu._build(\'' + b.id + '\')">升级</button>';
+          }
+          if (bmCount < bmMaxCount) {
+            var copyCheck = TownManager.canBuildCopy(b.id);
+            html += '<button class="btn btn-sm' + (copyCheck.ok ? '' : ' disabled') + '" onclick="BuildMenu._buildCopy(\'' + b.id + '\')"' + (copyCheck.ok ? '' : ' disabled') + '>+副本</button>';
           }
         } else if (check.ok) {
           html += '<button class="btn btn-sm" onclick="BuildMenu._build(\'' + b.id + '\')">建造</button>';
         } else {
-          html += '<span class="bm-locked">🔒 ' + (check.reason || '未解锁') + '</span>';
+          html += '<span class="bm-locked">' + UIIcons.icon('lock') + ' ' + (check.reason || '未解锁') + '</span>';
         }
         html += '</div></div>';
       }
@@ -71,7 +78,7 @@ var BuildMenu = {
     html += '</div>';
 
     OverlayPanel.show({
-      title: '🔨 建造',
+      title: UIIcons.icon('hammer') + ' 建造',
       content: html,
       height: 'half',
       panelId: 'build-menu'
@@ -127,8 +134,8 @@ var BuildMenu = {
       }
 
       // 分类 emoji 映射
-      var catEmoji = { attack: '🏹', wall: '🧱', trap: '⚔', support: '🔥' };
-      var emoji = catEmoji[d.category] || '🏰';
+      var catEmoji = { attack: UIIcons.icon('attack'), wall: UIIcons.icon('defense'), trap: UIIcons.icon('battle'), support: UIIcons.icon('flame') };
+      var emoji = catEmoji[d.category] || UIIcons.icon('defense');
 
       html += '<div class="bm-item">';
       html += '<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:20px;">' + emoji + '</div>';
@@ -136,7 +143,7 @@ var BuildMenu = {
       html += '<span class="bm-name">' + d.name + '</span>';
 
       if (!unlocked) {
-        html += '<span class="bm-locked">🔒 城主府 Lv.' + d.requiredTownHall + '</span>';
+        html += '<span class="bm-locked">' + UIIcons.icon('lock') + ' 城主府 Lv.' + d.requiredTownHall + '</span>';
       } else if (currentTowers >= maxTowers) {
         html += '<span class="bm-locked">已达上限</span>';
       } else {
@@ -177,19 +184,19 @@ var BuildMenu = {
     if (tower.level < (typeof TD_CONSTANTS !== 'undefined' ? TD_CONSTANTS.MAX_TOWER_LEVEL : 5)) {
       html += '<div style="display:flex;gap:8px;margin-top:12px;">';
       html += '<button class="btn" style="flex:1;" onclick="BuildMenu._upgradeTDTower(\'' + tower.uid + '\')">⬆ 升级</button>';
-      html += '<button class="btn" style="flex:1;background:var(--color-danger);" onclick="BuildMenu._sellTDTower(\'' + tower.uid + '\')">💰 出售</button>';
+      html += '<button class="btn" style="flex:1;background:var(--color-danger);" onclick="BuildMenu._sellTDTower(\'' + tower.uid + '\')">' + UIIcons.icon('sell') + ' 出售</button>';
       html += '</div>';
     } else {
       html += '<div style="display:flex;gap:8px;margin-top:12px;">';
       html += '<div style="flex:1;text-align:center;color:var(--color-gold);">已满级</div>';
-      html += '<button class="btn" style="flex:1;background:var(--color-danger);" onclick="BuildMenu._sellTDTower(\'' + tower.uid + '\')">💰 出售</button>';
+      html += '<button class="btn" style="flex:1;background:var(--color-danger);" onclick="BuildMenu._sellTDTower(\'' + tower.uid + '\')">' + UIIcons.icon('sell') + ' 出售</button>';
       html += '</div>';
     }
 
     html += '</div>';
 
     OverlayPanel.show({
-      title: '🏰 ' + data.name,
+      title: UIIcons.icon('defense') + ' ' + data.name,
       content: html,
       height: 'half',
       panelId: 'td-tower-info'
@@ -201,7 +208,7 @@ var BuildMenu = {
       var result = TowerDefenseManager.upgradeTower(uid);
       if (result.ok) {
         OverlayPanel.close();
-        EventBus.emit('toast:show', { type: 'success', message: '🔨 防御塔升级成功！' });
+        EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('hammer') + ' 防御塔升级成功！' });
       } else {
         EventBus.emit('toast:show', { type: 'warning', message: result.reason });
       }
@@ -213,7 +220,7 @@ var BuildMenu = {
       var result = TowerDefenseManager.sellTower(uid);
       if (result.ok) {
         OverlayPanel.close();
-        EventBus.emit('toast:show', { type: 'success', message: '💰 已出售防御塔' });
+        EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('gold') + ' 已出售防御塔' });
       } else {
         EventBus.emit('toast:show', { type: 'warning', message: result.reason });
       }
@@ -224,7 +231,18 @@ var BuildMenu = {
     var result = TownManager.enqueueUpgrade(buildingId);
     if (result.ok) {
       OverlayPanel.close();
-      EventBus.emit('toast:show', { type: 'success', message: '🔨 开始建造！' });
+      EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('hammer') + ' 开始建造！' });
+    } else {
+      EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+    }
+  },
+
+  _buildCopy: function (buildingId) {
+    var result = TownManager.enqueueBuildCopy(buildingId);
+    if (result.ok) {
+      OverlayPanel.close();
+      var def = BuildingData[buildingId];
+      EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('build') + ' ' + (def ? def.name : '') + ' 副本开始建造！' });
     } else {
       EventBus.emit('toast:show', { type: 'warning', message: result.reason });
     }
@@ -233,7 +251,7 @@ var BuildMenu = {
   _openTownPanel: function () {
     OverlayPanel.close();
     setTimeout(function () {
-      OverlayPanel.showPanel('town', '🏰 城镇管理');
+      OverlayPanel.showPanel('town', UIIcons.icon('town') + ' 城镇管理');
     }, 100);
   },
 

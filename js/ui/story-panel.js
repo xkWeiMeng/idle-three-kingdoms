@@ -82,7 +82,7 @@ const StoryPanel = {
       var isCompleted = completed.has(ch.id);
       var isCurrent = ch.id === currentId;
       var isLocked = !isCompleted && !isCurrent;
-      var icon = isCompleted ? '✅' : (isCurrent ? '📖' : '🔒');
+      var icon = isCompleted ? '✅' : (isCurrent ? '📖' : UIIcons.icon('lock'));
       var color = isLocked ? 'var(--color-text-dim)' : 'var(--color-text)';
       var cursor = isLocked ? 'default' : 'pointer';
       var bg = (this._selectedChapter === i) ? 'rgba(233,69,96,0.15)' : 'transparent';
@@ -206,7 +206,7 @@ const StoryPanel = {
     var dialogueHtml = '';
     var dialogues = CharacterDialogues[charId];
     if (dialogues) {
-      var categoryNames = { greet: '🤝 招呼', upgrade: '⬆️ 升级', battle: '⚔️ 战斗', gift: '🎁 送礼', special: '✨ 特殊' };
+      var categoryNames = { greet: '🤝 招呼', upgrade: '⬆️ 升级', battle: UIIcons.iconText('battle', '战斗'), gift: '🎁 送礼', special: '✨ 特殊' };
       dialogueHtml = '<div style="margin-top:10px;"><strong>💬 角色语录：</strong>';
       var cats = Object.keys(dialogues);
       for (var c = 0; c < cats.length; c++) {

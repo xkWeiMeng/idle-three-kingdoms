@@ -5,7 +5,10 @@
 var TownCharacters = {
 
   _chars: [],       // 所有角色
-  _images: {},      // 精灵图缓存
+  _images: {},      // 静态精灵图缓存
+  _sheets: {},      // walk sheet Image 缓存 { path: Image }
+  _processedSheets: {},  // 去背景后的 Canvas 缓存 { path: Canvas }
+  _sheetOffsets: {},     // 帧偏移缓存 { path: number[][] }
 
   // ── 拖拽状态 ──
   _dragChar: null,      // 当前被拖拽的角色
@@ -19,8 +22,10 @@ var TownCharacters = {
 
   // ── 常量 ──
   NPC_SPAWN_COUNT: 6,
-  CHAR_W: 36,       // 绘制宽
-  CHAR_H: 48,       // 绘制高
+  CHAR_W: 36,       // 静态精灵绘制宽
+  CHAR_H: 48,       // 静态精灵绘制高
+  SHEET_CHAR_W: 48, // 精灵图角色绘制宽
+  SHEET_CHAR_H: 64, // 精灵图角色绘制高
   HIT_W: 32,        // 点击检测宽
   HIT_H: 44,        // 点击检测高
   DRAG_LIFT: 18,    // 拿起时上浮像素
@@ -86,8 +91,41 @@ var TownCharacters = {
     ];
     for (var i = 0; i < names.length; i++) {
       var img = new Image();
-      img.src = 'assets/img/characters/' + names[i] + '.svg';
+      img.src = 'assets/characters/' + names[i] + '.png';
       this._images[names[i]] = img;
+    }
+    // 预加载所有行走精灵图
+    this._preloadWalkSheets();
+  },
+
+  _preloadWalkSheets: function () {
+    if (typeof WalkSheetRegistry === 'undefined') return;
+    var self = this;
+    var entries = [];
+    var key;
+    for (key in WalkSheetRegistry.heroes) {
+      entries.push(WalkSheetRegistry.heroes[key]);
+    }
+    for (key in WalkSheetRegistry.npcs) {
+      entries.push(WalkSheetRegistry.npcs[key]);
+    }
+    for (var i = 0; i < entries.length; i++) {
+      (function (entry) {
+        var path = WalkSheetRegistry.getFullPath(entry);
+        if (self._sheets[path]) return;
+        var img = new Image();
+        img.onload = function () {
+          self._sheets[path] = img;
+          // 去除背景色并缓存
+          var processed = SpriteSheetProcessor.processImage(img, entry.bg);
+          self._processedSheets[path] = processed;
+          // 计算帧偏移以消除漂移
+          self._sheetOffsets[path] = SpriteSheetProcessor.computeFrameOffsets(
+            processed, WalkSheetRegistry.FRAME_W, WalkSheetRegistry.FRAME_H
+          );
+        };
+        img.src = path;
+      })(entries[i]);
     }
   },
 
@@ -110,12 +148,19 @@ var TownCharacters = {
       var wy = s.gy * CELL + CELL / 2;
       var role = this._ROLE_MAP[s.name] || 'villager';
       var profile = this._ROLE_PROFILES[role];
+      // 分配 walk sheet
+      var walkSheet = null;
+      if (typeof WalkSheetRegistry !== 'undefined') {
+        var sheetKey = WalkSheetRegistry.NPC_SPRITE_MAP[s.sprite];
+        if (sheetKey) walkSheet = WalkSheetRegistry.getNpc(sheetKey);
+      }
       this._chars.push(this._createChar({
         id: 'npc_' + i,
         type: 'npc',
         name: s.name,
         sprite: s.sprite,
         role: role,
+        walkSheet: walkSheet,
         x: wx, y: wy,
         homeX: wx, homeY: wy,
         speed: profile.speed || this.NPC_SPEED,
@@ -166,8 +211,14 @@ var TownCharacters = {
       var wx = gx * CELL + CELL / 2;
       var wy = gy * CELL + CELL / 2;
 
-      // 确定精灵图
+      // 确定精灵图（fallback用静态精灵）
       var sprite = this._getHeroSprite(hData.faction, hData.gender);
+
+      // 分配 walk sheet（优先使用独立精灵图）
+      var walkSheet = null;
+      if (typeof WalkSheetRegistry !== 'undefined') {
+        walkSheet = WalkSheetRegistry.getHero(hero.id);
+      }
 
       this._chars.push(this._createChar({
         id: 'hero_' + hero.id,
@@ -176,6 +227,7 @@ var TownCharacters = {
         heroUid: hero.uid,
         name: template.name,
         sprite: sprite,
+        walkSheet: walkSheet,
         x: wx, y: wy,
         homeX: wx, homeY: wy,
         homeBuilding: homeBuilding,
@@ -207,6 +259,9 @@ var TownCharacters = {
       homeBuilding: opts.homeBuilding || null,
       quality: opts.quality || 1,
 
+      // 行走精灵图数据（null 则使用旧静态精灵）
+      walkSheet: opts.walkSheet || null,
+
       x: opts.x,
       y: opts.y,
       homeX: opts.homeX,
@@ -217,7 +272,12 @@ var TownCharacters = {
       state: 'idle',
       stateTimer: 2 + Math.random() * 4,
       direction: Math.random() < 0.5 ? 1 : -1,
+      facing: 'south',  // 4方向: south/west/east/north
       bobPhase: Math.random() * Math.PI * 2,
+
+      // 帧动画状态
+      animFrame: 0,     // 当前帧 (0-5)
+      animTimer: 0,     // 帧计时器
 
       bubble: null,
       speed: opts.speed,
@@ -329,6 +389,8 @@ var TownCharacters = {
 
   _goIdle: function (c) {
     c.state = 'idle';
+    c.animFrame = 0; // 站立帧
+    c.animTimer = 0;
     var profile = c.role ? this._ROLE_PROFILES[c.role] : null;
     if (profile && profile.idleRange) {
       c.stateTimer = profile.idleRange[0] + Math.random() * (profile.idleRange[1] - profile.idleRange[0]);
@@ -652,6 +714,8 @@ var TownCharacters = {
         // 面朝对方
         a.direction = b.x > a.x ? 1 : -1;
         b.direction = a.x > b.x ? 1 : -1;
+        a.facing = b.x > a.x ? 'east' : 'west';
+        b.facing = a.x > b.x ? 'east' : 'west';
 
         // 根据角色职业选择互动台词
         var linesA, linesB;
@@ -821,7 +885,34 @@ var TownCharacters = {
     c.x = newX;
     c.y = newY;
     c.direction = dx > 0 ? 1 : -1;
+    this._updateFacing(c, dx, dy);
     c.bobPhase += dt * 8;
+    // 帧动画推进
+    this._advanceAnim(c, dt);
+  },
+
+  /**
+   * 根据移动向量更新 4 方向 facing
+   */
+  _updateFacing: function (c, dx, dy) {
+    if (Math.abs(dx) > Math.abs(dy)) {
+      c.facing = dx > 0 ? 'east' : 'west';
+    } else {
+      c.facing = dy > 0 ? 'south' : 'north';
+    }
+  },
+
+  /**
+   * 推进帧动画计时器
+   */
+  _advanceAnim: function (c, dt) {
+    if (!c.walkSheet) return;
+    c.animTimer += dt;
+    var interval = 1 / WalkSheetRegistry.WALK_FPS;
+    if (c.animTimer >= interval) {
+      c.animTimer -= interval;
+      c.animFrame = (c.animFrame + 1) % WalkSheetRegistry.COLS;
+    }
   },
 
   /** A* pathfinding with road preference */
@@ -1030,7 +1121,9 @@ var TownCharacters = {
       c.x += (dx / dist) * step;
       c.y += (dy / dist) * step;
       c.direction = dx > 0 ? 1 : -1;
+      this._updateFacing(c, dx, dy);
       c.bobPhase += dt * 8;
+      this._advanceAnim(c, dt);
       return;
     }
 
@@ -1060,6 +1153,9 @@ var TownCharacters = {
         }
         if (nearest) {
           c.direction = nearest.x > c.x ? 1 : -1;
+          var fdx = nearest.x - c.x;
+          var fdy = nearest.y - c.y;
+          this._updateFacing(c, fdx, fdy);
         }
       }
 
@@ -1151,10 +1247,10 @@ var TownCharacters = {
 
   // ── 点击检测 ──
   hitTest: function (wx, wy) {
-    var W = this.HIT_W;
-    var H = this.HIT_H;
     for (var i = this._chars.length - 1; i >= 0; i--) {
       var c = this._chars[i];
+      var W = c.walkSheet ? this.SHEET_CHAR_W : this.HIT_W;
+      var H = c.walkSheet ? this.SHEET_CHAR_H : this.HIT_H;
       if (wx >= c.x - W / 2 && wx <= c.x + W / 2 &&
           wy >= c.y - H && wy <= c.y) {
         return c;
@@ -1238,9 +1334,12 @@ var TownCharacters = {
     // 隐藏的角色不绘制（战时躲在主城里）
     if (c.hidden) return;
 
-    var img = this._images[c.sprite];
-    var W = this.CHAR_W;
-    var H = this.CHAR_H;
+    // 判断是否使用精灵图行走动画
+    var sheet = this._getProcessedSheet(c);
+    var useSheet = !!sheet;
+
+    var W = useSheet ? this.SHEET_CHAR_W : this.CHAR_W;
+    var H = useSheet ? this.SHEET_CHAR_H : this.CHAR_H;
 
     var isDragged = (this._dragChar === c);
     var isDropping = (this._dragDropAnim && this._dragDropAnim.char === c);
@@ -1255,8 +1354,8 @@ var TownCharacters = {
       var t = this._easeOutBack(this._dragPickupAnim);
       liftY = this.DRAG_LIFT * t;
       scale = 1 + (this.DRAG_SCALE - 1) * t;
-      shadowScale = 1 + 0.4 * t; // 阴影变大
-      shadowAlpha = 0.12 - 0.06 * t; // 阴影变淡（离地效果）
+      shadowScale = 1 + 0.4 * t;
+      shadowAlpha = 0.12 - 0.06 * t;
     } else if (isDropping) {
       var dropT = this._easeInQuad(this._dragDropAnim.progress);
       liftY = this.DRAG_LIFT * (1 - dropT);
@@ -1265,10 +1364,10 @@ var TownCharacters = {
       shadowAlpha = 0.12 - 0.06 * (1 - dropT);
     }
 
-    // 行走弹跳（拖拽时不弹跳）
+    // 行走弹跳（精灵图动画时减弱bob，拖拽时不弹跳）
     var bobY = 0;
     if (c.state === 'walking' || c.state === 'fleeing') {
-      bobY = Math.sin(c.bobPhase) * 1.5;
+      bobY = useSheet ? Math.sin(c.bobPhase) * 0.5 : Math.sin(c.bobPhase) * 1.5;
     } else if (c.state === 'fighting') {
       bobY = Math.sin(c.bobPhase) * 1;
       c.bobPhase += 0; // fighting bob driven by _tickFighting
@@ -1293,20 +1392,32 @@ var TownCharacters = {
       ctx.restore();
     }
 
-    // 精灵图
-    if (img && img.complete && img.naturalWidth > 0) {
+    // 精灵图渲染
+    if (useSheet) {
+      // 从行走精灵图裁帧绘制
+      var fw = WalkSheetRegistry.FRAME_W;
+      var fh = WalkSheetRegistry.FRAME_H;
+      var row = WalkSheetRegistry.getRowForFacing(c.facing, c.walkSheet.dirs);
+      var col = c.animFrame;
+      var sx = col * fw;
+      var sy = row * fh;
+
+      // 帧偏移校正（消除角色重心漂移）
+      var sheetPath = WalkSheetRegistry.getFullPath(c.walkSheet);
+      var offsets = this._sheetOffsets[sheetPath];
+      var frameDx = 0;
+      if (offsets && offsets[row]) {
+        frameDx = offsets[row][col] * (W / fw);
+      }
+
       ctx.save();
       ctx.translate(c.x, c.y - H + bobY - liftY);
-      if (c.direction < 0) {
-        ctx.scale(-1, 1);
-      }
-      // 缩放
       if (scale !== 1) {
-        ctx.translate(0, H); // 以脚底为锚点缩放
+        ctx.translate(0, H);
         ctx.scale(scale, scale);
         ctx.translate(0, -H);
       }
-      ctx.drawImage(img, -W / 2, 0, W, H);
+      ctx.drawImage(sheet, sx, sy, fw, fh, -W / 2 + frameDx, 0, W, H);
       // 战斗攻击闪光
       if (c.state === 'fighting' && c._fightFlash > 0) {
         ctx.globalAlpha = c._fightFlash * 0.5;
@@ -1316,11 +1427,34 @@ var TownCharacters = {
       }
       ctx.restore();
     } else {
-      // 降级：彩色圆点
-      ctx.fillStyle = c.type === 'hero' ? '#c0392b' : '#999';
-      ctx.beginPath();
-      ctx.arc(c.x, c.y - H / 2 + bobY - liftY, 8 * scale, 0, Math.PI * 2);
-      ctx.fill();
+      // 旧静态精灵图渲染
+      var img = this._images[c.sprite];
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.save();
+        ctx.translate(c.x, c.y - H + bobY - liftY);
+        if (c.direction < 0) {
+          ctx.scale(-1, 1);
+        }
+        if (scale !== 1) {
+          ctx.translate(0, H);
+          ctx.scale(scale, scale);
+          ctx.translate(0, -H);
+        }
+        ctx.drawImage(img, -W / 2, 0, W, H);
+        if (c.state === 'fighting' && c._fightFlash > 0) {
+          ctx.globalAlpha = c._fightFlash * 0.5;
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(-W / 2, 0, W, H);
+          ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+      } else {
+        // 降级：彩色圆点
+        ctx.fillStyle = c.type === 'hero' ? '#c0392b' : '#999';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y - H / 2 + bobY - liftY, 8 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // 名字标签（拖拽时名字跟随人物上浮）
@@ -1349,6 +1483,15 @@ var TownCharacters = {
     if (c.bubble && !isDragged) {
       this._drawBubble(ctx, c, drawnBubbles);
     }
+  },
+
+  /**
+   * 获取角色的已处理精灵图 Canvas
+   */
+  _getProcessedSheet: function (c) {
+    if (!c.walkSheet) return null;
+    var path = WalkSheetRegistry.getFullPath(c.walkSheet);
+    return this._processedSheets[path] || null;
   },
 
   // ── 气泡绘制 ──

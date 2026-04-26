@@ -762,9 +762,9 @@ var Editor = (function () {
 
     // Load images
     Promise.all([
-      loadImage('mountain_far',  '../assets/img/terrain/mountain_far.svg'),
-      loadImage('mountain_mid',  '../assets/img/terrain/mountain_mid.svg'),
-      loadImage('mountain_near', '../assets/img/terrain/mountain_near.svg')
+      loadImage('mountain_far',  '../assets/terrain/mountain_far.png'),
+      loadImage('mountain_mid',  '../assets/terrain/mountain_mid.png'),
+      loadImage('mountain_near', '../assets/terrain/mountain_near.png')
     ]).then(function () {
       buildLayerList();
       render();

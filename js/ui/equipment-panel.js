@@ -7,8 +7,24 @@ const EquipmentPanel = {
 
   _qualityColors: { 1: '#b0a898', 2: '#5d8a48', 3: '#4a7fb5', 4: '#8b5ea8', 5: '#d4a849' },
   _qualityNames: { 1: '白·普通', 2: '绿·精良', 3: '蓝·稀有', 4: '紫·史诗', 5: '橙·传说' },
-  _slotNames: { weapon: '⚔武器', armor: '🛡防具', accessory: '💍饰品', mount: '🐴坐骑' },
-  _statLabels: { atk: '⚔ATK', def: '🛡DEF', hp: '❤HP', spd: '💨SPD' },
+  _slotNames: null,
+  _statLabels: null,
+  _initLabels: function () {
+    if (!this._slotNames) {
+      this._slotNames = {
+        weapon: UIIcons.icon('weapon') + '武器',
+        armor: UIIcons.icon('armor') + '防具',
+        accessory: UIIcons.icon('accessory') + '饰品',
+        mount: UIIcons.icon('mount') + '坐骑'
+      };
+      this._statLabels = {
+        atk: UIIcons.icon('attack') + 'ATK',
+        def: UIIcons.icon('defense') + 'DEF',
+        hp: UIIcons.icon('hp') + 'HP',
+        spd: UIIcons.icon('spd') + 'SPD'
+      };
+    }
+  },
   _filterNames: { all: '全部', weapon: '武器', armor: '防具', accessory: '饰品', mount: '坐骑' },
 
   /** 获取装备图标的 img 标签或 emoji 回退 */
@@ -19,10 +35,11 @@ const EquipmentPanel = {
     if (dataURL) {
       return '<img src="' + dataURL + '" style="width:' + size + 'px;height:' + size + 'px;image-rendering:pixelated;vertical-align:middle;" alt="' + equip.name + '">';
     }
-    return equip.emoji || '📦';
+    return equip.emoji || UIIcons.icon('bag');
   },
 
   init: function () {
+    this._initLabels();
     this._container = document.getElementById('panel-equipment');
     this._render();
 
@@ -55,7 +72,7 @@ const EquipmentPanel = {
 
     // --- Header with capacity ---
     html += '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">';
-    html += '<span style="font-size:1.05rem;font-weight:bold;">🗡️ 装备</span>';
+    html += '<span style="font-size:1.05rem;font-weight:bold;">' + UIIcons.icon('equipment') + ' 装备</span>';
     html += '<span style="color:var(--color-text-dim);font-size:0.85rem;">' + inventory.length + '/' + maxCapacity + '</span>';
     html += '</div>';
 
@@ -64,7 +81,7 @@ const EquipmentPanel = {
     if (overflow.length > 0) {
       html += '<div class="card" style="background:rgba(179,58,58,0.12);border:1px solid #b33a3a;">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<span style="color:#b33a3a;font-size:0.85rem;">⚠️ 溢出栏有 ' + overflow.length + ' 件装备待领取</span>';
+      html += '<span style="color:#b33a3a;font-size:0.85rem;">' + UIIcons.icon('warning') + ' 溢出栏有 ' + overflow.length + ' 件装备待领取</span>';
       html += '<button class="btn equip-btn-claim" style="font-size:0.75rem;padding:4px 10px;">领取</button>';
       html += '</div>';
       html += '</div>';
@@ -105,7 +122,7 @@ const EquipmentPanel = {
       html += '<div class="equip-hero-tab" data-hero-uid="' + hero.uid + '" ';
       html += 'style="text-align:center;padding:6px 8px;border-radius:6px;cursor:pointer;min-width:48px;';
       html += 'background:' + bgStyle + ';border:' + borderStyle + ';transition:all 0.2s;">';
-      html += '<div style="font-size:1.1rem;">' + (template.emoji || '🧑') + '</div>';
+      html += '<div style="font-size:1.1rem;">' + HeroPortrait.getImgTag(hero.id, 28) + '</div>';
       html += '<div style="font-size:0.6rem;color:' + color + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48px;">' + template.name + '</div>';
       html += '</div>';
     }
@@ -188,13 +205,13 @@ const EquipmentPanel = {
     // --- Toolbar row 1: title + capacity + expand ---
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
     html += '<div style="display:flex;align-items:center;gap:8px;">';
-    html += '<span style="font-weight:bold;font-size:0.85rem;">📦 背包</span>';
+    html += '<span style="font-weight:bold;font-size:0.85rem;">' + UIIcons.icon('bag') + ' 背包</span>';
     html += '<span style="font-size:0.75rem;color:var(--color-text-dim);">' + items.length + ' 件</span>';
     html += '</div>';
     // Expand button
     if (expandInfo.canExpand) {
       html += '<button class="btn equip-btn-expand" style="font-size:0.68rem;padding:3px 8px;background:var(--color-secondary);">';
-      html += '+10 💰' + Utils.formatNumber(expandInfo.nextCost) + '</button>';
+      html += '+10 ' + UIIcons.icon('gold') + Utils.formatNumber(expandInfo.nextCost) + '</button>';
     } else {
       html += '<span style="font-size:0.68rem;color:var(--color-text-dim);">已满</span>';
     }
@@ -221,7 +238,7 @@ const EquipmentPanel = {
     // Sort + Batch sell buttons
     html += '<div style="display:flex;gap:4px;">';
     html += '<button class="btn equip-btn-sort" style="font-size:0.68rem;padding:3px 8px;background:var(--color-secondary);">🔃排序</button>';
-    html += '<button class="btn equip-btn-batch-sell" style="font-size:0.68rem;padding:3px 8px;background:var(--color-danger);">🗑️售卖</button>';
+    html += '<button class="btn equip-btn-batch-sell" style="font-size:0.68rem;padding:3px 8px;background:var(--color-danger);">' + UIIcons.icon('sell') + '售卖</button>';
     html += '</div>';
     html += '</div>';
 
@@ -328,7 +345,7 @@ const EquipmentPanel = {
       var equipHero = HeroManager.getHeroByUid(equip.equippedBy);
       var equipTemplate = equipHero ? HeroManager.getTemplate(equipHero.id) : null;
       html += '<div style="font-size:0.72rem;color:var(--color-gold);margin-bottom:6px;">';
-      html += '已装备于: ' + (equipTemplate ? equipTemplate.emoji + ' ' + equipTemplate.name : '未知武将');
+      html += '已装备于: ' + (equipTemplate ? HeroPortrait.getImgTag(equipTemplate.id, 16) + ' ' + equipTemplate.name : '未知武将');
       html += '</div>';
     }
 
@@ -351,7 +368,7 @@ const EquipmentPanel = {
       if (!canReinforce) html += 'opacity:0.5;cursor:not-allowed;';
       html += '"';
       if (!canReinforce) html += ' disabled';
-      html += '>强化 💰' + Utils.formatNumber(reinforceCost) + '</button>';
+      html += '>强化 ' + UIIcons.icon('gold') + Utils.formatNumber(reinforceCost) + '</button>';
     } else {
       html += '<button class="btn" style="flex:1;font-size:0.75rem;padding:5px 6px;background:var(--color-gold);color:#111;opacity:0.5;" disabled>已满级</button>';
     }
@@ -359,7 +376,7 @@ const EquipmentPanel = {
     // Sell button (not for unsellable)
     if (!equip.unsellable) {
       html += '<button class="btn equip-inline-sell" data-equip-uid="' + equip.uid + '" ';
-      html += 'style="flex:1;font-size:0.75rem;padding:5px 6px;background:var(--color-danger);">出售 💰' + sellPrice + '</button>';
+      html += 'style="flex:1;font-size:0.75rem;padding:5px 6px;background:var(--color-danger);">出售 ' + UIIcons.icon('gold') + sellPrice + '</button>';
     }
 
     html += '</div>';
@@ -490,7 +507,7 @@ const EquipmentPanel = {
     var self = this;
     Modal.show({
       title: '背包扩容',
-      content: '<p style="font-size:0.85rem;">确定花费 💰×' + Utils.formatNumber(info.nextCost) + ' 扩展背包 +10 格？</p>' +
+      content: '<p style="font-size:0.85rem;">确定花费 ' + UIIcons.icon('gold') + '×' + Utils.formatNumber(info.nextCost) + ' 扩展背包 +10 格？</p>' +
         '<p style="font-size:0.75rem;color:var(--color-text-dim);">已扩展：' + info.expandedSlots + '/' + info.maxExpand + ' 格</p>',
       confirmText: '确定扩容',
       onConfirm: function () {
@@ -525,7 +542,7 @@ const EquipmentPanel = {
       if (count === 0) content += 'opacity:0.5;cursor:not-allowed;';
       content += '"' + (count === 0 ? ' disabled' : '') + '>';
       content += '<span style="color:' + color + ';font-weight:bold;">≤ ' + (qualityNames[q] || '?') + '</span>';
-      content += '<span style="float:right;font-size:0.75rem;color:var(--color-text-dim);">' + count + '件 💰' + Utils.formatNumber(gold) + '</span>';
+      content += '<span style="float:right;font-size:0.75rem;color:var(--color-text-dim);">' + count + '件 ' + UIIcons.icon('gold') + Utils.formatNumber(gold) + '</span>';
       content += '</button>';
     }
     content += '</div>';

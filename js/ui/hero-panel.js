@@ -5,7 +5,7 @@ const HeroPanel = {
 
   _qualityColors: { 1: '#b0a898', 2: '#5d8a48', 3: '#4a7fb5', 4: '#8b5ea8', 5: '#d4a849' },
   _qualityNames: { 1: '白', 2: '绿', 3: '蓝', 4: '紫', 5: '橙' },
-  _equipSlotNames: { weapon: '⚔武器', armor: '🛡防具', accessory: '💍饰品', mount: '🐴坐骑' },
+  _equipSlotNames: { weapon: UIIcons.iconText('weapon', '武器'), armor: UIIcons.iconText('armor', '防具'), accessory: UIIcons.iconText('accessory', '饰品'), mount: UIIcons.iconText('mount', '坐骑') },
 
   init: function () {
     this._container = document.getElementById('panel-heroes');
@@ -73,7 +73,7 @@ const HeroPanel = {
           html += 'style="flex:1;text-align:center;padding:8px 2px;border-radius:6px;cursor:pointer;';
           html += 'background:var(--color-secondary);border:2px solid ' + color + ';';
           html += 'transition:opacity 0.2s;" title="点击移出队伍">';
-          html += '<div style="font-size:1.2rem;">' + (template.emoji || '🧑') + '</div>';
+          html += '<div style="font-size:1.2rem;">' + HeroPortrait.getImgTag(hero.id, 32) + '</div>';
           html += '<div style="font-size:0.7rem;color:' + color + ';margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + template.name + '</div>';
           html += '<div style="font-size:0.6rem;color:var(--color-text-dim);">Lv.' + hero.level + (hero.stars ? ' ★' + hero.stars : '') + '</div>';
           html += '</div>';
@@ -129,7 +129,7 @@ const HeroPanel = {
 
     // Row 1: Name, quality badge, level, power
     html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
-    html += '<span style="font-size:1.1rem;">' + (template.emoji || '🧑') + '</span>';
+    html += '<span style="font-size:1.1rem;">' + HeroPortrait.getImgTag(hero.id, 28) + '</span>';
     html += '<span style="font-weight:bold;color:' + color + ';">' + template.name + '</span>';
     if (ascendInfo && ascendInfo.stars > 0) {
       html += '<span style="font-size:0.7rem;color:var(--color-gold);">' + '★'.repeat(ascendInfo.stars) + '</span>';
@@ -324,13 +324,13 @@ const HeroPanel = {
     var name = template ? template.name : '武将';
 
     Modal.show({
-      title: '⭐ 突破确认',
+      title: UIIcons.icon('sparkle') + ' 突破确认',
       content: '<div style="text-align:center;line-height:2;">' +
         '<p>确定让 <b style="color:var(--color-gold);">' + name + '</b> 突破至 <b>' + (info.stars + 1) + '星</b>？</p>' +
         '<p style="font-size:0.85rem;color:var(--color-text-dim);">等级将重置为1级，基础属性永久提升15%</p>' +
         '<hr style="border-color:var(--color-secondary);margin:8px 0;">' +
-        '<p>💰 金币 ×' + Utils.formatNumber(info.cost.gold) + '</p>' +
-        '<p>💎 玉石 ×' + info.cost.jade + '</p>' +
+        '<p>' + UIIcons.icon('gold') + ' 金币 ×' + Utils.formatNumber(info.cost.gold) + '</p>' +
+        '<p>' + UIIcons.icon('jade') + ' 玉石 ×' + info.cost.jade + '</p>' +
         '</div>',
       confirmText: '突破！',
       onConfirm: function () {

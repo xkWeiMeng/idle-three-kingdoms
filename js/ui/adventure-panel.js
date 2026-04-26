@@ -67,7 +67,7 @@ var AdventurePanel = {
         (isCurrent ? ' active' : '') +
         (!isUnlocked ? ' locked' : '') + '" ' +
         'data-region="' + r.id + '"' + (!isUnlocked ? ' disabled' : '') + '>' +
-        (isUnlocked ? r.emoji : '🔒') +
+        (isUnlocked ? r.emoji : UIIcons.icon('lock')) +
         '<span class="adv-region-label">' + (isUnlocked ? r.name : '???') + '</span>' +
         (isRecommended && isUnlocked ? '<span class="adv-recommended">★</span>' : '') +
         '</button>';
@@ -83,7 +83,7 @@ var AdventurePanel = {
       // 资源倍率
       html += '<div class="adv-multipliers">';
       var mults = regionData.resourceMultipliers;
-      var labels = { gold: '💰金币', exp: '⭐经验', wood: '🪵木材', stone: '🪨石材', iron: '⛏️铁矿' };
+      var labels = { gold: UIIcons.iconText('gold', '金币'), exp: UIIcons.iconText('exp', '经验'), wood: UIIcons.iconText('wood', '木材'), stone: UIIcons.iconText('stone', '石材'), iron: UIIcons.iconText('iron', '铁矿') };
       for (var res in mults) {
         if (!mults.hasOwnProperty(res)) continue;
         var val = mults[res];
@@ -174,8 +174,8 @@ var AdventurePanel = {
         html += '<div class="adv-battle-scene">';
         html += '<div class="adv-auto-indicator">⚔ 自动战斗中...</div>';
         html += '<div class="adv-battle-stats">' +
-          '⚔ 战斗: ' + session.battles + ' 场' +
-          ' · 🏆 胜率: ' + (session.battles > 0 ? Math.round(session.wins / session.battles * 100) : 0) + '%' +
+          UIIcons.icon('battle') + ' 战斗: ' + session.battles + ' 场' +
+          ' · ' + UIIcons.icon('achievement') + ' 胜率: ' + (session.battles > 0 ? Math.round(session.wins / session.battles * 100) : 0) + '%' +
           '</div>';
         html += '</div>';
 

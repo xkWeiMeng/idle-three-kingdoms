@@ -115,7 +115,7 @@ var OverlayPanel = {
 
     this._currentId = opts.panelId || null;
     this._onCloseCallback = opts.onClose || null;
-    this._titleEl.textContent = opts.title || '';
+    this._titleEl.innerHTML = opts.title || '';
 
     // Set content
     this._content.innerHTML = '';
@@ -159,7 +159,7 @@ var OverlayPanel = {
     panelEl.style.display = '';
     this._content.appendChild(panelEl);
 
-    this._titleEl.textContent = title || panelId;
+    this._titleEl.innerHTML = title || panelId;
     this._currentId = panelId;
     this._onCloseCallback = function () {
       // Return panel to its original parent

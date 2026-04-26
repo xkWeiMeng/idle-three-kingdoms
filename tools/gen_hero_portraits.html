@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>武将头像批量生成器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #eee; font-family: 'Microsoft YaHei', sans-serif; padding: 20px; }
+  h1 { text-align: center; margin-bottom: 10px; color: #f5c518; }
+  .controls { text-align: center; margin: 15px 0; }
+  .controls label { margin: 0 10px; font-size: 14px; }
+  .controls input[type="range"] { width: 120px; vertical-align: middle; }
+  .controls button { background: #e94560; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; margin: 0 5px; }
+  .controls button:hover { background: #c73a52; }
+  #status { text-align: center; margin: 10px 0; color: #999; }
+  .grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 15px; }
+  .card { background: #16213e; border-radius: 8px; padding: 10px; text-align: center; width: 100px; }
+  .card canvas { border: 1px solid #333; image-rendering: pixelated; }
+  .card .name { font-size: 11px; margin-top: 4px; color: #ccc; word-break: break-all; }
+  .card .id-text { font-size: 9px; color: #666; }
+  .preview-bg { display: inline-block; background: repeating-conic-gradient(#333 0% 25%, #444 0% 50%) 50% / 8px 8px; }
+</style>
+</head>
+<body>
+
+<h1>武将头像批量生成器</h1>
+
+<div class="controls">
+  <label>裁剪Y偏移: <input type="range" id="cropY" min="0" max="40" value="6"> <span id="cropYVal">6</span>px</label>
+  <label>裁剪高度: <input type="range" id="cropH" min="40" max="110" value="72"> <span id="cropHVal">72</span>px</label>
+  <label>裁剪宽度: <input type="range" id="cropW" min="40" max="128" value="80"> <span id="cropWVal">80</span>px</label>
+  <label>输出尺寸: <input type="range" id="outSize" min="32" max="128" value="64" step="8"> <span id="outSizeVal">64</span>px</label>
+  <br><br>
+  <button id="btnRefresh">刷新预览</button>
+  <button id="btnDownloadAll">全部下载</button>
+</div>
+
+<div id="status">加载中...</div>
+<div class="grid" id="grid"></div>
+
+<script>
+// ── 精灵图列表（从 manifest 提取） ──
+var SHEETS = [
+  // 蜀
+  { id: 'shu_zhugeliang',  name: '诸葛亮', file: 'zhugeliang_walk_4dir_128.png',  bg: '#ff00ff' },
+  { id: 'shu_liubei',      name: '刘备',   file: 'liubei_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'shu_guanyu',      name: '关羽',   file: 'guanyu_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'shu_zhangfei',    name: '张飞',   file: 'zhangfei_walk_4dir_128.png',    bg: '#ff00ff' },
+  { id: 'shu_zhaoyun',     name: '赵云',   file: 'zhaoyun_walk_4dir_128.png',     bg: '#ff00ff' },
+  { id: 'shu_huangzhong',  name: '黄忠',   file: 'huangzhong_walk_4dir_128.png',  bg: '#ff00ff' },
+  { id: 'shu_machao',      name: '马超',   file: 'machao_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'shu_jiangwei',    name: '姜维',   file: 'jiangwei_walk_4dir_128.png',    bg: '#ff00ff' },
+  { id: 'shu_pangtong',    name: '庞统',   file: 'pangtong_walk_4dir_128.png',    bg: '#ff00ff' },
+  { id: 'shu_weiyan',      name: '魏延',   file: 'weiyan_walk_4dir_128.png',      bg: '#ff00ff' },
+  // 魏
+  { id: 'wei_caocao',      name: '曹操',   file: 'caocao_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'wei_simayi',      name: '司马懿', file: 'simayi_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'wei_xiahoudun',   name: '夏侯惇', file: 'xiahoudun_walk_4dir_128.png',   bg: '#ff00ff' },
+  { id: 'wei_zhangliao',   name: '张辽',   file: 'zhangliao_walk_4dir_128.png',   bg: '#ff00ff' },
+  { id: 'wei_dianwei',     name: '典韦',   file: 'dianwei_walk_4dir_128.png',     bg: '#ff00ff' },
+  { id: 'wei_xunyu',       name: '荀彧',   file: 'xunyu_walk_4dir_128.png',       bg: '#ff00ff' },
+  { id: 'wei_guojia',      name: '郭嘉',   file: 'guojia_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'wei_xuchu',       name: '许褚',   file: 'xuchu_walk_4dir_128.png',       bg: '#ff00ff' },
+  { id: 'wei_caoren',      name: '曹仁',   file: 'caoren_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'wei_zhanghe',     name: '张郃',   file: 'zhanghe_walk_4dir_128.png',     bg: '#ff00ff' },
+  // 吴
+  { id: 'wu_sunquan',       name: '孙权',   file: 'sunquan_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'wu_zhouyu',        name: '周瑜',   file: 'zhouyu_walk_4dir_128.png',       bg: '#ff00ff' },
+  { id: 'wu_sunshangxiang', name: '孙尚香', file: 'sunshangxiang_walk_4dir_128.png', bg: '#ff00ff' },
+  { id: 'wu_taishici',      name: '太史慈', file: 'taishici_walk_4dir_128.png',     bg: '#ff00ff' },
+  { id: 'wu_lvmeng',        name: '吕蒙',   file: 'lvmeng_walk_4dir_128.png',       bg: '#ff00ff' },
+  { id: 'wu_luxun',         name: '陆逊',   file: 'luxun_walk_4dir_128.png',        bg: '#ff00ff' },
+  { id: 'wu_ganning',       name: '甘宁',   file: 'ganning_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'wu_huanggai',      name: '黄盖',   file: 'huanggai_walk_4dir_128.png',     bg: '#ff00ff' },
+  { id: 'wu_daqiao',        name: '大乔',   file: 'daqiao_walk_4dir_128.png',       bg: '#ff00ff' },
+  { id: 'wu_xiaoqiao',      name: '小乔',   file: 'xiaoqiao_walk_4dir_128.png',     bg: '#ff00ff' },
+  // 群
+  { id: 'qun_lvbu',        name: '吕布',   file: 'lvbu_walk_4dir_128.png',        bg: '#ff00ff' },
+  { id: 'qun_diaochan',    name: '貂蝉',   file: 'diaochan_walk_4dir_128.png',    bg: '#ff00ff' },
+  { id: 'qun_huatuo',      name: '华佗',   file: 'huatuo_walk_4dir_128.png',      bg: '#ff00ff' },
+  { id: 'qun_yuanshao',    name: '袁绍',   file: 'yuanshao_walk_4dir_128.png',    bg: '#ff00ff' },
+  { id: 'qun_dongzhuo',    name: '董卓',   file: 'dongzhuo_walk_4dir_128.png',    bg: '#ff00ff' },
+  { id: 'qun_zhangjiao',   name: '张角',   file: 'zhangjiao_walk_4dir_128.png',   bg: '#ff00ff' },
+  { id: 'qun_gongsunzan',  name: '公孙瓒', file: 'gongsunzan_walk_4dir_128.png',  bg: '#ff00ff' },
+  { id: 'qun_zuoci',       name: '左慈',   file: 'zuoci_walk_4dir_128.png',       bg: '#ff00ff' },
+  { id: 'qun_caiwenji',    name: '蔡文姬', file: 'caiwenji_walk_4dir_128.png',    bg: '#ff00ff' },
+  { id: 'qun_menghuo',     name: '孟获',   file: 'menghuo_walk_4dir_128.png',     bg: '#ff00ff' },
+  // NPC
+  { id: 'npc_villager', name: 'NPC村民',  file: 'npc_villager_walk_4dir_128.png', bg: '#ff00ff' },
+  { id: 'npc_female',   name: 'NPC女性',  file: 'npc_female_walk_4dir_128.png',   bg: '#ff00ff' },
+  { id: 'npc_guard',    name: 'NPC守卫',  file: 'npc_guard_walk_8dir_128.png',    bg: '#00ff00' },
+];
+
+var SHEET_DIR = '../assets/characters/sheets/';
+var FW = 128, FH = 128;
+var images = {};   // file → Image
+var portraits = []; // { entry, canvas }
+
+function parseColor(hex) {
+  hex = hex.replace('#', '');
+  return { r: parseInt(hex.substring(0, 2), 16), g: parseInt(hex.substring(2, 4), 16), b: parseInt(hex.substring(4, 6), 16) };
+}
+
+function removeBg(img, bgHex) {
+  var w = img.naturalWidth, h = img.naturalHeight;
+  var cvs = document.createElement('canvas');
+  cvs.width = w; cvs.height = h;
+  var ctx = cvs.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  var rgb = parseColor(bgHex);
+  var data = ctx.getImageData(0, 0, w, h);
+  var px = data.data;
+  for (var i = 0; i < px.length; i += 4) {
+    if (px[i] === rgb.r && px[i+1] === rgb.g && px[i+2] === rgb.b) {
+      px[i+3] = 0;
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  return cvs;
+}
+
+function extractPortrait(sheet, cropY, cropW, cropH, outSize) {
+  var cx = Math.round((FW - cropW) / 2);
+  var cvs = document.createElement('canvas');
+  cvs.width = outSize; cvs.height = outSize;
+  var ctx = cvs.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  // 守卫 8方向精灵图：南向在 row4，其余在 row0
+  ctx.drawImage(sheet, cx, cropY, cropW, cropH, 0, 0, outSize, outSize);
+  return cvs;
+}
+
+function extractPortraitForEntry(entry, sheet, cropY, cropW, cropH, outSize) {
+  // 8方向精灵图（守卫）：南向在 row=4
+  var rowOffset = 0;
+  if (entry.file.indexOf('8dir') >= 0) {
+    rowOffset = 4 * FH; // south is row 4 in 8-dir sheets
+  }
+  var cx = Math.round((FW - cropW) / 2);
+  var cvs = document.createElement('canvas');
+  cvs.width = outSize; cvs.height = outSize;
+  var ctx = cvs.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(sheet, cx, rowOffset + cropY, cropW, cropH, 0, 0, outSize, outSize);
+  return cvs;
+}
+
+function loadAllImages() {
+  var promises = SHEETS.map(function (entry) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () { images[entry.file] = img; resolve(); };
+      img.onerror = function () { console.warn('Failed to load: ' + entry.file); resolve(); };
+      img.src = SHEET_DIR + entry.file;
+    });
+  });
+  return Promise.all(promises);
+}
+
+function getFileName(entry) {
+  // 'shu_zhugeliang' → 'zhugeliang', 'npc_villager' → 'npc_villager'
+  if (entry.id.startsWith('npc_')) return entry.id;
+  var idx = entry.id.indexOf('_');
+  return idx >= 0 ? entry.id.substring(idx + 1) : entry.id;
+}
+
+function refreshPreview() {
+  var cropY = parseInt(document.getElementById('cropY').value);
+  var cropH = parseInt(document.getElementById('cropH').value);
+  var cropW = parseInt(document.getElementById('cropW').value);
+  var outSize = parseInt(document.getElementById('outSize').value);
+
+  var grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  portraits = [];
+
+  var count = 0;
+  SHEETS.forEach(function (entry) {
+    var img = images[entry.file];
+    if (!img) return;
+
+    var processed = removeBg(img, entry.bg);
+    var portrait = extractPortraitForEntry(entry, processed, cropY, cropW, cropH, outSize);
+
+    portraits.push({ entry: entry, canvas: portrait });
+
+    var card = document.createElement('div');
+    card.className = 'card';
+    var previewBg = document.createElement('div');
+    previewBg.className = 'preview-bg';
+    portrait.style.width = '64px';
+    portrait.style.height = '64px';
+    portrait.style.imageRendering = 'pixelated';
+    previewBg.appendChild(portrait);
+    card.appendChild(previewBg);
+
+    var nameDiv = document.createElement('div');
+    nameDiv.className = 'name';
+    nameDiv.textContent = entry.name;
+    card.appendChild(nameDiv);
+
+    var idDiv = document.createElement('div');
+    idDiv.className = 'id-text';
+    idDiv.textContent = getFileName(entry) + '.png';
+    card.appendChild(idDiv);
+
+    grid.appendChild(card);
+    count++;
+  });
+
+  document.getElementById('status').textContent = '已生成 ' + count + ' 张头像';
+}
+
+function downloadAll() {
+  if (portraits.length === 0) { alert('请先刷新预览'); return; }
+
+  var delay = 100;
+  portraits.forEach(function (p, idx) {
+    setTimeout(function () {
+      var link = document.createElement('a');
+      link.download = getFileName(p.entry) + '.png';
+      link.href = p.canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      document.getElementById('status').textContent = '下载中... ' + (idx + 1) + '/' + portraits.length;
+      if (idx === portraits.length - 1) {
+        document.getElementById('status').textContent = '全部下载完成！共 ' + portraits.length + ' 张';
+      }
+    }, idx * delay);
+  });
+}
+
+// ── 滑块实时更新 ──
+['cropY', 'cropH', 'cropW', 'outSize'].forEach(function (id) {
+  var el = document.getElementById(id);
+  el.addEventListener('input', function () {
+    document.getElementById(id + 'Val').textContent = el.value;
+  });
+});
+
+document.getElementById('btnRefresh').addEventListener('click', refreshPreview);
+document.getElementById('btnDownloadAll').addEventListener('click', downloadAll);
+
+// ── 启动 ──
+loadAllImages().then(function () {
+  document.getElementById('status').textContent = '图片加载完成，点击"刷新预览"生成头像';
+  refreshPreview();
+});
+</script>
+</body>
+</html>

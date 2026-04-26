@@ -39,7 +39,7 @@ var SkillPanel = {
 
     // Hero header
     html += '<div class="card" style="display:flex;align-items:center;gap:10px;">';
-    html += '<span style="font-size:1.6rem;">' + (template.emoji || '🧑') + '</span>';
+    html += '<span style="font-size:1.6rem;">' + HeroPortrait.getImgTag(hero.id, 40) + '</span>';
     html += '<div>';
     html += '<div style="font-weight:bold;color:' + color + ';">' + template.name + '</div>';
     html += '<div style="font-size:0.75rem;color:var(--color-text-dim);">Lv.' + hero.level + (hero.stars ? ' ★' + hero.stars : '') + '</div>';
@@ -68,7 +68,7 @@ var SkillPanel = {
       html += '<div style="text-align:center;margin:16px 0 8px;">';
       html += '<button class="btn skill-reset-btn" data-uid="' + hero.uid + '" ';
       html += 'style="background:var(--color-danger);font-size:0.8rem;padding:8px 20px;">';
-      html += '🔄 重置技能点 (💰' + Utils.formatNumber(resetCost) + ')';
+      html += UIIcons.icon('sort') + ' 重置技能点 (' + UIIcons.icon('gold') + Utils.formatNumber(resetCost) + ')';
       html += '</button>';
       html += '</div>';
     }
@@ -87,7 +87,7 @@ var SkillPanel = {
       damage: '#c0392b', heal: '#5d8a48', buff: '#4a7fb5', debuff: '#8b5ea8'
     };
     var typeEmojis = {
-      damage: '⚔️', heal: '❤️', buff: '⬆️', debuff: '⬇️'
+      damage: UIIcons.icon('attack'), heal: '❤️', buff: '⬆️', debuff: '⬇️'
     };
     var typeNames = {
       damage: '伤害', heal: '治疗', buff: '增益', debuff: '减益'
@@ -138,7 +138,7 @@ var SkillPanel = {
       var nextLv = level + 1;
       html += '<div style="font-size:0.72rem;color:var(--color-text-dim);">';
       if (isLocked) {
-        html += '🔒 学习后: ' + this._getEffectText(def, 1);
+        html += UIIcons.icon('lock') + ' 学习后: ' + this._getEffectText(def, 1);
       } else {
         html += '⬆ 下一级: ' + this._getEffectText(def, nextLv);
       }
@@ -243,12 +243,12 @@ var SkillPanel = {
     var self = this;
 
     Modal.show({
-      title: '🔄 重置技能',
+      title: UIIcons.icon('sort') + ' 重置技能',
       content: '<div style="text-align:center;line-height:2;">' +
         '<p>确定重置 <b style="color:var(--color-gold);">' + name + '</b> 的所有技能点？</p>' +
         '<p style="font-size:0.85rem;color:var(--color-text-dim);">所有技能等级归零，技能点全部返还</p>' +
         '<hr style="border-color:var(--color-secondary);margin:8px 0;">' +
-        '<p>💰 费用: ' + Utils.formatNumber(resetCost) + ' 金币</p>' +
+        '<p>' + UIIcons.icon('gold') + ' 费用: ' + Utils.formatNumber(resetCost) + ' 金币</p>' +
         '</div>',
       confirmText: '重置',
       onConfirm: function () {

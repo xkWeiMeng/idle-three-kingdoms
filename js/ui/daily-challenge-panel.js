@@ -15,7 +15,7 @@ var DailyChallengePanel = {
     var self = this;
     var html = this._buildHTML();
     OverlayPanel.show({
-      title: '📅 每日挑战',
+      title: UIIcons.icon('calendar') + ' 每日挑战',
       content: html,
       panelId: 'daily-challenge',
       height: 'full',
@@ -114,13 +114,13 @@ var DailyChallengePanel = {
   _renderEnd: function (data) {
     if (!this._container) return;
     var html = '<div class="dc-end-screen">';
-    html += '<div style="font-size:2rem;margin-bottom:8px;">' + (data.victory ? '🎉' : '💀') + '</div>';
+    html += '<div style="font-size:2rem;margin-bottom:8px;">' + (data.victory ? UIIcons.icon('victory', 'ui-icon-xl') : UIIcons.icon('defeat', 'ui-icon-xl')) + '</div>';
     html += '<div class="dc-round">' + (data.victory ? '挑战成功！' : '挑战失败') + '</div>';
     html += '<div style="font-size:0.9rem;margin:8px 0;">得分: <b style="color:var(--color-gold);">' + data.score + '</b></div>';
     html += '<div class="rl-rewards">';
-    html += '<div>💰 +' + data.rewards.gold + '</div>';
-    html += '<div>⭐ +' + data.rewards.exp + '</div>';
-    if (data.rewards.jade > 0) html += '<div>💎 +' + data.rewards.jade + '</div>';
+    html += '<div>' + UIIcons.icon('gold') + ' +' + data.rewards.gold + '</div>';
+    html += '<div>' + UIIcons.icon('exp') + ' +' + data.rewards.exp + '</div>';
+    if (data.rewards.jade > 0) html += '<div>' + UIIcons.icon('jade') + ' +' + data.rewards.jade + '</div>';
     html += '</div>';
 
     var attemptsLeft = DailyChallengeManager.getAttemptsLeft();

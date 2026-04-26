@@ -61,11 +61,11 @@ var TownPanel = {
     // 产出总览
     if (goldRate > 0 || woodRate > 0 || stoneRate > 0 || ironRate > 0) {
       html += '<div class="town-production-overview">' +
-        '📊 产出: ';
-      if (goldRate > 0) html += '💰 +' + goldRate.toFixed(1) + '/分 ';
-      if (woodRate > 0) html += '🪵 +' + woodRate.toFixed(1) + '/分 ';
-      if (stoneRate > 0) html += '🪨 +' + stoneRate.toFixed(1) + '/分 ';
-      if (ironRate > 0) html += '⛏️ +' + ironRate.toFixed(1) + '/分';
+        UIIcons.icon('economy') + ' 产出: ';
+      if (goldRate > 0) html += UIIcons.icon('gold') + ' +' + goldRate.toFixed(1) + '/分 ';
+      if (woodRate > 0) html += UIIcons.icon('wood') + ' +' + woodRate.toFixed(1) + '/分 ';
+      if (stoneRate > 0) html += UIIcons.icon('stone') + ' +' + stoneRate.toFixed(1) + '/分 ';
+      if (ironRate > 0) html += UIIcons.icon('iron') + ' +' + ironRate.toFixed(1) + '/分';
       html += '</div>';
     }
 
@@ -109,6 +109,8 @@ var TownPanel = {
     var level = TownManager.getBuildingLevel(buildingId);
     var isBuilding = TownManager.isBuilding(buildingId);
     var check = TownManager.canUpgrade(buildingId);
+    var count = TownManager.getBuildingCount(buildingId);
+    var maxCount = TownManager.getMaxCount(buildingId);
 
     // Status tag
     var statusTag = '';
@@ -122,9 +124,15 @@ var TownPanel = {
       statusTag = '<span class="town-status-tag town-status-upgradeable">可升级 ⬆</span>';
     }
 
+    // Count badge
+    var countBadge = '';
+    if (level > 0 && maxCount > 1) {
+      countBadge = ' <span class="town-count-badge">×' + count + '/' + maxCount + '</span>';
+    }
+
     var html = '<div class="town-building-card town-card-clickable" data-building="' + buildingId + '" data-detail="' + buildingId + '">';
     html += '<div class="town-building-header">';
-    html += '<span class="town-building-name">' + data.emoji + ' ' + data.name + '</span>';
+    html += '<span class="town-building-name">' + data.emoji + ' ' + data.name + countBadge + '</span>';
     html += '<span class="town-building-level-group">' + statusTag + ' <span class="town-building-level">Lv.' + level + '</span></span>';
     html += '</div>';
 
@@ -154,9 +162,35 @@ var TownPanel = {
       if (!check.ok && check.reason !== '资源不足') {
         html += '<div class="town-lock-reason">' + check.reason + '</div>';
       }
+
+      // 建造副本按钮
+      if (level > 0 && count < maxCount) {
+        var copyCheck = TownManager.canBuildCopy(buildingId);
+        var copyCost = TownManager.getCopyCost(buildingId);
+        html += '<div class="town-copy-section">';
+        html += '<div class="town-cost">' + this._formatCost(copyCost) + '</div>';
+        html += '<button class="btn btn-small' + (copyCheck.ok ? ' btn-gold' : ' btn-outline') + ' town-copy-btn" ' +
+          'data-copy="' + buildingId + '"' + (copyCheck.ok ? '' : ' disabled') + '>' +
+          '建造第' + (count + 1) + '个</button>';
+        if (!copyCheck.ok && copyCheck.reason !== '资源不足') {
+          html += '<div class="town-lock-reason">' + copyCheck.reason + '</div>';
+        }
+        html += '</div>';
+      }
       html += '</div>';
     } else {
       html += '<div class="town-max-level">已达最高等级</div>';
+      // 满级但还能建副本
+      if (count < maxCount) {
+        var copyCheck2 = TownManager.canBuildCopy(buildingId);
+        var copyCost2 = TownManager.getCopyCost(buildingId);
+        html += '<div class="town-copy-section">';
+        html += '<div class="town-cost">' + this._formatCost(copyCost2) + '</div>';
+        html += '<button class="btn btn-small' + (copyCheck2.ok ? ' btn-gold' : ' btn-outline') + ' town-copy-btn" ' +
+          'data-copy="' + buildingId + '"' + (copyCheck2.ok ? '' : ' disabled') + '>' +
+          '建造第' + (count + 1) + '个</button>';
+        html += '</div>';
+      }
     }
 
     html += '</div>';
@@ -165,23 +199,23 @@ var TownPanel = {
 
   _getEffectText: function (buildingId, level) {
     var data = BuildingData[buildingId];
+    var countMul = TownManager.getCountMultiplier(buildingId);
+    var countSuffix = countMul > 1 ? ' (×' + TownManager.getBuildingCount(buildingId) + '副本)' : '';
     if (data.production) {
       var prod = data.production(level);
-      var emoji = CONSTANTS.RESOURCE_EMOJI[prod.resource] || '💰';
-      var rate = prod.perMinute;
+      var emoji = CONSTANTS.RESOURCE_EMOJI[prod.resource] || UIIcons.icon('gold');
+      var rate = TownManager.getProductionRate(prod.resource);
       // 显示加成器乘数
       var boosterLv = TownManager.getBoosterLevel(buildingId);
       var boostText = '';
       if (boosterLv > 0) {
-        var boostData = BuildingData[buildingId] && BuildingData[buildingId].boosts;
-        rate = TownManager.getProductionRate(prod.resource);
-        boostText = ' (含加成 ×' + (1 + boosterLv * 0.05).toFixed(2) + ')';
+        boostText = ' (含加成)';
       }
-      return emoji + ' +' + rate.toFixed(1) + '/分钟' + boostText;
+      return emoji + ' +' + rate.toFixed(1) + '/分钟' + boostText + countSuffix;
     }
     if (data.boosts) {
       var fx = data.effects(level);
-      return '⬆ ' + fx.boostTarget + ' 产出 +' + Math.round(fx.productionBoost * 100) + '%';
+      return UIIcons.icon('production') + ' ' + fx.boostTarget + ' 产出 +' + Math.round(fx.productionBoost * 100) + '%';
     }
     if (data.effects) {
       var fx = data.effects(level);
@@ -210,10 +244,10 @@ var TownPanel = {
     if (!cost) return '';
     var parts = [];
     var E = CONSTANTS.RESOURCE_EMOJI;
-    if (cost.gold) parts.push((E.gold || '💰') + Utils.formatNumber(cost.gold));
-    if (cost.wood) parts.push((E.wood || '🪵') + Utils.formatNumber(cost.wood));
-    if (cost.stone) parts.push((E.stone || '🪨') + Utils.formatNumber(cost.stone));
-    if (cost.iron) parts.push((E.iron || '⛏️') + Utils.formatNumber(cost.iron));
+    if (cost.gold) parts.push((E.gold || UIIcons.icon('gold')) + Utils.formatNumber(cost.gold));
+    if (cost.wood) parts.push((E.wood || UIIcons.icon('wood')) + Utils.formatNumber(cost.wood));
+    if (cost.stone) parts.push((E.stone || UIIcons.icon('stone')) + Utils.formatNumber(cost.stone));
+    if (cost.iron) parts.push((E.iron || UIIcons.icon('iron')) + Utils.formatNumber(cost.iron));
     return parts.join(' ');
   },
 
@@ -228,7 +262,7 @@ var TownPanel = {
   _renderMarket: function (marketLv) {
     var fx = BuildingData.market.effects(marketLv);
     var html = '<div class="town-market">';
-    html += '<div class="town-section-title">🏪 集市交易</div>';
+    html += '<div class="town-section-title">' + UIIcons.icon('merchant') + ' 集市交易</div>';
 
     var resources = ['wood', 'stone', 'iron'];
     var names = { wood: '木材', stone: '石材', iron: '铁矿' };
@@ -240,7 +274,7 @@ var TownPanel = {
       var rate = fx.tradeRates[res];
       html += '<div class="town-trade-row">' +
         '<span>' + CONSTANTS.RESOURCE_EMOJI[res] + ' ' + names[res] + '</span>' +
-        '<span class="town-trade-rate">💰' + rate + ' = 1' + CONSTANTS.RESOURCE_EMOJI[res] + '</span>' +
+        '<span class="town-trade-rate">' + UIIcons.icon('gold') + rate + ' = 1' + CONSTANTS.RESOURCE_EMOJI[res] + '</span>' +
         '<button class="btn btn-small btn-outline town-trade-btn" data-trade="' + res + '">交易×10</button>' +
         '</div>';
     }
@@ -293,7 +327,20 @@ var TownPanel = {
         if (TownManager.speedUpBuild(id)) {
           self._render();
         } else {
-          EventBus.emit('toast:show', { type: 'warning', message: '💎 不足（需要 ' + jadeCost + '）' });
+          EventBus.emit('toast:show', { type: 'warning', message: UIIcons.icon('jade') + ' 不足（需要 ' + jadeCost + '）' });
+        }
+      });
+    });
+
+    // 建造副本按钮
+    this._el.querySelectorAll('.town-copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = this.dataset.copy;
+        var result = TownManager.enqueueBuildCopy(id);
+        if (result.ok) {
+          self._render();
+        } else {
+          EventBus.emit('toast:show', { type: 'warning', message: result.reason });
         }
       });
     });

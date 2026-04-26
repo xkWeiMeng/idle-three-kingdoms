@@ -37,7 +37,7 @@ const Toast = {
       text-align: center;
       box-shadow: 0 2px 12px rgba(0,0,0,0.6);
     `;
-    toast.textContent = message;
+    toast.innerHTML = message;
 
     this._container.appendChild(toast);
 

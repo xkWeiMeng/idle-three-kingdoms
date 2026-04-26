@@ -20,7 +20,7 @@ var ForgePanel = {
   show: function () {
     var html = this._render();
     OverlayPanel.show({
-      title: '🔨 锻造工坊',
+      title: UIIcons.icon('forge') + ' 锻造工坊',
       content: html,
       panelId: 'forge',
       height: 'full'
@@ -83,9 +83,9 @@ var ForgePanel = {
         var paused = mythicForge.paused;
 
         html += '<div class="card" style="border:1px solid #ff222244;">';
-        html += '<div style="font-weight:bold;font-size:0.9rem;color:#ff2222;margin-bottom:8px;">🔴 神话锻造</div>';
+        html += '<div style="font-weight:bold;font-size:0.9rem;color:#ff2222;margin-bottom:8px;">' + UIIcons.icon('flame') + ' 神话锻造</div>';
         html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">';
-        html += '<span style="font-size:1rem;">' + (bp.emoji || '⚔️') + '</span>';
+        html += '<span style="font-size:1rem;">' + (bp.emoji || UIIcons.icon('weapon')) + '</span>';
         html += '<div style="flex:1;">';
         html += '<span style="color:#ff2222;font-weight:bold;">' + bp.name + '</span>';
         if (paused) {
@@ -104,21 +104,21 @@ var ForgePanel = {
 
     // Normal recipes
     html += '<div class="card">';
-    html += '<div style="font-weight:bold;font-size:0.9rem;margin-bottom:8px;">📜 普通锻造</div>';
+    html += '<div style="font-weight:bold;font-size:0.9rem;margin-bottom:8px;">' + UIIcons.icon('forge') + ' 普通锻造</div>';
 
     var recipes = ForgeManager.getNormalRecipes();
     for (var r = 0; r < recipes.length; r++) {
       var recipe = recipes[r];
       var rc = this._qualityColors[recipe.quality] || '#aaa';
       var costParts = [];
-      if (recipe.cost.gold) costParts.push('💰' + Utils.formatNumber(recipe.cost.gold));
-      if (recipe.cost.iron) costParts.push('⛏️' + recipe.cost.iron);
-      if (recipe.cost.wood) costParts.push('🪵' + recipe.cost.wood);
+      if (recipe.cost.gold) costParts.push(UIIcons.icon('gold') + Utils.formatNumber(recipe.cost.gold));
+      if (recipe.cost.iron) costParts.push(UIIcons.icon('iron') + recipe.cost.iron);
+      if (recipe.cost.wood) costParts.push(UIIcons.icon('wood') + recipe.cost.wood);
       var timeMin = Math.ceil(recipe.time / 60);
 
       html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;';
       html += 'border-radius:6px;background:var(--color-bg);">';
-      html += '<span style="font-size:1rem;">' + (recipe.emoji || '⚔️') + '</span>';
+      html += '<span style="font-size:1rem;">' + (recipe.emoji || UIIcons.icon('weapon')) + '</span>';
       html += '<div style="flex:1;">';
       html += '<span style="color:' + rc + ';font-size:0.85rem;font-weight:bold;">' + this._qualityNames[recipe.quality] + '装备</span>';
       html += '<div style="font-size:0.68rem;color:var(--color-text-dim);">' + costParts.join(' ') + ' · ⏱' + timeMin + '分钟</div>';
@@ -132,7 +132,7 @@ var ForgePanel = {
     // Mythic blueprints
     if (blueprints.length > 0) {
       html += '<div class="card" style="border:1px solid #ff222244;">';
-      html += '<div style="font-weight:bold;font-size:0.9rem;color:#ff2222;margin-bottom:8px;">📋 神话图纸</div>';
+      html += '<div style="font-weight:bold;font-size:0.9rem;color:#ff2222;margin-bottom:8px;">' + UIIcons.icon('list') + ' 神话图纸</div>';
 
       for (var b = 0; b < blueprints.length; b++) {
         var bpId = blueprints[b];
@@ -141,22 +141,22 @@ var ForgePanel = {
 
         var matParts = [];
         for (var mk in bpData.materials) {
-          if (mk === 'gold') matParts.push('💰' + Utils.formatNumber(bpData.materials[mk]));
-          else if (mk === 'iron') matParts.push('⛏️' + bpData.materials[mk]);
-          else if (mk === 'wood') matParts.push('🪵' + bpData.materials[mk]);
-          else if (mk === 'stone') matParts.push('🪨' + bpData.materials[mk]);
+          if (mk === 'gold') matParts.push(UIIcons.icon('gold') + Utils.formatNumber(bpData.materials[mk]));
+          else if (mk === 'iron') matParts.push(UIIcons.icon('iron') + bpData.materials[mk]);
+          else if (mk === 'wood') matParts.push(UIIcons.icon('wood') + bpData.materials[mk]);
+          else if (mk === 'stone') matParts.push(UIIcons.icon('stone') + bpData.materials[mk]);
         }
         var perSecParts = [];
         for (var pk in bpData.perSecondCost) {
-          if (pk === 'gold') perSecParts.push('💰' + bpData.perSecondCost[pk] + '/s');
-          else if (pk === 'iron') perSecParts.push('⛏️' + bpData.perSecondCost[pk] + '/s');
+          if (pk === 'gold') perSecParts.push(UIIcons.icon('gold') + bpData.perSecondCost[pk] + '/s');
+          else if (pk === 'iron') perSecParts.push(UIIcons.icon('iron') + bpData.perSecondCost[pk] + '/s');
         }
 
         var isForging = mythicForge.blueprintId === bpId;
 
         html += '<div style="padding:8px;margin-bottom:6px;border-radius:8px;background:rgba(255,34,34,0.06);">';
         html += '<div style="display:flex;align-items:center;gap:8px;">';
-        html += '<span style="font-size:1rem;">' + (bpData.emoji || '⚔️') + '</span>';
+        html += '<span style="font-size:1rem;">' + (bpData.emoji || UIIcons.icon('weapon')) + '</span>';
         html += '<div style="flex:1;">';
         html += '<span style="color:#ff2222;font-weight:bold;font-size:0.88rem;">' + bpData.name + '</span>';
         html += '<div style="font-size:0.68rem;color:var(--color-text-dim);">一次性: ' + matParts.join(' ') + '</div>';

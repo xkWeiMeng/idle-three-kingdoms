@@ -42,21 +42,8 @@ var TownWorld = {
   _imagesLoading: {},
   _decorations: [],   // random trees, rocks, etc.
 
-  // 山脉背景配置（由 tools/border-editor.html 导出）
-  _mountainConfig: [
-    { id: 'top_far', image: 'mountain_far', x: -500, y: -1300, w: 2920, h: 1360, rotation: 0, flipX: false, flipY: false },
-    { id: 'top_mid', image: 'mountain_mid', x: -602, y: -936, w: 2820, h: 1360, rotation: 0, flipX: false, flipY: false },
-    { id: 'top_near', image: 'mountain_near', x: 2028, y: 828, w: 2720, h: 1360, rotation: 0, flipX: false, flipY: false },
-    { id: 'bot_far', image: 'mountain_far', x: 512, y: 1780, w: 2920, h: 1360, rotation: -180, flipX: false, flipY: true },
-    { id: 'bot_mid', image: 'mountain_mid', x: -1938, y: 1236, w: 2820, h: 1360, rotation: 180, flipX: false, flipY: true },
-    { id: 'bot_near', image: 'mountain_near', x: -1032, y: 1780, w: 3500, h: 1750, rotation: 180, flipX: false, flipY: true },
-    { id: 'left_far', image: 'mountain_far', x: -632, y: -760, w: 820, h: 1640, rotation: 5, flipX: false, flipY: false },
-    { id: 'left_mid', image: 'mountain_mid', x: -1348, y: -966, w: 1690, h: 3514, rotation: 3, flipX: false, flipY: false },
-    { id: 'left_near', image: 'mountain_near', x: -1688, y: -36, w: 1820, h: 3955, rotation: 180, flipX: false, flipY: true },
-    { id: 'right_far', image: 'mountain_far', x: 2092, y: -1460, w: 1360, h: 2720, rotation: 3, flipX: false, flipY: false },
-    { id: 'right_mid', image: 'mountain_mid', x: 2040, y: -678, w: 1260, h: 2620, rotation: -4, flipX: false, flipY: false },
-    { id: 'right_near', image: 'mountain_near', x: 1952, y: 640, w: 1160, h: 2520, rotation: 3, flipX: false, flipY: false },
-  ],
+  // 边框背景图（单张 PNG 替代多层山脉）
+  _borderMargin: 600, // 边框图在地图外扩展的像素数
 
   // Building grid sizes
   _buildingSizes: {
@@ -157,17 +144,15 @@ var TownWorld = {
   _preloadImages: function () {
     var buildingIds = Object.keys(this._buildingSizes);
     for (var i = 0; i < buildingIds.length; i++) {
-      this._loadImage('building_' + buildingIds[i], 'assets/img/buildings/' + buildingIds[i] + '.svg');
+      this._loadImage('building_' + buildingIds[i], 'assets/buildings/' + buildingIds[i] + '.png');
     }
     var terrains = ['grass', 'tree', 'rock', 'bush', 'flower', 'water', 'path_tile', 'flag', 'lantern'];
     for (var j = 0; j < terrains.length; j++) {
-      this._loadImage('terrain_' + terrains[j], 'assets/img/terrain/' + terrains[j] + '.svg');
+      this._loadImage('terrain_' + terrains[j], 'assets/terrain/' + terrains[j] + '.png');
     }
-    // 山脉层
-    var mtLayers = ['mountain_far', 'mountain_mid', 'mountain_near'];
-    for (var m = 0; m < mtLayers.length; m++) {
-      this._loadImage(mtLayers[m], 'assets/img/terrain/' + mtLayers[m] + '.svg');
-    }
+    // 边框背景图
+    this._loadImage('border', 'assets/backgrounds/town-world-border.png');
+    this._loadImage('border_overlay', 'assets/backgrounds/town-world-border-overlay.png');
   },
 
   _loadImage: function (key, src) {
@@ -549,7 +534,7 @@ var TownWorld = {
       var result = TownManager.enqueueTDBuilding(typeId, gx, gy);
       if (result.ok) {
         var tdData = typeof TDTowerData !== 'undefined' ? TDTowerData[typeId] : null;
-        EventBus.emit('toast:show', { type: 'success', message: '🔨 开始建造 ' + (tdData ? tdData.name : typeId) + '！' });
+        EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('hammer') + ' 开始建造 ' + (tdData ? tdData.name : typeId) + '！' });
       } else {
         EventBus.emit('toast:show', { type: 'warning', message: result.reason });
         return;
@@ -794,11 +779,16 @@ var TownWorld = {
 
     // --- Header ---
     content += '<div class="bdo-header">';
-    content += '<img src="assets/img/buildings/' + buildingId + '.svg" class="bdo-icon" onerror="this.style.display=\'none\'" alt=""/>';
+    content += '<img src="assets/buildings/' + buildingId + '.png" class="bdo-icon" onerror="this.style.display=\'none\'" alt=""/>';
     content += '<div class="bdo-info">';
     content += '<h3>' + def.emoji + ' ' + def.name + '</h3>';
     if (level > 0) {
       content += '<span class="bdo-level-badge">Lv.' + level + '</span>';
+      var bCount = typeof TownManager !== 'undefined' ? TownManager.getBuildingCount(buildingId) : 1;
+      var bMaxCount = typeof TownManager !== 'undefined' ? TownManager.getMaxCount(buildingId) : 1;
+      if (bMaxCount > 1) {
+        content += ' <span class="bdo-count-badge">×' + bCount + '/' + bMaxCount + '</span>';
+      }
     } else {
       content += '<span class="bdo-level-badge bdo-unbuilt">未建造</span>';
     }
@@ -811,10 +801,10 @@ var TownWorld = {
       var remaining = typeof TownManager !== 'undefined' ? TownManager.getRemainingBuildTime(buildingId) : 0;
       var jadeCost = Math.ceil(remaining / 60);
       content += '<div class="bdo-construction">';
-      content += '<div class="bdo-construct-label">🔨 施工中...</div>';
+      content += '<div class="bdo-construct-label">' + UIIcons.icon('hammer') + ' 施工中...</div>';
       content += '<div class="bdo-progress-bar"><div class="bdo-progress-fill" style="width:' + Math.round((progress || 0) * 100) + '%"></div></div>';
       content += '<div class="bdo-construct-time">⏱ ' + this._formatTime(remaining) + '</div>';
-      content += '<button class="btn btn-small bdo-speed-btn" onclick="TownWorld._doSpeedUp(\'' + buildingId + '\')">💎 加速完成 (需' + jadeCost + '玉璧)</button>';
+      content += '<button class="btn btn-small bdo-speed-btn" onclick="TownWorld._doSpeedUp(\'' + buildingId + '\')">'+UIIcons.icon('jade')+' 加速完成 (需' + jadeCost + '玉璧)</button>';
       content += '</div>';
     }
 
@@ -823,7 +813,7 @@ var TownWorld = {
       var curEffects = this._getEffectsForLevel(def, buildingId, level);
       if (curEffects.length > 0) {
         content += '<div class="bdo-section">';
-        content += '<div class="bdo-section-title">📊 当前效果</div>';
+        content += '<div class="bdo-section-title">' + UIIcons.icon('economy') + ' 当前效果</div>';
         content += '<ul class="bdo-effect-list">';
         for (var i = 0; i < curEffects.length; i++) {
           content += '<li>' + curEffects[i] + '</li>';
@@ -840,7 +830,7 @@ var TownWorld = {
 
       content += '<div class="bdo-section bdo-upgrade-section">';
       if (level === 0) {
-        content += '<div class="bdo-section-title">📋 建成后效果 (Lv.1)</div>';
+        content += '<div class="bdo-section-title">' + UIIcons.icon('list') + ' 建成后效果 (Lv.1)</div>';
         var newEffects = this._getEffectsForLevel(def, buildingId, 1);
         if (newEffects.length > 0) {
           content += '<ul class="bdo-effect-list">';
@@ -857,7 +847,7 @@ var TownWorld = {
       // Cost display
       content += '<div class="bdo-cost-row">';
       var res = typeof ResourceManager !== 'undefined' ? ResourceManager : null;
-      var E = (typeof CONSTANTS !== 'undefined' && CONSTANTS.RESOURCE_EMOJI) || { gold: '💰', wood: '🪵', stone: '🪨', iron: '⛏️' };
+      var E = (typeof CONSTANTS !== 'undefined' && CONSTANTS.RESOURCE_EMOJI) || {};
       if (cost) {
         var resTypes = ['gold', 'wood', 'stone', 'iron'];
         for (var ci = 0; ci < resTypes.length; ci++) {
@@ -877,14 +867,14 @@ var TownWorld = {
       content += '<div class="bdo-build-time">⏱ 施工时间: ' + this._formatTime(buildTimeSec) + '</div>';
 
       // Upgrade button
-      var btnText = level === 0 ? '🏗️ 建造' : '🔨 升级到 Lv.' + nextLevel;
+      var btnText = level === 0 ? UIIcons.icon('build') + ' 建造' : UIIcons.icon('hammer') + ' 升级到 Lv.' + nextLevel;
       var btnDisabled = !check.ok;
       var btnClass = btnDisabled ? 'btn bdo-upgrade-btn disabled' : 'btn bdo-upgrade-btn';
       content += '<button class="' + btnClass + '" onclick="TownWorld._doUpgrade(\'' + buildingId + '\')"' + (btnDisabled ? ' disabled' : '') + '>' + btnText + '</button>';
 
       // Disabled reason
       if (btnDisabled && check.reason) {
-        content += '<div class="bdo-lock-reason">❌ ' + check.reason + '</div>';
+        content += '<div class="bdo-lock-reason">' + UIIcons.icon('warning') + ' ' + check.reason + '</div>';
       }
 
       // Prerequisites display
@@ -892,15 +882,58 @@ var TownWorld = {
       content += '</div>';
 
     } else if (level >= def.maxLevel) {
-      content += '<div class="bdo-section bdo-maxed"><span>⭐ 已达最高等级 (Lv.' + def.maxLevel + ')</span></div>';
+      content += '<div class="bdo-section bdo-maxed"><span>' + UIIcons.icon('crown') + ' 已达最高等级 (Lv.' + def.maxLevel + ')</span></div>';
+    }
+
+    // --- Build copy section ---
+    if (level > 0 && typeof TownManager !== 'undefined') {
+      var copyCount = TownManager.getBuildingCount(buildingId);
+      var copyMax = TownManager.getMaxCount(buildingId);
+      if (copyMax > 1) {
+        content += '<div class="bdo-section bdo-copy-section">';
+        content += '<div class="bdo-section-title">' + UIIcons.icon('build') + ' 副本扩建 (' + copyCount + '/' + copyMax + ')</div>';
+        if (copyCount < copyMax) {
+          var copyCheck = TownManager.canBuildCopy(buildingId);
+          var copyCost = TownManager.getCopyCost(buildingId);
+          var copyTime = TownManager.getCopyBuildTime(buildingId);
+          content += '<div class="bdo-cost-row">';
+          var E2 = (typeof CONSTANTS !== 'undefined' && CONSTANTS.RESOURCE_EMOJI) || {};
+          var res2 = typeof ResourceManager !== 'undefined' ? ResourceManager : null;
+          var resTypes2 = ['gold', 'wood', 'stone', 'iron'];
+          for (var ci2 = 0; ci2 < resTypes2.length; ci2++) {
+            var rType2 = resTypes2[ci2];
+            if (copyCost[rType2]) {
+              var have2 = res2 ? res2.get(rType2) : 0;
+              var enough2 = have2 >= copyCost[rType2];
+              content += '<span class="bdo-cost-item' + (enough2 ? '' : ' bdo-cost-lack') + '">';
+              content += (E2[rType2] || '') + Utils.formatNumber(copyCost[rType2]);
+              content += '</span>';
+            }
+          }
+          content += '</div>';
+          content += '<div class="bdo-build-time">⏱ 施工时间: ' + this._formatTime(copyTime) + '</div>';
+          var copyBtnClass = copyCheck.ok ? 'btn bdo-copy-btn' : 'btn bdo-copy-btn disabled';
+          content += '<button class="' + copyBtnClass + '" onclick="TownWorld._doBuildCopy(\'' + buildingId + '\')"' + (copyCheck.ok ? '' : ' disabled') + '>' + UIIcons.icon('build') + ' 建造第' + (copyCount + 1) + '个</button>';
+          if (!copyCheck.ok && copyCheck.reason) {
+            content += '<div class="bdo-lock-reason">' + UIIcons.icon('warning') + ' ' + copyCheck.reason + '</div>';
+          }
+        } else {
+          content += '<div class="bdo-copy-maxed">已达最大数量 (' + copyMax + ')</div>';
+        }
+        var nextCopyLv = TownManager.getNextCopyUnlockLevel(buildingId);
+        if (nextCopyLv && copyCount >= copyMax) {
+          content += '<div class="bdo-copy-hint">升级到 Lv.' + nextCopyLv + ' 可解锁更多副本</div>';
+        }
+        content += '</div>';
+      }
     }
 
     // --- Bottom actions ---
     content += '<div class="bdo-actions">';
     if (level > 0) {
-      content += '<button class="btn btn-small btn-outline bdo-action-btn" onclick="TownWorld._startMoveBuilding(\'' + buildingId + '\')">📐 移动</button>';
+      content += '<button class="btn btn-small btn-outline bdo-action-btn" onclick="TownWorld._startMoveBuilding(\'' + buildingId + '\')">'+UIIcons.icon('manage')+' 移动</button>';
     }
-    content += '<button class="btn btn-small btn-outline bdo-action-btn" onclick="TownWorld._showAllLevels(\'' + buildingId + '\')">🔍 全等级一览</button>';
+    content += '<button class="btn btn-small btn-outline bdo-action-btn" onclick="TownWorld._showAllLevels(\'' + buildingId + '\')">'+UIIcons.icon('list')+' 全等级一览</button>';
     content += '</div>';
 
     content += '</div>';
@@ -1072,10 +1105,10 @@ var TownWorld = {
       // Cost
       var cost = def.costFormula ? def.costFormula(lv) : {};
       var costParts = [];
-      if (cost.gold) costParts.push('💰' + Utils.formatNumber(cost.gold));
-      if (cost.wood) costParts.push('🪵' + Utils.formatNumber(cost.wood));
-      if (cost.stone) costParts.push('🪨' + Utils.formatNumber(cost.stone));
-      if (cost.iron) costParts.push('⛏️' + Utils.formatNumber(cost.iron));
+      if (cost.gold) costParts.push(UIIcons.icon('gold') + Utils.formatNumber(cost.gold));
+      if (cost.wood) costParts.push(UIIcons.icon('wood') + Utils.formatNumber(cost.wood));
+      if (cost.stone) costParts.push(UIIcons.icon('stone') + Utils.formatNumber(cost.stone));
+      if (cost.iron) costParts.push(UIIcons.icon('iron') + Utils.formatNumber(cost.iron));
       html += '<td class="bdo-lv-cost">' + costParts.join(' ') + '</td>';
 
       // Build time
@@ -1100,7 +1133,21 @@ var TownWorld = {
       if (result.ok) {
         if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
         var def = BuildingData[buildingId];
-        EventBus.emit('toast:show', { type: 'success', message: '🔨 ' + (def ? def.name : '') + ' 开始建造！' });
+        EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('hammer') + ' ' + (def ? def.name : '') + ' 开始建造！' });
+      } else {
+        EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+      }
+    }
+  },
+
+  _doBuildCopy: function (buildingId) {
+    if (typeof TownManager !== 'undefined') {
+      var result = TownManager.enqueueBuildCopy(buildingId);
+      if (result.ok) {
+        if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
+        var def = BuildingData[buildingId];
+        var count = TownManager.getBuildingCount(buildingId);
+        EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('build') + ' ' + (def ? def.name : '') + ' 第' + (count + 1) + '个开始建造！' });
       } else {
         EventBus.emit('toast:show', { type: 'warning', message: result.reason });
       }
@@ -1111,10 +1158,10 @@ var TownWorld = {
     if (typeof TownManager !== 'undefined') {
       if (TownManager.speedUpBuild(buildingId)) {
         if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
-        EventBus.emit('toast:show', { type: 'success', message: '⚡ 建造完成！' });
+        EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('speed') + ' 建造完成！' });
       } else {
         var remain = TownManager.getRemainingBuildTime(buildingId);
-        EventBus.emit('toast:show', { type: 'warning', message: '💎 不足（需要 ' + Math.ceil(remain / 60) + '）' });
+        EventBus.emit('toast:show', { type: 'warning', message: UIIcons.icon('jade') + ' 不足（需要 ' + Math.ceil(remain / 60) + '）' });
       }
     }
   },
@@ -1126,7 +1173,7 @@ var TownWorld = {
     this._selectedBuilding = buildingId;
     this._moveOrigPos = { gx: this._getPlacement(buildingId).gx, gy: this._getPlacement(buildingId).gy };
     if (typeof OverlayPanel !== 'undefined') OverlayPanel.close();
-    EventBus.emit('toast:show', { type: 'info', message: '📐 拖拽建筑到新位置，点击空地确认' });
+    EventBus.emit('toast:show', { type: 'info', message: UIIcons.icon('manage') + ' 拖拽建筑到新位置，点击空地确认' });
     EventBus.emit('town:edit_mode', { active: true });
 
     // ESC to cancel
@@ -1190,21 +1237,22 @@ var TownWorld = {
   },
 
   _effectLabelMap: function () {
+    var I = UIIcons;
     return {
-      atkBonus: '⚔️ 攻击加成', defBonus: '🛡️ 防御加成', hpBonus: '❤️ 生命加成',
-      expBonus: '⭐ 经验加成', spdBonus: '💨 速度加成', firstStrikeChance: '🎯 先攻概率',
-      enhanceSuccessBonus: '🔧 强化成功率', equipStatBonus: '📈 装备属性',
-      equipQualityBonus: '💎 装备品质', skillCooldownReduction: '⏱ 技能冷却',
-      offlineEfficiency: '🌙 离线效率', dropRateBonus: '🎁 掉落率',
-      recruitDiscount: '🏷️ 招募折扣', resourceCapBonus: '📦 资源上限',
-      inventoryCap: '🎒 背包容量', foodCapBonus: '🍖 粮草上限',
-      foodRegenInterval: '🍖 恢复间隔(秒)', freeRecruitInterval: '🎫 免费招募间隔(秒)',
-      unlockSlots: '🏠 建筑槽', levelCap: '📊 等级上限',
-      productionBoost: '⬆ 产出加成',
-      plots: '🌱 田地数量', qualityUnlock: '🏅 可种品级', speedBonus: '⚡ 生长加速',
-      doubleHarvestChance: '🎉 双倍收获概率', fertilizerYieldBonus: '🧪 施肥产量加成',
-      maxFertilizer: '♻️ 肥料上限', maxSeedQuality: '🌱 种子品级上限',
-      seedDiscount: '🏷️ 种子折扣'
+      atkBonus: I.icon('attack') + ' 攻击加成', defBonus: I.icon('defense') + ' 防御加成', hpBonus: I.icon('hp') + ' 生命加成',
+      expBonus: I.icon('exp') + ' 经验加成', spdBonus: I.icon('spd') + ' 速度加成', firstStrikeChance: I.icon('attack') + ' 先攻概率',
+      enhanceSuccessBonus: I.icon('hammer') + ' 强化成功率', equipStatBonus: I.icon('equipment') + ' 装备属性',
+      equipQualityBonus: I.icon('jade') + ' 装备品质', skillCooldownReduction: I.icon('time') + ' 技能冷却',
+      offlineEfficiency: I.icon('time') + ' 离线效率', dropRateBonus: I.icon('gift') + ' 掉落率',
+      recruitDiscount: I.icon('tag') + ' 招募折扣', resourceCapBonus: I.icon('bag') + ' 资源上限',
+      inventoryCap: I.icon('bag') + ' 背包容量', foodCapBonus: I.icon('food') + ' 粮草上限',
+      foodRegenInterval: I.icon('food') + ' 恢复间隔(秒)', freeRecruitInterval: I.icon('recruit') + ' 免费招募间隔(秒)',
+      unlockSlots: I.icon('build') + ' 建筑槽', levelCap: I.icon('crown') + ' 等级上限',
+      productionBoost: I.icon('production') + ' 产出加成',
+      plots: I.icon('farm') + ' 田地数量', qualityUnlock: I.icon('crown') + ' 可种品级', speedBonus: I.icon('speed') + ' 生长加速',
+      doubleHarvestChance: I.icon('sparkle') + ' 双倍收获概率', fertilizerYieldBonus: I.icon('production') + ' 施肥产量加成',
+      maxFertilizer: I.icon('production') + ' 肥料上限', maxSeedQuality: I.icon('farm') + ' 种子品级上限',
+      seedDiscount: I.icon('tag') + ' 种子折扣'
     };
   },
 
@@ -1264,6 +1312,7 @@ var TownWorld = {
     if (typeof TownCharacters !== 'undefined') {
       TownCharacters.draw(ctx);
     }
+    this._drawBorderOverlay(ctx);
 
     ctx.restore();
 
@@ -1285,20 +1334,13 @@ var TownWorld = {
     ctx.fillStyle = '#2E3527';
     ctx.fillRect(vx0 - 10, vy0 - 10, vw + 20, vh + 20);
 
-    // ── 2. 山脉 — 使用数据驱动配置渲染 SVG 山脉 ──
-    var mtConfig = this._mountainConfig;
-    for (var mi = 0; mi < mtConfig.length; mi++) {
-      var mt = mtConfig[mi];
-      var mtImg = this._images[mt.image];
-      if (!mtImg) continue;
-      ctx.save();
-      var mcx = mt.x + mt.w / 2, mcy = mt.y + mt.h / 2;
-      ctx.translate(mcx, mcy);
-      if (mt.rotation) ctx.rotate(mt.rotation * Math.PI / 180);
-      if (mt.flipX) ctx.scale(-1, 1);
-      if (mt.flipY) ctx.scale(1, -1);
-      ctx.drawImage(mtImg, -mt.w / 2, -mt.h / 2, mt.w, mt.h);
-      ctx.restore();
+    // ── 2. 边框背景图 ──
+    var borderImg = this._images['border'];
+    if (borderImg) {
+      var bm = this._borderMargin;
+      var bx = -bm, by = -bm;
+      var bw = MW + bm * 2, bh = MH + bm * 2;
+      ctx.drawImage(borderImg, bx, by, bw, bh);
     }
 
     // ── 3. 河流 — 从右上角蜿蜒流向右下角 ──
@@ -1428,6 +1470,15 @@ var TownWorld = {
     }
 
     ctx.restore();
+  },
+
+  _drawBorderOverlay: function (ctx) {
+    var overlayImg = this._images['border_overlay'];
+    if (!overlayImg) return;
+    var bm = this._borderMargin;
+    var MW = this.MAP_W * this.CELL;
+    var MH = this.MAP_H * this.CELL;
+    ctx.drawImage(overlayImg, -bm, -bm, MW + bm * 2, MH + bm * 2);
   },
 
   _drawGround: function (ctx) {
@@ -1685,6 +1736,20 @@ var TownWorld = {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(item.state.level, px + pw - badgeR - 2, py + 4 + badgeR);
+
+      // Count badge (if > 1)
+      var bCopyCount = item.state.count || 1;
+      if (bCopyCount > 1) {
+        ctx.fillStyle = 'rgba(30,80,30,0.8)';
+        ctx.beginPath();
+        ctx.arc(px + badgeR + 2, py + 4 + badgeR, badgeR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#a8e6a8';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('×' + bCopyCount, px + badgeR + 2, py + 4 + badgeR);
+      }
 
       // Selection highlight
       if (isSelected) {

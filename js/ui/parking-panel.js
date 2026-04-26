@@ -30,7 +30,7 @@ var ParkingPanel = {
   show: function () {
     var html = this._render();
     OverlayPanel.show({
-      title: '🐴 驿站',
+      title: UIIcons.icon('mount') + ' 驿站',
       content: html,
       panelId: 'parking',
       height: 'full',
@@ -76,7 +76,7 @@ var ParkingPanel = {
 
     // Header
     html += '<div style="text-align:center;padding:8px;background:var(--color-surface);border-radius:8px;margin-bottom:10px;">';
-    html += '<div style="font-size:1.1em;font-weight:bold;">🐴 驿站 Lv.' + parkingLevel + '</div>';
+    html += '<div style="font-size:1.1em;font-weight:bold;">' + UIIcons.icon('mount') + ' 驿站 Lv.' + parkingLevel + '</div>';
     html += '<div style="color:var(--color-gold);margin-top:4px;">收入倍率 ×' + multiplier.toFixed(2) + '</div>';
     html += '<div style="color:var(--color-success);margin-top:4px;">当前收入：<span id="parking-income-display">' + Utils.formatNumber(incomePerHour) + '</span> 金/小时</div>';
     html += '</div>';
@@ -84,8 +84,8 @@ var ParkingPanel = {
     // Tab buttons
     html += '<div style="display:flex;gap:4px;margin-bottom:10px;">';
     var tabs = [
-      { id: 'slots', label: '🐴 马厩' },
-      { id: 'shop', label: '🏪 商店' },
+      { id: 'slots', label: UIIcons.icon('mount') + ' 马厩' },
+      { id: 'shop', label: UIIcons.icon('merchant') + ' 商店' },
       { id: 'garage', label: '🔧 车库' }
     ];
     for (var t = 0; t < tabs.length; t++) {

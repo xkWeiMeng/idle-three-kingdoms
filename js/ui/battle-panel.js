@@ -56,12 +56,12 @@ const BattlePanel = {
       if (BattleManager.isStageCleared(stage.id)) html += ' <span class="battle-cleared-tag">✓</span>';
       html += '</div>';
       html += '<div class="battle-stage-meta">';
-      html += '<span>🍚' + (stage.foodCost || 0) + '</span>';
+      html += '<span>' + UIIcons.icon('food') + (stage.foodCost || 0) + '</span>';
       if (stage.rewards) {
-        if (stage.rewards.gold) html += '<span>💰' + stage.rewards.gold + '</span>';
-        if (stage.rewards.exp) html += '<span>⭐' + stage.rewards.exp + '</span>';
+        if (stage.rewards.gold) html += '<span>' + UIIcons.icon('gold') + stage.rewards.gold + '</span>';
+        if (stage.rewards.exp) html += '<span>' + UIIcons.icon('exp') + stage.rewards.exp + '</span>';
       }
-      html += '<span class="stage-picker-hint">📋</span>';
+      html += '<span class="stage-picker-hint">' + UIIcons.icon('list') + '</span>';
       html += '</div>';
     }
     html += '</div>';
@@ -103,7 +103,7 @@ const BattlePanel = {
     // --- 战斗日志 (可折叠) ---
     html += '<div class="battle-log-section">';
     html += '<div class="battle-log-header" id="battle-log-toggle">';
-    html += '<span>📜 战斗日志</span>';
+    html += '<span>' + UIIcons.icon('story') + ' 战斗日志</span>';
     html += '<span class="battle-log-arrow">▼</span>';
     html += '</div>';
     html += '<div id="battle-log" class="battle-log-body">';
@@ -146,7 +146,7 @@ const BattlePanel = {
         var template = HeroManager.getTemplate(hero.id);
         if (!template) continue;
         html += '<div class="battle-idle-unit ally">';
-        html += '<div class="battle-idle-avatar">' + (template.emoji || '⚔️') + '</div>';
+      html += '<div class="battle-idle-avatar">' + HeroPortrait.getImgTag(hero.id, 36) + '</div>';
         html += '<div class="battle-idle-name">' + template.name + '</div>';
         html += '<div class="battle-idle-level">Lv.' + hero.level + '</div>';
         html += '</div>';
@@ -182,7 +182,7 @@ const BattlePanel = {
       for (var j = 0; j < stage.enemies.length; j++) {
         var enemy = stage.enemies[j];
         html += '<div class="battle-idle-unit enemy">';
-        html += '<div class="battle-idle-avatar">👹</div>';
+        html += '<div class="battle-idle-avatar">' + UIIcons.icon('enemy', 'ui-icon-xl') + '</div>';
         html += '<div class="battle-idle-name">' + enemy.name + '</div>';
         html += '</div>';
       }
@@ -208,14 +208,14 @@ const BattlePanel = {
       if (cookBuff.effects.expBonus) parts.push('经+' + Math.round(cookBuff.effects.expBonus * 100) + '%');
       if (cookBuff.effects.atkBonus) parts.push('攻+' + Math.round(cookBuff.effects.atkBonus * 100) + '%');
       if (cookBuff.effects.allBonus) parts.push('全+' + Math.round(cookBuff.effects.allBonus * 100) + '%');
-      if (parts.length > 0) buffs.push({ icon: '🍲', text: parts.join(' ') });
+      if (parts.length > 0) buffs.push({ icon: UIIcons.icon('food'), text: parts.join(' ') });
     }
 
     // 塔防永久 buff
     var tdBuff = (typeof TowerDefenseManager !== 'undefined' && TowerDefenseManager.getPermanentBattleBuff)
       ? TowerDefenseManager.getPermanentBattleBuff() : null;
     if (tdBuff) {
-      buffs.push({ icon: '🏰', text: '城防波' + tdBuff.highestWave + ' 攻防+' + Math.round(tdBuff.atkPercent * 100) + '%' });
+      buffs.push({ icon: UIIcons.icon('defense'), text: '城防波' + tdBuff.highestWave + ' 攻防+' + Math.round(tdBuff.atkPercent * 100) + '%' });
     }
 
     if (buffs.length === 0) return '';
@@ -241,7 +241,7 @@ const BattlePanel = {
       var pct = Math.min(100, Math.floor((u.energy / u.energyMax) * 100));
       var ready = u.ultimateReady;
       html += '<div class="ult-slot' + (ready ? ' ult-ready' : '') + '" data-uid="' + u.uid + '">';
-      html += '<div class="ult-icon">' + (u.ultimate.icon || '🔥') + '</div>';
+      html += '<div class="ult-icon">' + (u.ultimate.icon || UIIcons.icon('flame')) + '</div>';
       html += '<div class="ult-energy-track"><div class="ult-energy-fill" style="width:' + pct + '%"></div></div>';
       html += '<div class="ult-name">' + u.name + '</div>';
       html += '</div>';
@@ -289,13 +289,13 @@ const BattlePanel = {
     if (!canStart) html += ' disabled';
     html += '>';
     if (isGated) {
-      html += '🔒 需要升级建筑';
+      html += UIIcons.icon('lock') + ' 需要升级建筑';
     } else if (isFighting) {
-      html += '⚔️ 战斗中...';
+      html += UIIcons.icon('attack') + ' 战斗中...';
     } else {
-      html += '⚔️ 出战';
+      html += UIIcons.icon('attack') + ' 出战';
       if (stage) {
-        html += ' <span class="battle-food-cost' + (foodAvailable ? '' : ' depleted') + '">🍚' + (stage.foodCost || 0) + '</span>';
+        html += ' <span class="battle-food-cost' + (foodAvailable ? '' : ' depleted') + '">' + UIIcons.icon('food') + (stage.foodCost || 0) + '</span>';
       }
     }
     html += '</button>';
@@ -307,7 +307,7 @@ const BattlePanel = {
     html += '<button class="btn battle-btn-side battle-btn-auto';
     if (isAuto) html += ' active';
     html += '">';
-    html += '🔄 ' + (isAuto ? '自动中' : '自动');
+    html += UIIcons.icon('speed') + ' ' + (isAuto ? '自动中' : '自动');
     html += '</button>';
 
     if (stage && BattleManager.isStageCleared(stage.id)) {
@@ -326,7 +326,7 @@ const BattlePanel = {
     var cls = isVictory ? 'victory' : 'defeat';
 
     var html = '<div class="battle-result ' + cls + '">';
-    html += '<div class="battle-result-icon">' + (isVictory ? '🎉' : '💀') + '</div>';
+    html += '<div class="battle-result-icon">' + (isVictory ? UIIcons.icon('victory', 'ui-icon-xl') : UIIcons.icon('defeat', 'ui-icon-xl')) + '</div>';
     html += '<div class="battle-result-title">' + (isVictory ? '战斗胜利！' : '战斗失败') + '</div>';
 
     if (isVictory && data.rewards && data.rewards.length > 0) {
@@ -336,7 +336,7 @@ const BattlePanel = {
       }
       html += '</div>';
       if (data.isFirstClear) {
-        html += '<div class="battle-result-first">🌟 首次通关奖励！</div>';
+        html += '<div class="battle-result-first">' + UIIcons.icon('sparkle') + ' 首次通关奖励！</div>';
       }
     } else if (!isVictory) {
       html += '<div class="battle-result-hint">提升武将实力后再试！</div>';
@@ -543,7 +543,7 @@ const BattlePanel = {
 
   _renderChapterGate: function (stage, gateCheck) {
     var html = '<div class="chapter-gate-panel">';
-    html += '<div class="chapter-gate-title">🔒 第' + stage.chapter + '章解锁条件</div>';
+    html += '<div class="chapter-gate-title">' + UIIcons.icon('lock') + ' 第' + stage.chapter + '章解锁条件</div>';
     html += '<div class="chapter-gate-desc">升级以下建筑即可进入新章节：</div>';
     html += '<div class="chapter-gate-list">';
     for (var i = 0; i < gateCheck.missing.length; i++) {
@@ -620,7 +620,7 @@ const BattlePanel = {
     this._pickerChapters = chapters;
 
     Modal.show({
-      title: '📋 选择关卡',
+      title: UIIcons.icon('list') + ' 选择关卡',
       content: html,
       showCancel: false,
       confirmText: '关闭'
@@ -656,13 +656,13 @@ const BattlePanel = {
       html += '<div class="stage-picker-name">' + s.name + '</div>';
       html += '<div class="stage-picker-status">';
       if (!isUnlocked || isGated) {
-        html += '🔒';
+        html += UIIcons.icon('lock');
       } else if (isCleared) {
-        html += '✅';
+        html += UIIcons.icon('check');
       } else if (isCurrent) {
-        html += '👉';
+        html += UIIcons.icon('attack');
       } else {
-        html += '⚔️';
+        html += UIIcons.icon('battle');
       }
       html += '</div>';
       if (s.isBoss) html += '<div class="stage-picker-boss">BOSS</div>';

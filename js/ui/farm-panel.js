@@ -33,7 +33,7 @@ var FarmPanel = {
   show: function () {
     var html = this._render();
     OverlayPanel.show({
-      title: '🥬 菜园',
+      title: UIIcons.icon('farm') + ' 菜园',
       content: html,
       panelId: 'farm',
       height: 'full',
@@ -569,7 +569,7 @@ var FarmPanel = {
   _sellCrop: function (cropId) {
     var result = FarmManager.sellCrop(cropId, 1);
     if (result.ok) {
-      EventBus.emit('toast:show', { type: 'success', message: '💰 出售成功，获得 ' + result.gold + ' 金' });
+      EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('gold') + ' 出售成功，获得 ' + result.gold + ' 金' });
       this.show();
     } else {
       EventBus.emit('toast:show', { type: 'error', message: result.reason });

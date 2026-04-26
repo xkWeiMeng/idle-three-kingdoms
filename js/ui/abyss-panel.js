@@ -39,10 +39,10 @@ var AbyssPanel = {
       var counts = this._calcCounts(rewards);
       var particles = [];
       var types = [
-        { emoji: '💰', count: counts.gold },
-        { emoji: '📖', count: counts.exp },
-        { emoji: '⛏️', count: counts.iron },
-        { emoji: '💎', count: counts.jade }
+        { emoji: UIIcons.icon('gold'), count: counts.gold },
+        { emoji: UIIcons.icon('exp'), count: counts.exp },
+        { emoji: UIIcons.icon('iron'), count: counts.iron },
+        { emoji: UIIcons.icon('jade'), count: counts.jade }
       ];
 
       var cx = container.offsetWidth / 2 || 180;
@@ -54,7 +54,7 @@ var AbyssPanel = {
           var speed = 200 + Math.random() * 200;
           var el = document.createElement('span');
           el.className = 'loot-particle';
-          el.textContent = types[t].emoji;
+          el.innerHTML = types[t].emoji;
           el.style.fontSize = (16 + Math.random() * 8) + 'px';
           el.style.left = cx + 'px';
           el.style.top = cy + 'px';
@@ -224,7 +224,7 @@ var AbyssPanel = {
         }
       }
 
-      front.innerHTML = '<span class="eq-emoji">' + (eq.emoji || '⚔️') + '</span>'
+      front.innerHTML = '<span class="eq-emoji">' + (eq.emoji || UIIcons.icon('weapon')) + '</span>'
         + '<span class="eq-name" style="color:' + (AbyssPanel._qualityColors[eq.quality] || '#aaa') + ';">' + eq.name + '</span>'
         + '<span class="eq-stat">' + statStr.trim() + '</span>';
 
@@ -341,7 +341,7 @@ var AbyssPanel = {
   show: function () {
     var html = this._render();
     OverlayPanel.show({
-      title: '🔥 深渊挑战',
+      title: UIIcons.icon('abyss') + ' 深渊挑战',
       content: html,
       panelId: 'abyss',
       height: 'full'
@@ -402,13 +402,13 @@ var AbyssPanel = {
       var aHpPct = ally.maxHp > 0 ? (ally.currentHp / ally.maxHp * 100) : 0;
       var deadStyle = ally.isAlive ? '' : 'opacity:0.4;';
       html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;' + deadStyle + '">';
-      html += '<span style="font-size:0.85rem;width:24px;">' + (ally.emoji || '⚔️') + '</span>';
+      html += '<span style="font-size:0.85rem;width:24px;">' + (ally.emoji || UIIcons.icon('attack')) + '</span>';
       html += '<span style="font-size:0.78rem;width:50px;">' + ally.name + '</span>';
       html += '<div style="flex:1;height:5px;background:#333;border-radius:2px;">';
       html += '<div style="height:100%;width:' + aHpPct.toFixed(1) + '%;background:var(--color-success);border-radius:2px;"></div>';
       html += '</div>';
       html += '<span style="font-size:0.65rem;color:var(--color-text-dim);width:35px;text-align:right;">';
-      html += (ally.isAlive ? Math.ceil(aHpPct) + '%' : '💀') + '</span>';
+      html += (ally.isAlive ? Math.ceil(aHpPct) + '%' : UIIcons.icon('defeat')) + '</span>';
       html += '</div>';
     }
     html += '</div>';
@@ -444,9 +444,9 @@ var AbyssPanel = {
     // Title area
     html += '<div class="abyss-settlement__title" id="abyss-stitle" style="opacity:0;">';
     if (isVictory) {
-      html += '<div style="color:var(--color-success);">🏆 通关成功！</div>';
+      html += '<div style="color:var(--color-success);">' + UIIcons.icon('victory') + ' 通关成功！</div>';
     } else {
-      html += '<div style="color:var(--color-danger);">💀 挑战失败</div>';
+      html += '<div style="color:var(--color-danger);">' + UIIcons.icon('defeat') + ' 挑战失败</div>';
       html += '<div style="font-size:0.78rem;color:var(--color-text-dim);margin-top:4px;">止步于第 ' + run.currentFloor + ' 层</div>';
     }
     html += '</div>';
@@ -473,9 +473,9 @@ var AbyssPanel = {
     var html = '<div class="abyss-settlement">';
     html += '<div class="abyss-settlement__title">';
     if (isVictory) {
-      html += '<div style="color:var(--color-success);">🏆 通关成功！</div>';
+      html += '<div style="color:var(--color-success);">' + UIIcons.icon('victory') + ' 通关成功！</div>';
     } else {
-      html += '<div style="color:var(--color-danger);">💀 挑战失败</div>';
+      html += '<div style="color:var(--color-danger);">' + UIIcons.icon('defeat') + ' 挑战失败</div>';
       html += '<div style="font-size:0.78rem;color:var(--color-text-dim);margin-top:4px;">止步于第 ' + run.currentFloor + ' 层</div>';
     }
     html += '</div>';
@@ -491,10 +491,10 @@ var AbyssPanel = {
     // Resources summary
     html += '<div class="abyss-settlement__summary">';
     html += '<div style="font-size:0.8rem;font-weight:bold;margin-bottom:6px;text-align:center;">═══ 战利品总结 ═══</div>';
-    if (r.gold) html += '<div class="res-row"><span>💰 金币</span><span class="res-value">' + Utils.formatNumber(r.gold) + '</span></div>';
-    if (r.exp) html += '<div class="res-row"><span>📖 经验</span><span class="res-value">' + Utils.formatNumber(r.exp) + '</span></div>';
-    if (r.iron) html += '<div class="res-row"><span>⛏️ 铁矿</span><span class="res-value">' + r.iron + '</span></div>';
-    if (r.jade) html += '<div class="res-row"><span>💎 玉璧</span><span class="res-value">' + r.jade + '</span></div>';
+    if (r.gold) html += '<div class="res-row"><span>' + UIIcons.icon('gold') + ' 金币</span><span class="res-value">' + Utils.formatNumber(r.gold) + '</span></div>';
+    if (r.exp) html += '<div class="res-row"><span>' + UIIcons.icon('exp') + ' 经验</span><span class="res-value">' + Utils.formatNumber(r.exp) + '</span></div>';
+    if (r.iron) html += '<div class="res-row"><span>' + UIIcons.icon('iron') + ' 铁矿</span><span class="res-value">' + r.iron + '</span></div>';
+    if (r.jade) html += '<div class="res-row"><span>' + UIIcons.icon('jade') + ' 玉璧</span><span class="res-value">' + r.jade + '</span></div>';
 
     // Equipment list (all qualities)
     if (run.droppedEquipment && run.droppedEquipment.length > 0) {
@@ -503,7 +503,7 @@ var AbyssPanel = {
         var eq = run.droppedEquipment[d];
         var col = this._qualityColors[eq.quality] || '#aaa';
         var qName = this._qualityNames[eq.quality] || '';
-        html += '<div style="font-size:0.78rem;color:' + col + ';">' + (eq.emoji || '⚔️') + ' ' + eq.name;
+        html += '<div style="font-size:0.78rem;color:' + col + ';">' + (eq.emoji || UIIcons.icon('weapon')) + ' ' + eq.name;
         if (eq.quality >= 6) html += '（' + qName + '）';
         html += '</div>';
       }
@@ -514,9 +514,9 @@ var AbyssPanel = {
     var abyss = AbyssData[run.abyssId];
     var cost = abyss ? abyss.ticketCost : {};
     var costParts = [];
-    if (cost.jade) costParts.push('💎' + cost.jade);
-    if (cost.gold) costParts.push('💰' + Utils.formatNumber(cost.gold));
-    if (cost.iron) costParts.push('⛏️' + cost.iron);
+    if (cost.jade) costParts.push(UIIcons.icon('jade') + cost.jade);
+    if (cost.gold) costParts.push(UIIcons.icon('gold') + Utils.formatNumber(cost.gold));
+    if (cost.iron) costParts.push(UIIcons.icon('iron') + cost.iron);
 
     var canAfford = true;
     if (cost.jade && typeof ResourceManager !== 'undefined' && !ResourceManager.canAfford('jade', cost.jade)) canAfford = false;
@@ -525,7 +525,7 @@ var AbyssPanel = {
 
     html += '<div class="abyss-settlement__actions">';
     html += '<button class="btn abyss-retry" data-abyss-id="' + run.abyssId + '" style="' + (canAfford ? '' : 'opacity:0.5;') + '">';
-    html += '⚔️ 再次挑战<div class="abyss-retry-cost">' + costParts.join(' ') + '</div></button>';
+    html += UIIcons.icon('battle') + ' 再次挑战<div class="abyss-retry-cost">' + costParts.join(' ') + '</div></button>';
     html += '<button class="btn abyss-leave" style="background:var(--color-secondary);">离开</button>';
     html += '</div>';
 
@@ -589,10 +589,10 @@ var AbyssPanel = {
     this._settlement.phase = 'countup';
     var r = run.rewards;
     var items = [];
-    if (r.gold) items.push({ emoji: '💰', label: '金币', value: r.gold, format: true });
-    if (r.exp) items.push({ emoji: '📖', label: '经验', value: r.exp, format: true });
-    if (r.iron) items.push({ emoji: '⛏️', label: '铁矿', value: r.iron, format: false });
-    if (r.jade) items.push({ emoji: '💎', label: '玉璧', value: r.jade, format: false });
+    if (r.gold) items.push({ emoji: UIIcons.icon('gold'), label: '金币', value: r.gold, format: true });
+    if (r.exp) items.push({ emoji: UIIcons.icon('exp'), label: '经验', value: r.exp, format: true });
+    if (r.iron) items.push({ emoji: UIIcons.icon('iron'), label: '铁矿', value: r.iron, format: false });
+    if (r.jade) items.push({ emoji: UIIcons.icon('jade'), label: '玉璧', value: r.jade, format: false });
 
     if (items.length === 0) { if (onComplete) onComplete(); return; }
 
@@ -734,10 +734,10 @@ var AbyssPanel = {
   _populateResourcesFinal: function (run, resEl) {
     var r = run.rewards;
     var items = [];
-    if (r.gold) items.push({ emoji: '💰', label: '金币', value: Utils.formatNumber(r.gold) });
-    if (r.exp) items.push({ emoji: '📖', label: '经验', value: Utils.formatNumber(r.exp) });
-    if (r.iron) items.push({ emoji: '⛏️', label: '铁矿', value: r.iron });
-    if (r.jade) items.push({ emoji: '💎', label: '玉璧', value: r.jade });
+    if (r.gold) items.push({ emoji: UIIcons.icon('gold'), label: '金币', value: Utils.formatNumber(r.gold) });
+    if (r.exp) items.push({ emoji: UIIcons.icon('exp'), label: '经验', value: Utils.formatNumber(r.exp) });
+    if (r.iron) items.push({ emoji: UIIcons.icon('iron'), label: '铁瞿', value: r.iron });
+    if (r.jade) items.push({ emoji: UIIcons.icon('jade'), label: '玉璧', value: r.jade });
     var html = '';
     for (var i = 0; i < items.length; i++) {
       html += '<div class="res-row"><span>' + items[i].emoji + ' ' + items[i].label + '</span>'
@@ -803,17 +803,17 @@ var AbyssPanel = {
 
       var cost = abyss.ticketCost;
       var costStr = [];
-      if (cost.jade) costStr.push('💎' + cost.jade);
-      if (cost.gold) costStr.push('💰' + Utils.formatNumber(cost.gold));
-      if (cost.iron) costStr.push('⛏️' + cost.iron);
+      if (cost.jade) costStr.push(UIIcons.icon('jade') + cost.jade);
+      if (cost.gold) costStr.push(UIIcons.icon('gold') + Utils.formatNumber(cost.gold));
+      if (cost.iron) costStr.push(UIIcons.icon('iron') + cost.iron);
       html += '<div style="font-size:0.72rem;color:var(--color-text-dim);margin-bottom:6px;">入场：' + costStr.join(' ') + '</div>';
 
       if (!unlocked) {
-        html += '<div style="font-size:0.72rem;color:var(--color-danger);">🔒 通关 ' + abyss.unlockCondition.stage + ' 后解锁</div>';
+        html += '<div style="font-size:0.72rem;color:var(--color-danger);">' + UIIcons.icon('lock') + ' 通关 ' + abyss.unlockCondition.stage + ' 后解锁</div>';
       } else {
         html += '<div style="text-align:right;">';
         html += '<button class="btn abyss-enter" data-abyss-id="' + aid + '" ';
-        html += 'style="font-size:0.78rem;padding:5px 16px;background:' + (theme.bossFrameColor || 'var(--color-primary)') + ';">⚔️ 进入</button>';
+        html += 'style="font-size:0.78rem;padding:5px 16px;background:' + (theme.bossFrameColor || 'var(--color-primary)') + ';">' + UIIcons.icon('attack') + ' 进入</button>';
         html += '</div>';
       }
 

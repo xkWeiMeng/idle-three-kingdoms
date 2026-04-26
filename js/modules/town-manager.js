@@ -4,30 +4,30 @@
 var TownManager = {
   _state: {
     buildings: {
-      town_hall:        { level: 1, buildEndTime: null },
-      lumber_camp:      { level: 0, buildEndTime: null },
-      quarry:           { level: 0, buildEndTime: null },
-      iron_mine:        { level: 0, buildEndTime: null },
-      farmland:         { level: 0, buildEndTime: null },
-      barracks:         { level: 0, buildEndTime: null },
-      training_ground:  { level: 0, buildEndTime: null },
-      blacksmith:       { level: 0, buildEndTime: null },
-      city_wall:        { level: 0, buildEndTime: null },
-      adventure_guild:  { level: 0, buildEndTime: null },
-      tavern:           { level: 0, buildEndTime: null },
-      warehouse:        { level: 0, buildEndTime: null },
-      market:           { level: 0, buildEndTime: null },
-      tax_office:       { level: 0, buildEndTime: null },
-      weapon_workshop:  { level: 0, buildEndTime: null },
-      stable:           { level: 0, buildEndTime: null },
-      academy:          { level: 0, buildEndTime: null },
-      watermill:        { level: 0, buildEndTime: null },
-      stone_mason:      { level: 0, buildEndTime: null },
-      smelter:          { level: 0, buildEndTime: null },
-      vegetable_garden: { level: 0, buildEndTime: null },
-      compost_pit:      { level: 0, buildEndTime: null },
-      seed_shop:        { level: 0, buildEndTime: null },
-      parking_lot:      { level: 0, buildEndTime: null }
+      town_hall:        { level: 1, buildEndTime: null, count: 1, buildType: null },
+      lumber_camp:      { level: 0, buildEndTime: null, count: 0, buildType: null },
+      quarry:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      iron_mine:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      farmland:         { level: 0, buildEndTime: null, count: 0, buildType: null },
+      barracks:         { level: 0, buildEndTime: null, count: 0, buildType: null },
+      training_ground:  { level: 0, buildEndTime: null, count: 0, buildType: null },
+      blacksmith:       { level: 0, buildEndTime: null, count: 0, buildType: null },
+      city_wall:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      adventure_guild:  { level: 0, buildEndTime: null, count: 0, buildType: null },
+      tavern:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      warehouse:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      market:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      tax_office:       { level: 0, buildEndTime: null, count: 0, buildType: null },
+      weapon_workshop:  { level: 0, buildEndTime: null, count: 0, buildType: null },
+      stable:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      academy:          { level: 0, buildEndTime: null, count: 0, buildType: null },
+      watermill:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      stone_mason:      { level: 0, buildEndTime: null, count: 0, buildType: null },
+      smelter:          { level: 0, buildEndTime: null, count: 0, buildType: null },
+      vegetable_garden: { level: 0, buildEndTime: null, count: 0, buildType: null },
+      compost_pit:      { level: 0, buildEndTime: null, count: 0, buildType: null },
+      seed_shop:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      parking_lot:      { level: 0, buildEndTime: null, count: 0, buildType: null }
     },
     placements: {},
     roads: [],
@@ -46,9 +46,16 @@ var TownManager = {
       var defaults = this._getDefaultBuildings();
       for (var id in defaults) {
         if (defaults.hasOwnProperty(id)) {
-          this._state.buildings[id] = data.buildings[id]
-            ? { level: data.buildings[id].level || 0, buildEndTime: data.buildings[id].buildEndTime || null }
-            : Utils.deepClone(defaults[id]);
+          if (data.buildings[id]) {
+            this._state.buildings[id] = {
+              level: data.buildings[id].level || 0,
+              buildEndTime: data.buildings[id].buildEndTime || null,
+              count: data.buildings[id].count !== undefined ? data.buildings[id].count : (data.buildings[id].level > 0 ? 1 : 0),
+              buildType: data.buildings[id].buildType || null
+            };
+          } else {
+            this._state.buildings[id] = Utils.deepClone(defaults[id]);
+          }
         }
       }
     } else {
@@ -103,30 +110,30 @@ var TownManager = {
 
   _getDefaultBuildings: function () {
     return {
-      town_hall:        { level: 1, buildEndTime: null },
-      lumber_camp:      { level: 0, buildEndTime: null },
-      quarry:           { level: 0, buildEndTime: null },
-      iron_mine:        { level: 0, buildEndTime: null },
-      farmland:         { level: 0, buildEndTime: null },
-      barracks:         { level: 0, buildEndTime: null },
-      training_ground:  { level: 0, buildEndTime: null },
-      blacksmith:       { level: 0, buildEndTime: null },
-      city_wall:        { level: 0, buildEndTime: null },
-      adventure_guild:  { level: 0, buildEndTime: null },
-      tavern:           { level: 0, buildEndTime: null },
-      warehouse:        { level: 0, buildEndTime: null },
-      market:           { level: 0, buildEndTime: null },
-      tax_office:       { level: 0, buildEndTime: null },
-      weapon_workshop:  { level: 0, buildEndTime: null },
-      stable:           { level: 0, buildEndTime: null },
-      academy:          { level: 0, buildEndTime: null },
-      watermill:        { level: 0, buildEndTime: null },
-      stone_mason:      { level: 0, buildEndTime: null },
-      smelter:          { level: 0, buildEndTime: null },
-      vegetable_garden: { level: 0, buildEndTime: null },
-      compost_pit:      { level: 0, buildEndTime: null },
-      seed_shop:        { level: 0, buildEndTime: null },
-      parking_lot:      { level: 0, buildEndTime: null }
+      town_hall:        { level: 1, buildEndTime: null, count: 1, buildType: null },
+      lumber_camp:      { level: 0, buildEndTime: null, count: 0, buildType: null },
+      quarry:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      iron_mine:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      farmland:         { level: 0, buildEndTime: null, count: 0, buildType: null },
+      barracks:         { level: 0, buildEndTime: null, count: 0, buildType: null },
+      training_ground:  { level: 0, buildEndTime: null, count: 0, buildType: null },
+      blacksmith:       { level: 0, buildEndTime: null, count: 0, buildType: null },
+      city_wall:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      adventure_guild:  { level: 0, buildEndTime: null, count: 0, buildType: null },
+      tavern:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      warehouse:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      market:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      tax_office:       { level: 0, buildEndTime: null, count: 0, buildType: null },
+      weapon_workshop:  { level: 0, buildEndTime: null, count: 0, buildType: null },
+      stable:           { level: 0, buildEndTime: null, count: 0, buildType: null },
+      academy:          { level: 0, buildEndTime: null, count: 0, buildType: null },
+      watermill:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      stone_mason:      { level: 0, buildEndTime: null, count: 0, buildType: null },
+      smelter:          { level: 0, buildEndTime: null, count: 0, buildType: null },
+      vegetable_garden: { level: 0, buildEndTime: null, count: 0, buildType: null },
+      compost_pit:      { level: 0, buildEndTime: null, count: 0, buildType: null },
+      seed_shop:        { level: 0, buildEndTime: null, count: 0, buildType: null },
+      parking_lot:      { level: 0, buildEndTime: null, count: 0, buildType: null }
     };
   },
 
@@ -141,14 +148,29 @@ var TownManager = {
       if (!this._state.buildings.hasOwnProperty(id)) continue;
       var b = this._state.buildings[id];
       if (b.buildEndTime && now >= b.buildEndTime) {
-        b.level++;
-        b.buildEndTime = null;
-        this._checkWorkerUnlock(id, b.level);
-        EventBus.emit('town:building_upgraded', { buildingId: id, newLevel: b.level });
-        EventBus.emit('toast:show', {
-          type: 'success',
-          message: BuildingData[id].emoji + ' ' + BuildingData[id].name + ' 升级到 Lv.' + b.level + '！'
-        });
+        if (b.buildType === 'copy') {
+          // 副本建造完成
+          b.count++;
+          b.buildEndTime = null;
+          b.buildType = null;
+          EventBus.emit('town:building_upgraded', { buildingId: id, newLevel: b.level, count: b.count });
+          EventBus.emit('toast:show', {
+            type: 'success',
+            message: BuildingData[id].emoji + ' ' + BuildingData[id].name + ' 第' + b.count + '个建造完成！'
+          });
+        } else {
+          // 升级完成
+          b.level++;
+          if (b.count < 1) b.count = 1; // 首次建造
+          b.buildEndTime = null;
+          b.buildType = null;
+          this._checkWorkerUnlock(id, b.level);
+          EventBus.emit('town:building_upgraded', { buildingId: id, newLevel: b.level });
+          EventBus.emit('toast:show', {
+            type: 'success',
+            message: BuildingData[id].emoji + ' ' + BuildingData[id].name + ' 升级到 Lv.' + b.level + '！'
+          });
+        }
         // Recalculate roads when a new building is constructed
         this.recalcRoads();
         buildCompleted = true;
@@ -188,13 +210,18 @@ var TownManager = {
       var prod = BuildingData[bId].production(lv);
       var perSecond = prod.perMinute / 60;
 
+      // 应用副本数倍率（线性）
+      var copyCount = this.getBuildingCount(bId);
+      if (copyCount > 1) perSecond *= copyCount;
+
       // 应用加成器乘数
       var boosterId = boosterMap[bId];
       if (boosterId) {
         var boosterLv = this._state.buildings[boosterId] ? this._state.buildings[boosterId].level : 0;
         if (boosterLv > 0) {
           var boostData = BuildingData[boosterId].boosts;
-          perSecond *= (1 + boosterLv * boostData.bonusPerLevel);
+          var boosterCount = this.getBuildingCount(boosterId);
+          perSecond *= (1 + boosterLv * boostData.bonusPerLevel * boosterCount);
         }
       }
 
@@ -217,6 +244,131 @@ var TownManager = {
 
   getBuildingState: function (buildingId) {
     return this._state.buildings[buildingId] || null;
+  },
+
+  /** 获取建筑当前副本数 */
+  getBuildingCount: function (buildingId) {
+    var b = this._state.buildings[buildingId];
+    if (!b || b.level <= 0) return 0;
+    return b.count || 1;
+  },
+
+  /** 获取建筑当前等级下的最大副本数 */
+  getMaxCount: function (buildingId) {
+    var level = this.getBuildingLevel(buildingId);
+    return BuildingData._getMaxCount(buildingId, level);
+  },
+
+  /** 获取下一个副本解锁所需等级，如果已经达到最大则返回 null */
+  getNextCopyUnlockLevel: function (buildingId) {
+    var level = this.getBuildingLevel(buildingId);
+    var table = BuildingData._maxCountTable[buildingId];
+    if (!table || table.length === 0) return null;
+    var currentCount = this.getBuildingCount(buildingId);
+    if (currentCount >= table.length) return null;
+    return table[currentCount];
+  },
+
+  /** 获取建造副本的费用 */
+  getCopyCost: function (buildingId) {
+    var level = this.getBuildingLevel(buildingId);
+    var count = this.getBuildingCount(buildingId);
+    return BuildingData._getCopyCost(buildingId, level, count);
+  },
+
+  /** 获取建造副本的施工时间 */
+  getCopyBuildTime: function (buildingId) {
+    var level = this.getBuildingLevel(buildingId);
+    return BuildingData._getCopyBuildTime(buildingId, level);
+  },
+
+  /** 获取建筑效果倍率（基于副本数）*/
+  getCountMultiplier: function (buildingId) {
+    var count = this.getBuildingCount(buildingId);
+    if (count <= 1) return 1;
+    var data = BuildingData[buildingId];
+    // 生产建筑 & 加成器：线性倍率
+    if (data && (data.production || data.boosts)) return count;
+    // 仓库 & 农田（容量类）：线性倍率
+    if (buildingId === 'warehouse' || buildingId === 'farmland') return count;
+    // 战斗 & 功能建筑：递减倍率 1 + 0.5 × (count-1)
+    return 1 + 0.5 * (count - 1);
+  },
+
+  /** 检查是否可以建造新副本 */
+  canBuildCopy: function (buildingId) {
+    var data = BuildingData[buildingId];
+    if (!data) return { ok: false, reason: '未知建筑' };
+
+    var bState = this._state.buildings[buildingId];
+    var level = bState ? bState.level : 0;
+    if (level <= 0) return { ok: false, reason: '需先建造该建筑' };
+
+    var count = this.getBuildingCount(buildingId);
+    var maxCount = this.getMaxCount(buildingId);
+    if (count >= maxCount) {
+      var nextLv = this.getNextCopyUnlockLevel(buildingId);
+      if (nextLv) {
+        return { ok: false, reason: '需升级到 Lv.' + nextLv + ' 解锁下一副本' };
+      }
+      return { ok: false, reason: '已达最大数量' };
+    }
+
+    // 检查建筑正在施工
+    if (this.isBuilding(buildingId)) {
+      return { ok: false, reason: '正在施工中' };
+    }
+
+    // 检查队列中是否已有该建筑
+    for (var i = 0; i < this._state.buildQueue.length; i++) {
+      if (this._state.buildQueue[i].buildingId === buildingId) {
+        return { ok: false, reason: '该建筑已在队列中' };
+      }
+    }
+
+    // 检查资源
+    var cost = this.getCopyCost(buildingId);
+    if (!ResourceManager.canAffordMultiple(cost)) {
+      return { ok: false, reason: '资源不足' };
+    }
+
+    return { ok: true };
+  },
+
+  /** 将副本建造加入队列 */
+  enqueueBuildCopy: function (buildingId) {
+    if (this._state.buildQueue.length >= WORKER_CONFIG.MAX_QUEUE_SIZE) {
+      return { ok: false, reason: '建造队列已满（最多6项）' };
+    }
+
+    var check = this.canBuildCopy(buildingId);
+    if (!check.ok) return check;
+
+    var cost = this.getCopyCost(buildingId);
+    var buildTime = this.getCopyBuildTime(buildingId);
+
+    ResourceManager.spendMultiple(cost, 'building', 'queue_reserve_copy', buildingId);
+
+    var queueItem = {
+      id: Utils.uid(),
+      buildingId: buildingId,
+      targetLevel: this.getBuildingLevel(buildingId),
+      type: 'copy',
+      cost: {},
+      buildTime: buildTime,
+      addedAt: Date.now()
+    };
+    for (var resType in cost) {
+      if (cost.hasOwnProperty(resType) && cost[resType] > 0) {
+        queueItem.cost[resType] = cost[resType];
+      }
+    }
+
+    this._state.buildQueue.push(queueItem);
+    EventBus.emit('town:queue_updated');
+    this._processQueue();
+
+    return { ok: true, queueItem: queueItem };
   },
 
   getUpgradeCost: function (buildingId) {
@@ -366,6 +518,7 @@ var TownManager = {
 
     var b = this._state.buildings[buildingId];
     b.buildEndTime = Date.now() + buildTime * 1000;
+    b.buildType = 'upgrade';
 
     EventBus.emit('town:building_started', { buildingId: buildingId, endTime: b.buildEndTime });
     return { ok: true };
@@ -569,6 +722,7 @@ var TownManager = {
       // Start construction
       var bState = this._state.buildings[item.buildingId];
       bState.buildEndTime = Date.now() + item.buildTime * 1000;
+      bState.buildType = item.type === 'copy' ? 'copy' : 'upgrade';
       this._state.buildQueue.shift();
       freeWorkers--;
       anyChanged = true;
@@ -583,30 +737,40 @@ var TownManager = {
   _validateQueueItem: function (item) {
     var b = this._state.buildings[item.buildingId];
     if (!b) return false;
-    // Level must match expected
-    if (b.level !== item.targetLevel - 1) return false;
     // Must not already be building
     if (b.buildEndTime) return false;
-    // Town hall level cap
-    var thLevel = this._state.buildings.town_hall ? this._state.buildings.town_hall.level : 1;
-    if (item.buildingId !== 'town_hall') {
-      var thData = BuildingData._townHallUnlocks[thLevel];
-      if (thData && b.level >= thData.levelCap) return false;
-    }
-    // Prerequisites
-    var data = BuildingData[item.buildingId];
-    if (data && data.requires) {
-      for (var reqId in data.requires) {
-        if (data.requires.hasOwnProperty(reqId)) {
-          var reqLv = this._state.buildings[reqId] ? this._state.buildings[reqId].level : 0;
-          if (reqLv < data.requires[reqId]) return false;
+
+    if (item.type === 'copy') {
+      // Validate copy build
+      if (b.level <= 0) return false;
+      var count = b.count || 1;
+      var maxCount = BuildingData._getMaxCount(item.buildingId, b.level);
+      if (count >= maxCount) return false;
+    } else {
+      // Validate upgrade
+      // Level must match expected
+      if (b.level !== item.targetLevel - 1) return false;
+      // Town hall level cap
+      var thLevel = this._state.buildings.town_hall ? this._state.buildings.town_hall.level : 1;
+      if (item.buildingId !== 'town_hall') {
+        var thData = BuildingData._townHallUnlocks[thLevel];
+        if (thData && b.level >= thData.levelCap) return false;
+      }
+      // Prerequisites
+      var data = BuildingData[item.buildingId];
+      if (data && data.requires) {
+        for (var reqId in data.requires) {
+          if (data.requires.hasOwnProperty(reqId)) {
+            var reqLv = this._state.buildings[reqId] ? this._state.buildings[reqId].level : 0;
+            if (reqLv < data.requires[reqId]) return false;
+          }
         }
       }
-    }
-    // Building slot check for new buildings
-    if (b.level === 0 && item.buildingId !== 'town_hall') {
-      var thData2 = BuildingData._townHallUnlocks[thLevel];
-      if (thData2 && this._getUnlockedBuildingCount() >= thData2.slots) return false;
+      // Building slot check for new buildings
+      if (b.level === 0 && item.buildingId !== 'town_hall') {
+        var thData2 = BuildingData._townHallUnlocks[thLevel];
+        if (thData2 && this._getUnlockedBuildingCount() >= thData2.slots) return false;
+      }
     }
     return true;
   },
@@ -681,9 +845,17 @@ var TownManager = {
       // Complete this build (silent — no toast for offline completions)
       var bld = this._state.buildings[earliestId];
       var completedAt = bld.buildEndTime;
-      bld.level++;
-      bld.buildEndTime = null;
-      this._checkWorkerUnlock(earliestId, bld.level, true);
+      if (bld.buildType === 'copy') {
+        bld.count++;
+        bld.buildEndTime = null;
+        bld.buildType = null;
+      } else {
+        bld.level++;
+        if (bld.count < 1) bld.count = 1;
+        bld.buildEndTime = null;
+        bld.buildType = null;
+        this._checkWorkerUnlock(earliestId, bld.level, true);
+      }
 
       // Start queue items using freed worker
       var busy = 0;
@@ -702,6 +874,7 @@ var TownManager = {
         }
         var qb = this._state.buildings[qi.buildingId];
         qb.buildEndTime = completedAt + qi.buildTime * 1000;
+        qb.buildType = qi.type === 'copy' ? 'copy' : 'upgrade';
         this._state.buildQueue.shift();
         freeW--;
       }
@@ -723,75 +896,76 @@ var TownManager = {
   getAtkBonus: function () {
     var bonus = 0;
     var lv = this.getBuildingLevel('barracks');
-    if (lv > 0) bonus += BuildingData.barracks.effects(lv).atkBonus;
+    if (lv > 0) bonus += BuildingData.barracks.effects(lv).atkBonus * this.getCountMultiplier('barracks');
     // 武器工坊叠加
     var wwLv = this.getBuildingLevel('weapon_workshop');
-    if (wwLv > 0) bonus += BuildingData.weapon_workshop.effects(wwLv).atkBonus;
+    if (wwLv > 0) bonus += BuildingData.weapon_workshop.effects(wwLv).atkBonus * this.getCountMultiplier('weapon_workshop');
     return bonus;
   },
 
   getDefBonus: function () {
     var lv = this.getBuildingLevel('city_wall');
     if (lv <= 0) return 0;
-    return BuildingData.city_wall.effects(lv).defBonus;
+    return BuildingData.city_wall.effects(lv).defBonus * this.getCountMultiplier('city_wall');
   },
 
   getHpBonus: function () {
     var lv = this.getBuildingLevel('city_wall');
     if (lv <= 0) return 0;
-    return BuildingData.city_wall.effects(lv).hpBonus;
+    return BuildingData.city_wall.effects(lv).hpBonus * this.getCountMultiplier('city_wall');
   },
 
   getExpBonus: function () {
     var bonus = 0;
     var lv = this.getBuildingLevel('training_ground');
-    if (lv > 0) bonus += BuildingData.training_ground.effects(lv).expBonus;
+    if (lv > 0) bonus += BuildingData.training_ground.effects(lv).expBonus * this.getCountMultiplier('training_ground');
     // 书院叠加
     var acLv = this.getBuildingLevel('academy');
-    if (acLv > 0) bonus += BuildingData.academy.effects(acLv).expBonus;
+    if (acLv > 0) bonus += BuildingData.academy.effects(acLv).expBonus * this.getCountMultiplier('academy');
     return bonus;
   },
 
   getOfflineEfficiency: function () {
     var lv = this.getBuildingLevel('adventure_guild');
     if (lv <= 0) return 0.50;
+    // 离线效率有上限，副本不做倍率
     return BuildingData.adventure_guild.effects(lv).offlineEfficiency;
   },
 
   getRecruitDiscount: function () {
     var lv = this.getBuildingLevel('tavern');
     if (lv <= 0) return 0;
-    return BuildingData.tavern.effects(lv).recruitDiscount;
+    return Math.min(0.5, BuildingData.tavern.effects(lv).recruitDiscount * this.getCountMultiplier('tavern'));
   },
 
   getDropRateBonus: function () {
     var lv = this.getBuildingLevel('adventure_guild');
     if (lv <= 0) return 0;
-    return BuildingData.adventure_guild.effects(lv).dropRateBonus;
+    return BuildingData.adventure_guild.effects(lv).dropRateBonus * this.getCountMultiplier('adventure_guild');
   },
 
   getSpdBonus: function () {
     var lv = this.getBuildingLevel('stable');
     if (lv <= 0) return 0;
-    return BuildingData.stable.effects(lv).spdBonus;
+    return BuildingData.stable.effects(lv).spdBonus * this.getCountMultiplier('stable');
   },
 
   getFirstStrikeChance: function () {
     var lv = this.getBuildingLevel('stable');
     if (lv <= 0) return 0;
-    return BuildingData.stable.effects(lv).firstStrikeChance;
+    return Math.min(0.5, BuildingData.stable.effects(lv).firstStrikeChance * this.getCountMultiplier('stable'));
   },
 
   getEquipQualityBonus: function () {
     var lv = this.getBuildingLevel('weapon_workshop');
     if (lv <= 0) return 0;
-    return BuildingData.weapon_workshop.effects(lv).equipQualityBonus;
+    return BuildingData.weapon_workshop.effects(lv).equipQualityBonus * this.getCountMultiplier('weapon_workshop');
   },
 
   getSkillCooldownReduction: function () {
     var lv = this.getBuildingLevel('academy');
     if (lv <= 0) return 0;
-    return BuildingData.academy.effects(lv).skillCooldownReduction;
+    return Math.min(0.5, BuildingData.academy.effects(lv).skillCooldownReduction * this.getCountMultiplier('academy'));
   },
 
   getBoosterLevel: function (productionBuildingId) {
@@ -805,14 +979,16 @@ var TownManager = {
     var baseCap = CONSTANTS.RESOURCE_BASE_CAP[resourceType];
     if (baseCap === undefined) return Infinity;
 
-    // 仓库加成
+    // 仓库加成（副本线性叠加）
     var whLv = this.getBuildingLevel('warehouse');
-    var capBonus = whLv > 0 ? BuildingData.warehouse.effects(whLv).resourceCapBonus : 0;
+    var whMul = this.getCountMultiplier('warehouse');
+    var capBonus = whLv > 0 ? BuildingData.warehouse.effects(whLv).resourceCapBonus * whMul : 0;
 
-    // 农田额外粮草上限
+    // 农田额外粮草上限（副本线性叠加）
     if (resourceType === 'food') {
       var flLv = this.getBuildingLevel('farmland');
-      var foodExtra = flLv > 0 ? BuildingData.farmland.effects(flLv).foodCapBonus : 0;
+      var flMul = this.getCountMultiplier('farmland');
+      var foodExtra = flLv > 0 ? BuildingData.farmland.effects(flLv).foodCapBonus * flMul : 0;
       return baseCap + foodExtra + Math.floor(baseCap * capBonus);
     }
 
@@ -827,6 +1003,10 @@ var TownManager = {
     if (lv <= 0) return 0;
     var baseRate = BuildingData[bId].production(lv).perMinute;
 
+    // 应用副本数倍率（线性）
+    var copyCount = this.getBuildingCount(bId);
+    if (copyCount > 1) baseRate *= copyCount;
+
     // 应用加成器乘数
     var boosterMap = { lumber_camp: 'watermill', quarry: 'stone_mason', iron_mine: 'smelter' };
     var boosterId = boosterMap[bId];
@@ -834,7 +1014,8 @@ var TownManager = {
       var boosterLv = this.getBuildingLevel(boosterId);
       if (boosterLv > 0) {
         var boostData = BuildingData[boosterId].boosts;
-        baseRate *= (1 + boosterLv * boostData.bonusPerLevel);
+        var boosterCount = this.getBuildingCount(boosterId);
+        baseRate *= (1 + boosterLv * boostData.bonusPerLevel * boosterCount);
       }
     }
     return baseRate;

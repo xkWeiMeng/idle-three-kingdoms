@@ -38,7 +38,7 @@ var EconomyPanel = {
 
     // 实时总览
     html += '<div class="eco-summary">';
-    html += '<div class="eco-title">📊 经济仪表盘</div>';
+    html += '<div class="eco-title">' + UIIcons.icon('economy') + ' 经济仪表盘</div>';
     html += this._renderSummaryCards();
     html += '</div>';
 
@@ -69,8 +69,8 @@ var EconomyPanel = {
     }
     html += '<select class="eco-resource-select" id="eco-res-select">';
     var resOptions = [
-      { v: 'gold', l: '💰 金币' }, { v: 'wood', l: '🪵 木材' },
-      { v: 'stone', l: '🪨 石材' }, { v: 'iron', l: '⛏️ 铁矿' }
+      { v: 'gold', l: UIIcons.icon('gold') + ' 金币' }, { v: 'wood', l: UIIcons.icon('wood') + ' 木材' },
+      { v: 'stone', l: UIIcons.icon('stone') + ' 石材' }, { v: 'iron', l: UIIcons.icon('iron') + ' 铁矿' }
     ];
     for (var oi = 0; oi < resOptions.length; oi++) {
       html += '<option value="' + resOptions[oi].v + '"' +
@@ -106,7 +106,7 @@ var EconomyPanel = {
 
   _renderSummaryCards: function () {
     var resources = ['gold', 'wood', 'stone', 'iron'];
-    var names = { gold: '💰', wood: '🪵', stone: '🪨', iron: '⛏️' };
+    var names = { gold: UIIcons.icon('gold'), wood: UIIcons.icon('wood'), stone: UIIcons.icon('stone'), iron: UIIcons.icon('iron') };
     var html = '<div class="eco-summary-grid">';
 
     for (var i = 0; i < resources.length; i++) {
@@ -152,7 +152,7 @@ var EconomyPanel = {
 
   _renderAlerts: function () {
     var alerts = EconomyManager.getActiveAlerts();
-    if (alerts.length === 0) return '<div class="eco-empty">✅ 经济状况良好</div>';
+    if (alerts.length === 0) return '<div class="eco-empty">' + UIIcons.icon('check') + ' 经济状况良好</div>';
 
     var html = '';
     for (var i = 0; i < Math.min(alerts.length, 5); i++) {
@@ -169,11 +169,11 @@ var EconomyPanel = {
     if (suggestions.length === 0) return '';
 
     var html = '<div class="eco-suggestions">';
-    html += '<div class="eco-section-title">── 💡 经济顾问 ──</div>';
+    html += '<div class="eco-section-title">── ' + UIIcons.icon('idea') + ' 经济顾问 ──</div>';
     for (var i = 0; i < suggestions.length; i++) {
       var s = suggestions[i];
       html += '<div class="eco-suggestion-item">' +
-        '<span>' + (s.emoji || '💡') + ' ' + s.message + '</span>' +
+        '<span>' + (s.emoji || UIIcons.icon('idea')) + ' ' + s.message + '</span>' +
         '</div>';
     }
     html += '</div>';

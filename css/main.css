@@ -578,6 +578,35 @@ img, svg { display: block; max-width: 100%; }
   color: var(--color-text);
 }
 
+/* -- Hero Portraits -- */
+.hero-portrait {
+  border-radius: 50%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  vertical-align: middle;
+  background: transparent;
+}
+
+.hero-portrait-fallback {
+  display: inline-block;
+  text-align: center;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--color-surface-dark);
+}
+
+.hero-portrait-frame {
+  display: inline-block;
+  border-radius: 50%;
+  padding: 2px;
+  line-height: 0;
+}
+.hero-portrait-frame.quality-1 { border: 2px solid #b0a898; }
+.hero-portrait-frame.quality-2 { border: 2px solid #5d8a48; }
+.hero-portrait-frame.quality-3 { border: 2px solid #4a7fb5; }
+.hero-portrait-frame.quality-4 { border: 2px solid #8b5ea8; }
+.hero-portrait-frame.quality-5 { border: 2px solid #d4a849; }
+
 /* ===========================================
    14. Equipment Grid
    =========================================== */
@@ -2818,6 +2847,71 @@ html, body, #app {
   font-weight: bold;
   padding: 16px;
 }
+/* Building copy section */
+.bdo-count-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: bold;
+  background: rgba(93,138,72,0.2);
+  color: var(--color-success);
+  margin-left: 4px;
+}
+.bdo-copy-section {
+  background: rgba(93,138,72,0.06);
+  border: 1px solid rgba(93,138,72,0.15);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.bdo-copy-btn {
+  width: 100%;
+  margin-top: 6px;
+  background: var(--color-success);
+  color: #fff;
+}
+.bdo-copy-btn.disabled {
+  background: rgba(93,138,72,0.2);
+  color: var(--color-text-dim);
+  cursor: not-allowed;
+}
+.bdo-copy-maxed {
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: 0.78rem;
+  padding: 4px;
+}
+.bdo-copy-hint {
+  text-align: center;
+  color: var(--color-gold);
+  font-size: 0.72rem;
+  margin-top: 4px;
+}
+/* Town panel count badge */
+.town-count-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.62rem;
+  font-weight: bold;
+  background: rgba(93,138,72,0.2);
+  color: var(--color-success);
+  margin-left: 4px;
+}
+.town-copy-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255,255,255,0.1);
+}
+.town-copy-btn {
+  font-size: 0.72rem;
+}
+.btn-gold {
+  background: rgba(212,168,73,0.2);
+  color: var(--color-gold);
+  border-color: rgba(212,168,73,0.3);
+}
 /* All levels table */
 .bdo-all-levels {
   overflow-x: auto;
@@ -4021,6 +4115,38 @@ html, body, #app {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .rl-choice-card:hover { transform: scale(1.05); box-shadow: 0 0 12px rgba(245,197,24,0.3); }
+
+/* ===========================================
+   UI Icons — PNG 图标内联样式
+   =========================================== */
+.ui-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  object-fit: contain;
+  pointer-events: none;
+}
+.ui-icon-sm { width: 0.85em; height: 0.85em; }
+.ui-icon-lg { width: 1.4em; height: 1.4em; }
+.ui-icon-xl { width: 1.8em; height: 1.8em; }
+.ui-icon-nav { width: 24px; height: 24px; vertical-align: middle; }
+
+/* Bottom nav icon override */
+.bnav-icon .ui-icon,
+.bnav-more-icon .ui-icon {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+/* Resources bar icon */
+.res-item .ui-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  margin-right: 1px;
+}
 .rl-choice-card:active { transform: scale(0.95); }
 .rl-choice-icon { font-size: 1.5rem; margin-bottom: 4px; }
 .rl-choice-name { font-size: 0.85rem; font-weight: bold; color: var(--color-gold); }

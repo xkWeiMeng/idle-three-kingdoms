@@ -16,7 +16,7 @@ var QuestPanel = {
   show: function () {
     var html = this._buildHtml();
     OverlayPanel.show({
-      title: '📋 每日任务',
+      title: UIIcons.icon('quest') + ' 每日任务',
       content: html,
       panelId: 'quest',
       height: 'full'
@@ -99,7 +99,7 @@ var QuestPanel = {
   _renderQuestCard: function (quest) {
     var isComplete = quest.progress >= quest.target;
     var isClaimed = quest.claimed;
-    var icon = QuestCategoryIcons[quest.category] || '📋';
+    var icon = QuestCategoryIcons[quest.category] || UIIcons.icon('quest');
     var pct = Math.min(Math.round(quest.progress / quest.target * 100), 100);
 
     var borderColor = isClaimed ? 'var(--color-success,#5d8a48)' :
@@ -175,10 +175,10 @@ var QuestPanel = {
 
   _formatRewards: function (rewards) {
     var parts = [];
-    if (rewards.gold) parts.push('💰' + Utils.formatNumber(rewards.gold));
-    if (rewards.jade) parts.push('💎' + rewards.jade);
-    if (rewards.exp) parts.push('⭐' + Utils.formatNumber(rewards.exp));
-    if (rewards.food) parts.push('🍚' + rewards.food);
+    if (rewards.gold) parts.push(UIIcons.icon('gold') + Utils.formatNumber(rewards.gold));
+    if (rewards.jade) parts.push(UIIcons.icon('jade') + rewards.jade);
+    if (rewards.exp) parts.push(UIIcons.icon('exp') + Utils.formatNumber(rewards.exp));
+    if (rewards.food) parts.push(UIIcons.icon('food') + rewards.food);
     return parts.join(' ');
   }
 };

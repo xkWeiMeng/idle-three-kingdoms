@@ -1,15 +1,15 @@
 /** 成就定义 */
 var AchievementDefs = [
   // 战斗成就
-  { id:'battle-1', name:'初战告捷', desc:'完成1次战斗', category:'battle', icon:'⚔️',
+  { id:'battle-1', name:'初战告捷', desc:'完成1次战斗', category:'battle', icon:UIIcons.icon('battle'),
     condition: function(s){ return s.totalBattles >= 1; }, progress: function(s){ return Math.min(s.totalBattles, 1); }, target:1, jade:10, bonus:{gold:200} },
-  { id:'battle-2', name:'身经百战', desc:'完成100次战斗', category:'battle', icon:'⚔️',
+  { id:'battle-2', name:'身经百战', desc:'完成100次战斗', category:'battle', icon:UIIcons.icon('battle'),
     condition: function(s){ return s.totalBattles >= 100; }, progress: function(s){ return Math.min(s.totalBattles, 100); }, target:100, jade:20, bonus:{gold:500} },
-  { id:'battle-3', name:'沙场老将', desc:'完成1000次战斗', category:'battle', icon:'⚔️',
+  { id:'battle-3', name:'沙场老将', desc:'完成1000次战斗', category:'battle', icon:UIIcons.icon('battle'),
     condition: function(s){ return s.totalBattles >= 1000; }, progress: function(s){ return Math.min(s.totalBattles, 1000); }, target:1000, jade:50, bonus:{gold:2000} },
-  { id:'battle-4', name:'闪电战', desc:'3回合内获胜', category:'battle', icon:'⚡',
+  { id:'battle-4', name:'闪电战', desc:'3回合内获胜', category:'battle', icon:UIIcons.icon('speed'),
     condition: function(s){ return s.fastWin; }, progress: function(s){ return s.fastWin ? 1 : 0; }, target:1, jade:15, bonus:{} },
-  { id:'battle-5', name:'完美通关', desc:'不受伤害通关', category:'battle', icon:'🛡️',
+  { id:'battle-5', name:'完美通关', desc:'不受伤害通关', category:'battle', icon:UIIcons.icon('defense'),
     condition: function(s){ return s.perfectWin; }, progress: function(s){ return s.perfectWin ? 1 : 0; }, target:1, jade:30, bonus:{} },
 
   // 章节成就
@@ -31,9 +31,9 @@ var AchievementDefs = [
     condition: function(s){ return s.heroCount >= 10; }, progress: function(s){ return Math.min(s.heroCount, 10); }, target:10, jade:40, bonus:{} },
   { id:'collect-3', name:'三国鼎立', desc:'拥有15名武将', category:'collect', icon:'🎖️',
     condition: function(s){ return s.heroCount >= 15; }, progress: function(s){ return Math.min(s.heroCount, 15); }, target:15, jade:80, bonus:{} },
-  { id:'collect-4', name:'传说降临', desc:'拥有1名橙色武将', category:'collect', icon:'🌟',
+  { id:'collect-4', name:'传说降临', desc:'拥有1名橙色武将', category:'collect', icon:UIIcons.icon('sparkle'),
     condition: function(s){ return s.orangeHeroCount >= 1; }, progress: function(s){ return Math.min(s.orangeHeroCount, 1); }, target:1, jade:50, bonus:{} },
-  { id:'collect-5', name:'装备大师', desc:'拥有20件装备', category:'collect', icon:'🗡️',
+  { id:'collect-5', name:'装备大师', desc:'拥有20件装备', category:'collect', icon:UIIcons.icon('weapon'),
     condition: function(s){ return s.equipCount >= 20; }, progress: function(s){ return Math.min(s.equipCount, 20); }, target:20, jade:20, bonus:{} },
 
   // 升级成就
@@ -43,15 +43,15 @@ var AchievementDefs = [
     condition: function(s){ return s.maxHeroLevel >= 25; }, progress: function(s){ return Math.min(s.maxHeroLevel, 25); }, target:25, jade:30, bonus:{exp:2000} },
   { id:'level-3', name:'巅峰之境', desc:'任意武将达到50级', category:'upgrade', icon:'⬆️',
     condition: function(s){ return s.maxHeroLevel >= 50; }, progress: function(s){ return Math.min(s.maxHeroLevel, 50); }, target:50, jade:100, bonus:{exp:10000} },
-  { id:'level-4', name:'锻造大师', desc:'装备强化至满级', category:'upgrade', icon:'🔨',
+  { id:'level-4', name:'锻造大师', desc:'装备强化至满级', category:'upgrade', icon:UIIcons.icon('hammer'),
     condition: function(s){ return s.hasMaxLevelEquip; }, progress: function(s){ return s.hasMaxLevelEquip ? 1 : 0; }, target:1, jade:30, bonus:{gold:5000} },
-  { id:'level-5', name:'全副武装', desc:'5名武将全部穿满装备', category:'upgrade', icon:'🛡️',
+  { id:'level-5', name:'全副武装', desc:'5名武将全部穿满装备', category:'upgrade', icon:UIIcons.icon('defense'),
     condition: function(s){ return s.fullyEquippedHeroes >= 5; }, progress: function(s){ return Math.min(s.fullyEquippedHeroes, 5); }, target:5, jade:100, bonus:{} },
 
   // 经济成就
-  { id:'economy-1', name:'小有积蓄', desc:'累计获得10000金币', category:'economy', icon:'💰',
+  { id:'economy-1', name:'小有积蓄', desc:'累计获得10000金币', category:'economy', icon:UIIcons.icon('gold'),
     condition: function(s){ return s.totalGoldEarned >= 10000; }, progress: function(s){ return Math.min(s.totalGoldEarned, 10000); }, target:10000, jade:10, bonus:{} },
-  { id:'economy-2', name:'富甲一方', desc:'累计获得100000金币', category:'economy', icon:'💰',
+  { id:'economy-2', name:'富甲一方', desc:'累计获得100000金币', category:'economy', icon:UIIcons.icon('gold'),
     condition: function(s){ return s.totalGoldEarned >= 100000; }, progress: function(s){ return Math.min(s.totalGoldEarned, 100000); }, target:100000, jade:30, bonus:{} },
   { id:'economy-3', name:'首次招募', desc:'完成1次招募', category:'economy', icon:'🎲',
     condition: function(s){ return s.totalRecruits >= 1; }, progress: function(s){ return Math.min(s.totalRecruits, 1); }, target:1, jade:10, bonus:{} },
@@ -183,14 +183,14 @@ var SettingsPanel = {
           }
           // Detailed toast with reward info
           var rewardParts = [];
-          if (def.jade) rewardParts.push('💎' + def.jade);
-          if (def.bonus && def.bonus.gold) rewardParts.push('💰' + def.bonus.gold);
+          if (def.jade) rewardParts.push(UIIcons.icon('jade') + def.jade);
+          if (def.bonus && def.bonus.gold) rewardParts.push(UIIcons.icon('gold') + def.bonus.gold);
           if (def.bonus && def.bonus.food) rewardParts.push('🍖' + def.bonus.food);
-          if (def.bonus && def.bonus.exp) rewardParts.push('⭐' + def.bonus.exp);
+          if (def.bonus && def.bonus.exp) rewardParts.push(UIIcons.icon('exp') + def.bonus.exp);
           var rewardStr = rewardParts.length > 0 ? '！获得 ' + rewardParts.join(' ') : '';
           EventBus.emit('toast:show', {
             type: 'success',
-            message: '🏆 成就达成：' + def.name + rewardStr
+            message: UIIcons.icon('achievement') + ' 成就达成：' + def.name + rewardStr
           });
         }
       }
@@ -215,14 +215,14 @@ var SettingsPanel = {
       if (def.bonus.exp) ResourceManager.add('exp', def.bonus.exp);
     }
     ach.claimed = true;
-    EventBus.emit('toast:show', { type: 'success', message: '🎁 已领取成就奖励: ' + def.name });
+    EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('gift') + ' 已领取成就奖励: ' + def.name });
     this._render();
   },
 
   _render: function () {
     if (!this._container) return;
     this._container.innerHTML =
-      '<h3 style="margin-bottom:10px;">⚙️ 设置</h3>' +
+      '<h3 style="margin-bottom:10px;">' + UIIcons.icon('settings') + ' 设置</h3>' +
       this._renderDailyLogin() +
       this._renderSaveManagement() +
       this._renderGameStats() +
@@ -245,8 +245,8 @@ var SettingsPanel = {
       var isPast = (i < cycleDay);
       var bg = isCurrent ? 'var(--color-primary)' : (isPast ? 'var(--color-secondary)' : 'rgba(255,255,255,0.05)');
       var border = isCurrent ? '2px solid var(--color-gold)' : '1px solid var(--color-secondary)';
-      var rewardText = '💰' + r.gold;
-      if (r.jade) rewardText += ' 💎' + r.jade;
+      var rewardText = UIIcons.icon('gold') + r.gold;
+      if (r.jade) rewardText += ' ' + UIIcons.icon('jade') + r.jade;
       if (r.food) rewardText += ' 🍖' + r.food;
       if (r.freeRecruit) rewardText += ' 🎲';
       daysHtml += '<div style="flex:1;text-align:center;padding:6px 2px;border-radius:4px;' +
@@ -259,13 +259,13 @@ var SettingsPanel = {
     }
 
     var todayReward = rewards[cycleDay];
-    var todayText = '💰' + todayReward.gold;
-    if (todayReward.jade) todayText += ' 💎' + todayReward.jade;
+    var todayText = UIIcons.icon('gold') + todayReward.gold;
+    if (todayReward.jade) todayText += ' ' + UIIcons.icon('jade') + todayReward.jade;
     if (todayReward.food) todayText += ' 🍖' + todayReward.food;
     if (todayReward.freeRecruit) todayText += ' 🎲免费招募';
 
     return '<div class="card">' +
-      '<h4 style="margin-bottom:8px;">📅 每日签到</h4>' +
+      '<h4 style="margin-bottom:8px;">' + UIIcons.icon('calendar') + ' 每日签到</h4>' +
       '<div style="margin-bottom:6px;">已签到 <strong>' + day + '</strong> 天</div>' +
       '<div style="display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;">' + daysHtml + '</div>' +
       '<div style="margin-bottom:8px;font-size:13px;">今日奖励: ' + todayText + '</div>' +
@@ -381,7 +381,7 @@ var SettingsPanel = {
       // Try clipboard API first, fall back to prompt
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(encoded).then(function() {
-          EventBus.emit('toast:show', { type: 'success', message: '📋 存档已复制到剪贴板!' });
+          EventBus.emit('toast:show', { type: 'success', message: UIIcons.icon('list') + ' 存档已复制到剪贴板!' });
         }).catch(function() {
           prompt('请复制以下存档码:', encoded);
         });

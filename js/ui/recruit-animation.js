@@ -392,18 +392,18 @@ var RecruitAnimation = {
   _createHeroCard: function (result, emojiSize) {
     var template = result.template;
     var name = template ? template.name : '???';
-    var emoji = template ? (template.emoji || '🧑') : '🧑';
+    var heroId = result.heroId || (template ? template.id : '');
     var title = template ? (template.title || '') : '';
     var color = this._qualityColors[result.quality] || '#aaa';
     var qName = this._qualityNames[result.quality] || '白·普通';
 
     var card = document.createElement('div');
 
-    // emoji
+    // portrait
     var emojiEl = document.createElement('div');
     emojiEl.className = 'recruit-hero-emoji';
-    emojiEl.style.cssText = 'font-size:' + (emojiSize || '2rem') + ';margin-bottom:8px;';
-    emojiEl.textContent = emoji;
+    emojiEl.style.cssText = 'margin-bottom:8px;';
+    emojiEl.innerHTML = HeroPortrait.getImgTag(heroId, parseInt(emojiSize) || 48);
     card.appendChild(emojiEl);
 
     // 名称 + 品质标签
@@ -436,7 +436,7 @@ var RecruitAnimation = {
   _createMiniCard: function (result) {
     var template = result.template;
     var name = template ? template.name : '???';
-    var emoji = template ? (template.emoji || '🧑') : '🧑';
+    var heroId = result.heroId || (template ? template.id : '');
     var color = this._qualityColors[result.quality] || '#aaa';
     var glowStyle = result.quality >= 4 ? 'box-shadow:0 0 10px ' + color + '60;' : '';
 
@@ -445,7 +445,7 @@ var RecruitAnimation = {
     card.style.borderColor = color;
     if (glowStyle) card.style.boxShadow = '0 0 10px ' + color + '60';
 
-    card.innerHTML = '<div style="font-size:1.3rem;">' + emoji + '</div>' +
+    card.innerHTML = '<div style="font-size:1.3rem;">' + HeroPortrait.getImgTag(heroId, 36) + '</div>' +
       '<div style="font-size:0.65rem;color:' + color + ';margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + '</div>' +
       (result.isNew ? '<div style="font-size:0.6rem;color:var(--color-gold);">✨新</div>' : '<div style="font-size:0.6rem;color:var(--color-text-dim);">→经验</div>');
 

@@ -41,6 +41,12 @@
   function initGame() {
     const saved = SaveManager.load();
 
+    // 初始化资源图标 HTML（UIIcons 已加载）
+    var RI = CONSTANTS.RESOURCE_ICON;
+    for (var rk in RI) {
+      CONSTANTS.RESOURCE_EMOJI[rk] = UIIcons.icon(RI[rk]);
+    }
+
     // 初始化各模块（顺序重要：EconomyManager 需在 ResourceManager 之后）
     ResourceManager.init(saved);
     HeroManager.init(saved);

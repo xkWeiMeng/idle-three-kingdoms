@@ -117,7 +117,7 @@ const CelebrationOverlay = {
         html += '<span class="particle" style="--i:' + i + '"></span>';
       }
       html += '</div>';
-      html += '<div class="celebration-hero-emoji">' + (template.emoji || '🦸') + '</div>';
+      html += '<div class="celebration-hero-emoji">' + HeroPortrait.getImgTag(template.id, 64) + '</div>';
       html += '<div class="celebration-hero-quality" style="color:' + qColor + '">' + qName + '</div>';
       html += '<div class="celebration-title">' + template.name + '</div>';
       html += '<div class="celebration-hero-title">' + (template.title || '') + '</div>';
@@ -137,7 +137,7 @@ const CelebrationOverlay = {
     var self = this;
     this._enqueue(function () {
       var html = '<div class="celebration-content achievement-unlock">';
-      html += '<div class="celebration-icon">🏆</div>';
+      html += '<div class="celebration-icon">' + UIIcons.icon('achievement', 'ui-icon-xl') + '</div>';
       html += '<div class="celebration-title">成就达成！</div>';
       html += '<div class="celebration-subtitle">' + (data.name || '未知成就') + '</div>';
       if (data.description) {

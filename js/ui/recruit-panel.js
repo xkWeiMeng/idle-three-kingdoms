@@ -97,12 +97,12 @@ const RecruitPanel = {
     var color = this._qualityColors[result.quality] || '#aaa';
     var template = result.template;
     var name = template ? template.name : '???';
-    var emoji = template ? (template.emoji || '🧑') : '🧑';
+    var heroId = result.heroId || (template ? template.id : '');
     var glowStyle = result.quality >= 4 ? 'box-shadow:0 0 10px ' + color + '60;' : '';
 
     var html = '<div style="text-align:center;padding:6px 2px;border-radius:6px;';
     html += 'background:var(--color-secondary);border:2px solid ' + color + ';' + glowStyle + '">';
-    html += '<div style="font-size:1.3rem;">' + emoji + '</div>';
+    html += '<div style="font-size:1.3rem;">' + HeroPortrait.getImgTag(heroId, 36) + '</div>';
     html += '<div style="font-size:0.65rem;color:' + color + ';margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + '</div>';
     if (result.isNew) {
       html += '<div style="font-size:0.6rem;color:var(--color-gold);">✨新</div>';
@@ -117,15 +117,15 @@ const RecruitPanel = {
     var color = this._qualityColors[result.quality] || '#aaa';
     var template = result.template;
     var name = template ? template.name : '???';
-    var emoji = template ? (template.emoji || '🧑') : '🧑';
+    var heroId = result.heroId || (template ? template.id : '');
     var qName = this._qualityNames[result.quality] || '白·普通';
     var title = template ? (template.title || '') : '';
     var glowStyle = result.quality >= 4 ? 'box-shadow:0 0 12px ' + color + '60;' : '';
 
     var html = '<div style="display:flex;align-items:center;gap:12px;padding:8px;border-radius:8px;';
     html += 'background:var(--color-secondary);border:2px solid ' + color + ';' + glowStyle + '">';
-    // Emoji
-    html += '<div style="font-size:2.2rem;width:50px;text-align:center;">' + emoji + '</div>';
+    // Portrait
+    html += '<div style="width:50px;text-align:center;">' + HeroPortrait.getImgTag(heroId, 48) + '</div>';
     // Info
     html += '<div style="flex:1;">';
     html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">';

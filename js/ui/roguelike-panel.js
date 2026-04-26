@@ -178,7 +178,7 @@ var RoguelikePanel = {
         var epct = Math.floor((ally.energy / ally.energyMax) * 100);
         var ready = ally.ultimateReady;
         ultHtml += '<div class="ult-slot' + (ready ? ' ult-ready' : '') + '" data-uid="' + ally.uid + '">';
-        ultHtml += '<div class="ult-icon">' + (ally.ultimate.icon || '🔥') + '</div>';
+        ultHtml += '<div class="ult-icon">' + (ally.ultimate.icon || UIIcons.icon('flame')) + '</div>';
         ultHtml += '<div class="ult-energy-track"><div class="ult-energy-fill" style="width:' + epct + '%"></div></div>';
         ultHtml += '<div class="ult-name">' + ally.name + '</div>';
         ultHtml += '</div>';

@@ -599,6 +599,91 @@ BuildingData._getBuildTime = function (targetLevel) {
 };
 
 /**
+ * 建筑多副本上限表
+ * 数组中每个元素表示解锁第 N+1 个副本所需的建筑等级
+ * 例如 [1, 5, 10] 表示: Lv1→1个, Lv5→2个, Lv10→3个
+ * town_hall 空数组表示永远只能1个
+ */
+BuildingData._maxCountTable = {
+  // 核心
+  town_hall:        [],                    // 永远 1 个
+
+  // 资源生产（高副本数，线性加产）
+  lumber_camp:      [1, 5, 10, 15, 20],    // 最多 5
+  quarry:           [1, 5, 10, 15, 20],    // 最多 5
+  iron_mine:        [1, 5, 10, 18],        // 最多 4
+  farmland:         [1, 4, 8, 12, 18, 25], // 最多 6
+  tax_office:       [1, 5, 10, 18],        // 最多 4
+
+  // 战斗辅助（中等副本数）
+  barracks:         [1, 8, 18],            // 最多 3
+  training_ground:  [1, 8, 18],            // 最多 3
+  blacksmith:       [1, 12],               // 最多 2
+  city_wall:        [1, 8, 18],            // 最多 3
+  weapon_workshop:  [1, 8],                // 最多 2
+  stable:           [1, 8],                // 最多 2
+
+  // 功能型
+  adventure_guild:  [1, 12],               // 最多 2
+  tavern:           [1, 12],               // 最多 2
+  warehouse:        [1, 5, 10, 18],        // 最多 4
+  market:           [1, 3],                // 最多 2
+  academy:          [1, 8],                // 最多 2
+  seed_shop:        [1, 3],                // 最多 2
+  parking_lot:      [1, 3],                // 最多 2
+
+  // 产出加成器
+  watermill:        [1, 3],                // 最多 2
+  stone_mason:      [1, 3],                // 最多 2
+  smelter:          [1, 3],                // 最多 2
+
+  // 种菜系统
+  vegetable_garden: [1, 4, 8],             // 最多 3
+  compost_pit:      [1, 3]                 // 最多 2
+};
+
+/**
+ * 查询建筑在指定等级下的最大副本数
+ * @param {string} buildingId
+ * @param {number} level 当前等级
+ * @returns {number} 最大副本数（至少 1）
+ */
+BuildingData._getMaxCount = function (buildingId, level) {
+  var table = BuildingData._maxCountTable[buildingId];
+  if (!table || table.length === 0) return 1;
+  var count = 0;
+  for (var i = 0; i < table.length; i++) {
+    if (level >= table[i]) count = i + 1;
+  }
+  return Math.max(1, count);
+};
+
+/**
+ * 建造副本的资源费用 = costFormula(currentLevel) × copyIndex
+ * copyIndex = 即将建造的第几个副本（从2开始）
+ */
+BuildingData._getCopyCost = function (buildingId, currentLevel, currentCount) {
+  var data = BuildingData[buildingId];
+  if (!data || !data.costFormula) return {};
+  var baseCost = data.costFormula(currentLevel);
+  var multiplier = currentCount + 1; // 第 n+1 个副本
+  var result = {};
+  for (var key in baseCost) {
+    if (baseCost.hasOwnProperty(key)) {
+      result[key] = Math.floor(baseCost[key] * multiplier);
+    }
+  }
+  return result;
+};
+
+/**
+ * 建造副本的施工时间 = 当前等级的施工时间
+ */
+BuildingData._getCopyBuildTime = function (buildingId, currentLevel) {
+  return BuildingData._getBuildTime(currentLevel);
+};
+
+/**
  * 建筑分类标签
  */
 BuildingData._categories = {
