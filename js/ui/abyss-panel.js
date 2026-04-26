@@ -950,11 +950,6 @@ var AbyssPanel = {
     // Action buttons
     var abyss = AbyssData[run.abyssId];
     var cost = abyss ? abyss.ticketCost : {};
-    var costParts = [];
-    if (cost.jade) costParts.push(UIIcons.icon('jade') + cost.jade);
-    if (cost.gold) costParts.push(UIIcons.icon('gold') + Utils.formatNumber(cost.gold));
-    if (cost.iron) costParts.push(UIIcons.icon('iron') + cost.iron);
-
     var canAfford = true;
     if (cost.jade && typeof ResourceManager !== 'undefined' && !ResourceManager.canAfford('jade', cost.jade)) canAfford = false;
     if (cost.gold && typeof ResourceManager !== 'undefined' && !ResourceManager.canAfford('gold', cost.gold)) canAfford = false;
@@ -962,7 +957,7 @@ var AbyssPanel = {
 
     html += '<div class="abyss-settlement__actions">';
     html += '<button class="btn abyss-retry" data-abyss-id="' + run.abyssId + '" style="' + (canAfford ? '' : 'opacity:0.5;') + '">';
-    html += UIIcons.icon('battle') + ' 再次挑战<div class="abyss-retry-cost">' + costParts.join(' ') + '</div></button>';
+    html += UIIcons.icon('battle') + ' 再次挑战</button>';
 
     // Quick battle on settlement: available after first clear
     var inst = AbyssManager.getInstance(run.abyssId);
