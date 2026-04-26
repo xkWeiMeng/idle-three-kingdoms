@@ -469,14 +469,13 @@ var AbyssManager = {
     var inst = this._state.instances[run.abyssId];
     if (run.currentFloor > inst.bestFloor) inst.bestFloor = run.currentFloor;
 
-    EventBus.emit('abyss:floor_cleared', {
-      abyssId: run.abyssId, floor: run.currentFloor, rewards: floorData.rewards
-    });
-
     run.log.push('═══ 第 ' + run.currentFloor + ' 层通关！ ═══');
 
     // Check if last floor
     if (run.currentFloor >= abyss.floors.length) {
+      EventBus.emit('abyss:floor_cleared', {
+        abyssId: run.abyssId, floor: run.currentFloor, rewards: floorData.rewards
+      });
       this._handleAbyssComplete();
       return;
     }
@@ -489,12 +488,20 @@ var AbyssManager = {
       }
     }
 
-    // Quick battle: advance immediately; normal: pause for UI transition
+    // Normal mode: set transition phase BEFORE emitting event
+    // so the UI handler can render the transition zone
+    if (!run.quickBattle) {
+      run.phase = 'transition';
+    }
+
+    EventBus.emit('abyss:floor_cleared', {
+      abyssId: run.abyssId, floor: run.currentFloor, rewards: floorData.rewards
+    });
+
+    // Quick battle: advance immediately (UI handler skips for quickBattle)
     if (run.quickBattle) {
       run.currentFloor++;
       this._setupFloor();
-    } else {
-      run.phase = 'transition';
     }
   },
 
