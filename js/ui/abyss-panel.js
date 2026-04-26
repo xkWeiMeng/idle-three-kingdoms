@@ -1015,9 +1015,6 @@ var AbyssPanel = {
     }
     html += '</div>';
 
-    // Particle zone
-    html += '<div id="abyss-particle-zone" style="position:relative;min-height:120px;"></div>';
-
     // Resources area
     html += '<div class="abyss-settlement__resources" id="abyss-resources" style="display:none;"></div>';
 
@@ -1124,7 +1121,6 @@ var AbyssPanel = {
     }
 
     var stitle = document.getElementById('abyss-stitle');
-    var particleZone = document.getElementById('abyss-particle-zone');
     var resourcesEl = document.getElementById('abyss-resources');
     var equipRevealEl = document.getElementById('abyss-equip-reveal');
     var summaryArea = document.getElementById('abyss-summary-area');
@@ -1135,12 +1131,12 @@ var AbyssPanel = {
     stitle.style.opacity = '1';
     stitle.style.animation = 'slideUp 0.3s ease';
 
-    // Phase 2: Particles (500ms)
+    // Phase 2: Particles (500ms) — full-screen via document.body
     var t2 = setTimeout(function () {
       if (self._settlement.skipped) return;
       self._settlement.phase = 'particles';
       EventBus.emit('abyss:loot_explosion_start', { abyssId: run.abyssId, floor: run.currentFloor, rewards: run.rewards });
-      self._LootParticles.start(run.rewards, particleZone, function () {
+      self._LootParticles.start(run.rewards, document.body, function () {
         EventBus.emit('abyss:loot_explosion_end', { abyssId: run.abyssId });
         // Phase 3: CountUp
         self._startCountUp(run, resourcesEl, function () {
