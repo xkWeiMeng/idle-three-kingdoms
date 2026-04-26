@@ -1471,13 +1471,234 @@ img, svg { display: block; max-width: 100%; }
   margin-top: 2px;
 }
 
+/* --- Quick Battle Progress --- */
+.abyss-quick-progress {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  padding: 24px;
+  text-align: center;
+}
+.abyss-quick-progress svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+.abyss-quick-progress .progress-bar {
+  position: relative;
+  z-index: 1;
+  width: 80%;
+  height: 12px;
+  background: rgba(255,255,255,0.1);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-top: 16px;
+}
+.abyss-quick-progress .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-gold));
+  border-radius: var(--radius-pill);
+  transition: width 0.4s ease;
+}
+.abyss-quick-progress .progress-text {
+  position: relative;
+  z-index: 1;
+  font-size: 1rem;
+  color: var(--color-text);
+  margin-top: 12px;
+  font-weight: bold;
+}
+.abyss-quick-progress .progress-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.78rem;
+  color: var(--color-text-dim);
+  margin-top: 4px;
+}
+
+/* --- Boss Entrance Transition --- */
+.abyss-transition {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  padding: 24px;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+.abyss-transition__boss {
+  margin-bottom: 12px;
+}
+.abyss-transition__name {
+  font-size: 1.3rem;
+  font-weight: bold;
+  font-family: var(--font-title);
+  animation: slideUp 0.4s ease;
+}
+.abyss-transition__title {
+  font-size: 0.78rem;
+  color: var(--color-text-dim);
+  margin-top: 4px;
+}
+
+/* --- Floor Clear Banner --- */
+.abyss-floor-clear {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 16px;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+}
+.abyss-floor-clear__text {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--color-success);
+}
+.abyss-floor-clear__rewards {
+  font-size: 0.78rem;
+  color: var(--color-text-dim);
+  margin-top: 8px;
+}
+
+/* --- Slot Machine --- */
+.slot-machine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+}
+.slot-frame-svg {
+  margin-bottom: 8px;
+}
+.slot-columns {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.slot-column {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border: 2px solid var(--color-secondary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-dark);
+  position: relative;
+}
+.slot-reel {
+  display: flex;
+  flex-direction: column;
+  transition: transform 1.2s cubic-bezier(0.15, 0.8, 0.3, 1);
+}
+.slot-item {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+.slot-result-name {
+  margin-top: 12px;
+  font-size: 1rem;
+  font-weight: bold;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+}
+
+/* Quality flashes */
+.slot-flash-blue {
+  animation: slotFlashBlue 0.5s ease;
+  box-shadow: 0 0 24px var(--quality-3), inset 0 0 12px rgba(74,127,181,0.3);
+}
+.slot-flash-purple {
+  animation: slotFlashBlue 0.5s ease;
+  box-shadow: 0 0 24px var(--quality-4), inset 0 0 12px rgba(139,94,168,0.3);
+}
+.slot-flash-gold {
+  animation: slotFlashBlue 0.6s ease;
+  box-shadow: 0 0 30px var(--quality-5), inset 0 0 16px rgba(212,168,73,0.3);
+}
+.slot-flash-red {
+  animation: slotFlashBlue 0.8s ease;
+  box-shadow: 0 0 36px #ff2222, inset 0 0 18px rgba(255,34,34,0.3);
+}
+
+/* Full-screen celebration overlay */
+.slot-celebration {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  animation: celebrationRadial 2s ease forwards;
+}
+.slot-celebration__name {
+  font-size: 1.4rem;
+  font-weight: bold;
+  font-family: var(--font-title);
+  text-shadow: 0 0 12px currentColor;
+  animation: slideUp 0.4s ease;
+}
+.slot-celebration__quality {
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* Quick battle button */
+.abyss-quick-btn {
+  font-size: 0.72rem !important;
+  padding: 4px 12px !important;
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-gold) !important;
+  color: var(--color-gold) !important;
+  margin-top: 4px;
+}
+.abyss-quick-btn:hover {
+  background: var(--color-secondary) !important;
+}
+
+/* --- New Keyframes --- */
+@keyframes slotSpin {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-100%); }
+}
+@keyframes slotFlashBlue {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+@keyframes celebrationRadial {
+  0%   { background: radial-gradient(circle, rgba(212,168,73,0.5) 0%, transparent 60%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { background: radial-gradient(circle, rgba(212,168,73,0) 0%, transparent 60%); opacity: 0; }
+}
+
 /* prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .loot-particle,
   .equip-reveal-card__inner,
   .equip-light-pillar,
   .equip-mythic-flash,
-  .abyss-settlement__title {
+  .abyss-settlement__title,
+  .slot-reel,
+  .slot-celebration,
+  .abyss-transition,
+  .abyss-floor-clear,
+  .abyss-quick-progress .progress-fill {
     animation: none !important;
     transition: none !important;
   }

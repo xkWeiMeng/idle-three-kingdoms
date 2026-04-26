@@ -22,11 +22,20 @@ var AbyssManager = {
       if (!this._state.instances[aid]) {
         this._state.instances[aid] = {
           cleared: false,
+          firstCleared: false,
           lastAttempt: 0,
           bestFloor: 0,
           totalAttempts: 0,
           mythicDropCount: 0
         };
+      }
+      // Backward compat: old saves with cleared but no firstCleared
+      var inst = this._state.instances[aid];
+      if (inst.cleared && inst.firstCleared === undefined) {
+        inst.firstCleared = true;
+      }
+      if (inst.firstCleared === undefined) {
+        inst.firstCleared = false;
       }
     }
   },
@@ -472,7 +481,7 @@ var AbyssManager = {
       return;
     }
 
-    // Heal allies 30% HP, move to next floor
+    // Heal allies 30% HP
     for (var h = 0; h < run.allies.length; h++) {
       if (run.allies[h].isAlive) {
         run.allies[h].currentHp = Math.min(run.allies[h].maxHp,
@@ -480,8 +489,13 @@ var AbyssManager = {
       }
     }
 
-    run.currentFloor++;
-    this._setupFloor();
+    // Quick battle: advance immediately; normal: pause for UI transition
+    if (run.quickBattle) {
+      run.currentFloor++;
+      this._setupFloor();
+    } else {
+      run.phase = 'transition';
+    }
   },
 
   _handleAbyssComplete: function () {
@@ -492,6 +506,7 @@ var AbyssManager = {
     // First clear rewards
     if (!inst.cleared) {
       inst.cleared = true;
+      inst.firstCleared = true;
       var fcr = abyss.firstClearReward;
       if (fcr.gold) { ResourceManager.add('gold', fcr.gold); run.rewards.gold += fcr.gold; }
       if (fcr.jade) { ResourceManager.add('jade', fcr.jade); run.rewards.jade += fcr.jade; }
@@ -516,6 +531,165 @@ var AbyssManager = {
     run.log.push('💀 全军覆没于第 ' + run.currentFloor + ' 层…');
 
     EventBus.emit('abyss:failed', { abyssId: run.abyssId, floor: run.currentFloor });
+  },
+
+  /** Quick battle — instantly run all floors for an already-cleared abyss */
+  quickBattle: function (abyssId) {
+    // Validate preconditions
+    if (this._state.currentRun) {
+      EventBus.emit('toast:show', { type: 'warning', message: '已有正在进行的深渊挑战' });
+      return false;
+    }
+
+    var abyss = AbyssData[abyssId];
+    if (!abyss) return false;
+
+    if (!this.isAbyssUnlocked(abyssId)) {
+      EventBus.emit('toast:show', { type: 'warning', message: '深渊尚未解锁' });
+      return false;
+    }
+
+    var inst = this._state.instances[abyssId];
+    if (!inst || !inst.firstCleared) {
+      EventBus.emit('toast:show', { type: 'warning', message: '需要先通关一次才能使用快速战斗' });
+      return false;
+    }
+
+    var team = HeroManager.getTeam();
+    if (!team || team.length === 0) {
+      EventBus.emit('toast:show', { type: 'warning', message: '请先编入队伍！' });
+      return false;
+    }
+
+    // Check ticket cost
+    var cost = abyss.ticketCost;
+    if (cost.jade && !ResourceManager.canAfford('jade', cost.jade)) {
+      EventBus.emit('toast:show', { type: 'warning', message: '玉璧不足！需要💎×' + cost.jade });
+      return false;
+    }
+    if (cost.gold && !ResourceManager.canAfford('gold', cost.gold)) {
+      EventBus.emit('toast:show', { type: 'warning', message: '金币不足！需要💰×' + Utils.formatNumber(cost.gold) });
+      return false;
+    }
+    if (cost.iron && !ResourceManager.canAfford('iron', cost.iron)) {
+      EventBus.emit('toast:show', { type: 'warning', message: '铁矿不足！需要⛏️×' + cost.iron });
+      return false;
+    }
+
+    // Deduct ticket cost
+    if (cost.jade) ResourceManager.spend('jade', cost.jade);
+    if (cost.gold) ResourceManager.spend('gold', cost.gold);
+    if (cost.iron) ResourceManager.spend('iron', cost.iron);
+
+    // Record attempt
+    inst.lastAttempt = Math.floor(Date.now() / 1000);
+    inst.totalAttempts++;
+
+    // Build ally units (same as enterAbyss)
+    var atkBonus = typeof TownManager !== 'undefined' ? TownManager.getAtkBonus() : 0;
+    var defBonus = typeof TownManager !== 'undefined' ? TownManager.getDefBonus() : 0;
+    var hpBonus  = typeof TownManager !== 'undefined' ? TownManager.getHpBonus() : 0;
+
+    var allies = [];
+    for (var i = 0; i < team.length; i++) {
+      var hero = team[i];
+      var template = HeroManager.getTemplate(hero.id);
+      var stats = HeroManager.getHeroStats(hero.uid);
+      if (!template || !stats) continue;
+
+      var abyssCombatSkills = (typeof HeroManager.getCombatSkills === 'function') ? HeroManager.getCombatSkills(hero.uid) : [];
+
+      allies.push({
+        uid: hero.uid,
+        id: hero.id,
+        name: template.name,
+        emoji: template.emoji || '',
+        currentHp: Math.floor(stats.hp * (1 + hpBonus)),
+        maxHp: Math.floor(stats.hp * (1 + hpBonus)),
+        atk: Math.floor(stats.atk * (1 + atkBonus)),
+        def: Math.floor(stats.def * (1 + defBonus)),
+        spd: stats.spd,
+        baseAtk: Math.floor(stats.atk * (1 + atkBonus)),
+        baseDef: Math.floor(stats.def * (1 + defBonus)),
+        baseSpd: stats.spd,
+        skill: abyssCombatSkills.length > 0 ? abyssCombatSkills[0] : (template.skill ? Utils.deepClone(template.skill) : null),
+        skillCd: 0,
+        skills: abyssCombatSkills,
+        skillCds: abyssCombatSkills.map(function () { return 0; }),
+        buffs: [],
+        isAlive: true,
+        isAlly: true,
+        position: i,
+        deathImmunityUsed: false
+      });
+    }
+
+    this._state.currentRun = {
+      abyssId: abyssId,
+      currentFloor: 1,
+      phase: 'fighting',
+      allies: allies,
+      enemies: [],
+      round: 0,
+      log: [],
+      rewards: { gold: 0, exp: 0, iron: 0, jade: 0 },
+      droppedEquipment: [],
+      battleTimer: 0,
+      quickBattle: true
+    };
+
+    this._setupFloor();
+
+    // Synchronous loop: execute all rounds for all floors
+    var MAX_ROUNDS = 200; // Safety limit per floor
+    var run = this._state.currentRun;
+    while (run && (run.phase === 'fighting' || run.phase === 'transition')) {
+      if (run.phase === 'transition') {
+        // quickBattle transitions are handled automatically in _handleFloorVictory
+        break; // Should not reach here for quickBattle, safety exit
+      }
+      var roundCount = 0;
+      while (run.phase === 'fighting' && roundCount < MAX_ROUNDS) {
+        this._executeRound();
+        // Tick buff durations after each round
+        this._tickBuffs(run);
+        roundCount++;
+      }
+      // If run completed or defeated, stop
+      if (!run || run.phase === 'complete' || run.phase === 'defeat') break;
+    }
+
+    EventBus.emit('abyss:entered', { abyssId: abyssId, quickBattle: true });
+    return true;
+  },
+
+  /** Tick buff durations (decrement and expire) */
+  _tickBuffs: function (run) {
+    var allUnits = run.allies.concat(run.enemies);
+    for (var u = 0; u < allUnits.length; u++) {
+      var unit = allUnits[u];
+      if (!unit.isAlive || !unit.buffs || unit.buffs.length === 0) continue;
+      for (var b = unit.buffs.length - 1; b >= 0; b--) {
+        unit.buffs[b].duration--;
+        if (unit.buffs[b].duration <= 0) {
+          unit.buffs.splice(b, 1);
+        }
+      }
+      if (unit.buffs.length === 0 || unit.buffs.length !== unit.buffs.length) {
+        this._recalcStats(unit);
+      }
+    }
+  },
+
+  /** Advance to next floor — only valid during 'transition' phase */
+  advanceFloor: function () {
+    var run = this._state.currentRun;
+    if (!run || run.phase !== 'transition') return false;
+
+    run.currentFloor++;
+    this._setupFloor();
+    EventBus.emit('abyss:floor_advanced', { abyssId: run.abyssId, floor: run.currentFloor });
+    return true;
   },
 
   /** Clear the current run (after viewing results) */

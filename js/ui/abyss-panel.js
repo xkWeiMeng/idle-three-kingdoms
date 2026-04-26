@@ -136,13 +136,13 @@ var AbyssPanel = {
   },
 
   /* ============================
-   * Equipment Reveal System
+   * Slot Machine Equipment Reveal
    * ============================ */
-  _EquipReveal: {
+  _SlotMachine: {
     _container: null,
-    _cards: [],
     _timers: [],
     _onComplete: null,
+    REEL_ICONS: ['🗡️', '⚔️', '🛡️', '🏹', '👑', '💍', '📿', '🔮'],
 
     start: function (equipments, containerEl, onComplete) {
       this.stop();
@@ -154,152 +154,386 @@ var AbyssPanel = {
         return;
       }
 
-      // Sort by quality ascending (lowest first, highest last)
-      var sorted = equipments.slice().sort(function (a, b) { return a.quality - b.quality; });
-
-      // Create card DOM
-      for (var i = 0; i < sorted.length; i++) {
-        var eq = sorted[i];
-        var card = this._createCard(eq);
-        containerEl.appendChild(card.el);
-        this._cards.push({ el: card.el, inner: card.inner, equip: eq, revealed: false });
+      // Filter quality >= 3
+      var qualified = [];
+      for (var i = 0; i < equipments.length; i++) {
+        if (equipments[i].quality >= 3) qualified.push(equipments[i]);
       }
 
-      // Schedule reveals
-      var self = this;
-      var baseDelay = 0;
-      for (var c = 0; c < this._cards.length; c++) {
-        (function (idx, delay) {
-          var card = self._cards[idx];
-          var eq = card.equip;
-          var extraDelay = 0;
-          if (eq.quality === 5) extraDelay = 300;
-          else if (eq.quality === 6) extraDelay = 1000;
-          var totalDelay = delay + extraDelay;
-
-          var tid = setTimeout(function () {
-            self._revealCard(idx);
-          }, totalDelay);
-          self._timers.push(tid);
-        })(c, baseDelay);
-        baseDelay += 400;
-      }
-
-      // Schedule completion
-      var lastEq = sorted[sorted.length - 1];
-      var finalDelay = baseDelay - 400; // last card base
-      if (lastEq.quality === 5) finalDelay += 300;
-      else if (lastEq.quality === 6) finalDelay += 1000 + 800 + 400; // mythic flash+shake
-      finalDelay += 800; // flip animation time + buffer
-
-      var completeTid = setTimeout(function () {
-        if (self._onComplete) self._onComplete();
-      }, finalDelay);
-      this._timers.push(completeTid);
-    },
-
-    _createCard: function (eq) {
-      var qualityClass = '';
-      if (eq.quality === 4) qualityClass = 'equip-reveal-card--epic';
-      else if (eq.quality === 5) qualityClass = 'equip-reveal-card--legendary';
-      else if (eq.quality >= 6) qualityClass = 'equip-reveal-card--mythic';
-
-      var card = document.createElement('div');
-      card.className = 'equip-reveal-card ' + qualityClass;
-
-      var inner = document.createElement('div');
-      inner.className = 'equip-reveal-card__inner';
-
-      var back = document.createElement('div');
-      back.className = 'equip-reveal-card__back';
-
-      var front = document.createElement('div');
-      front.className = 'equip-reveal-card__front';
-
-      var statStr = '';
-      if (eq.stats) {
-        var keys = Object.keys(eq.stats);
-        for (var s = 0; s < keys.length; s++) {
-          statStr += keys[s] + '+' + eq.stats[keys[s]] + ' ';
-        }
-      }
-
-      front.innerHTML = '<span class="eq-emoji">' + (eq.emoji || UIIcons.icon('weapon')) + '</span>'
-        + '<span class="eq-name" style="color:' + (AbyssPanel._qualityColors[eq.quality] || '#aaa') + ';">' + eq.name + '</span>'
-        + '<span class="eq-stat">' + statStr.trim() + '</span>';
-
-      inner.appendChild(back);
-      inner.appendChild(front);
-      card.appendChild(inner);
-
-      return { el: card, inner: inner };
-    },
-
-    _revealCard: function (idx) {
-      var card = this._cards[idx];
-      if (!card || card.revealed) return;
-      var eq = card.equip;
-
-      // Mythic: flash + shake before flip
-      if (eq.quality >= 6 && this._container) {
-        var flash = document.createElement('div');
-        flash.className = 'equip-mythic-flash';
-        this._container.parentNode.appendChild(flash);
-        var shakeTarget = this._container.parentNode;
-        shakeTarget.style.animation = 'shake 0.1s ease 4';
-
-        var self = this;
-        var cleanTid = setTimeout(function () {
-          if (flash.parentNode) flash.parentNode.removeChild(flash);
-          shakeTarget.style.animation = '';
-          card.inner.classList.add('flipped');
-          card.revealed = true;
-          EventBus.emit('abyss:equip_reveal', { equipment: eq, quality: eq.quality });
-        }, 1200);
-        this._timers.push(cleanTid);
+      if (qualified.length === 0) {
+        if (onComplete) onComplete();
         return;
       }
 
-      // Legendary: light pillar
-      if (eq.quality === 5) {
-        var pillar = document.createElement('div');
-        pillar.className = 'equip-light-pillar';
-        card.el.style.position = 'relative';
-        card.el.appendChild(pillar);
-        var pTid = setTimeout(function () {
-          if (pillar.parentNode) pillar.parentNode.removeChild(pillar);
-        }, 1100);
-        this._timers.push(pTid);
+      // Sort by quality ascending (lowest first)
+      qualified.sort(function (a, b) { return a.quality - b.quality; });
+
+      // Play slot machines sequentially
+      var self = this;
+      var delay = 0;
+      for (var q = 0; q < qualified.length; q++) {
+        (function (idx, startDelay) {
+          var tid = setTimeout(function () {
+            if (!self._container) return;
+            self._playOneSlot(qualified[idx]);
+          }, startDelay);
+          self._timers.push(tid);
+        })(q, delay);
+        var eq = qualified[q];
+        var numCols = (eq.quality >= 5) ? 3 : 1;
+        var baseDuration = 1200;
+        var extraStopTime = numCols === 3 ? (500 * 2) : 0; // 500ms between column stops
+        if (eq.quality >= 6) extraStopTime += 1200; // mythic delay
+        var qualityEffectTime = (eq.quality >= 5) ? 2000 : 500;
+        delay += baseDuration + extraStopTime + qualityEffectTime + 800; // 800ms gap between slots
       }
 
-      card.inner.classList.add('flipped');
-      card.revealed = true;
-      EventBus.emit('abyss:equip_reveal', { equipment: eq, quality: eq.quality });
+      // Schedule completion after last slot finishes
+      var completeTid = setTimeout(function () {
+        if (self._onComplete) self._onComplete();
+      }, delay);
+      this._timers.push(completeTid);
+    },
+
+    _playOneSlot: function (equip) {
+      var numColumns = (equip.quality >= 5) ? 3 : 1;
+      var slotData = this._createSlotDOM(equip, numColumns);
+      if (!this._container) return;
+
+      // Clear previous slot display
+      var prev = this._container.querySelectorAll('.slot-machine');
+      for (var p = 0; p < prev.length; p++) {
+        if (prev[p].parentNode) prev[p].parentNode.removeChild(prev[p]);
+      }
+
+      this._container.appendChild(slotData.container);
+
+      // Spin columns
+      var self = this;
+      for (var c = 0; c < slotData.columns.length; c++) {
+        (function (colIdx) {
+          var duration = 1200 + colIdx * 500;
+          // Mythic: last column delayed
+          if (equip.quality >= 6 && colIdx === slotData.columns.length - 1) {
+            duration += 1200;
+          }
+          var tid = setTimeout(function () {
+            self._spinColumn(slotData.columns[colIdx], slotData.targetIndex, duration, function () {
+              // On last column stop, play quality effect
+              if (colIdx === slotData.columns.length - 1) {
+                self._playQualityEffect(equip.quality, slotData.container, equip);
+              }
+            });
+          }, 50); // Small delay to let DOM render
+          self._timers.push(tid);
+        })(c);
+      }
+    },
+
+    _createSlotDOM: function (equip, numColumns) {
+      var container = document.createElement('div');
+      container.className = 'slot-machine';
+
+      // SVG frame placeholder
+      var frameHtml = '<!-- PLACEHOLDER: 老虎机外框\n'
+        + '     位置：结算界面居中\n'
+        + '     尺寸：' + (numColumns === 3 ? '300×180px' : '120×180px') + '\n'
+        + '     内容：古风卷轴造型的老虎机框架\n'
+        + '     替换方式：将此 <svg> 替换为 <img src="assets/abyss/slot-frame.svg"> -->';
+      var svgWidth = numColumns === 3 ? 260 : 100;
+      frameHtml += '<svg class="slot-frame-svg" width="' + svgWidth + '" height="36" viewBox="0 0 ' + svgWidth + ' 36">'
+        + '<rect x="1" y="1" width="' + (svgWidth - 2) + '" height="34" rx="6" fill="none" stroke="var(--color-gold, #d4a849)" stroke-width="2" opacity="0.6"/>'
+        + '<line x1="10" y1="8" x2="' + (svgWidth - 10) + '" y2="8" stroke="var(--color-gold, #d4a849)" stroke-width="0.5" opacity="0.3"/>'
+        + '<text x="' + (svgWidth / 2) + '" y="26" text-anchor="middle" fill="var(--color-text-dim, #a09080)" font-size="10">⚔ 装备揭示 ⚔</text>'
+        + '</svg>';
+
+      var frameDiv = document.createElement('div');
+      frameDiv.innerHTML = frameHtml;
+      container.appendChild(frameDiv);
+
+      // Columns container
+      var columnsDiv = document.createElement('div');
+      columnsDiv.className = 'slot-columns';
+
+      var columns = [];
+      var icons = this.REEL_ICONS;
+      var targetIndex = 10; // target will be at index 10 of 13 items
+
+      for (var c = 0; c < numColumns; c++) {
+        var colDiv = document.createElement('div');
+        colDiv.className = 'slot-column';
+        var reelDiv = document.createElement('div');
+        reelDiv.className = 'slot-reel';
+
+        // Build 13 items: 12 random + 1 target at targetIndex
+        for (var r = 0; r < 13; r++) {
+          var itemDiv = document.createElement('div');
+          itemDiv.className = 'slot-item';
+          if (r === targetIndex) {
+            // Target item: show equipment emoji/name
+            itemDiv.innerHTML = '<span>' + (equip.emoji || '⚔️') + '</span>';
+            itemDiv.setAttribute('data-target', 'true');
+          } else {
+            // Random icon
+            var randIcon = icons[Math.floor(Math.random() * icons.length)];
+            itemDiv.textContent = randIcon;
+          }
+          reelDiv.appendChild(itemDiv);
+        }
+
+        colDiv.appendChild(reelDiv);
+        columnsDiv.appendChild(colDiv);
+        columns.push({ el: colDiv, reel: reelDiv });
+      }
+
+      container.appendChild(columnsDiv);
+      return { container: container, columns: columns, targetIndex: targetIndex };
+    },
+
+    _spinColumn: function (column, targetIdx, duration, onStop) {
+      var reel = column.reel;
+      // Calculate the translateY to land on target
+      var itemHeight = 72;
+      var targetY = -(targetIdx * itemHeight);
+
+      // Start with no transition for initial position
+      reel.style.transition = 'none';
+      reel.style.transform = 'translateY(0)';
+
+      // Force reflow then animate
+      reel.offsetHeight; // force reflow
+      reel.style.transition = 'transform ' + (duration / 1000) + 's cubic-bezier(0.15, 0.8, 0.3, 1)';
+      reel.style.transform = 'translateY(' + targetY + 'px)';
+
+      var self = this;
+      var tid = setTimeout(function () {
+        if (onStop) onStop();
+      }, duration + 50);
+      this._timers.push(tid);
+    },
+
+    _playQualityEffect: function (quality, container, equip) {
+      var self = this;
+      var qColor = AbyssPanel._qualityColors[quality] || '#aaa';
+      var qName = AbyssPanel._qualityNames[quality] || '';
+
+      // Add flash class to slot columns
+      var columns = container.querySelectorAll('.slot-column');
+      var flashClass = '';
+      if (quality === 3) flashClass = 'slot-flash-blue';
+      else if (quality === 4) flashClass = 'slot-flash-purple';
+      else if (quality >= 5) flashClass = 'slot-flash-gold';
+      if (quality >= 6) flashClass = 'slot-flash-red';
+
+      for (var c = 0; c < columns.length; c++) {
+        columns[c].classList.add(flashClass);
+      }
+
+      // Show result name
+      var nameDiv = document.createElement('div');
+      nameDiv.className = 'slot-result-name';
+      nameDiv.style.color = qColor;
+      nameDiv.textContent = (equip.emoji || '') + ' ' + equip.name + '（' + qName + '）';
+      container.appendChild(nameDiv);
+
+      // Quality 4: purple full pulse (reuse existing animation)
+      if (quality === 4 && container.parentNode) {
+        container.parentNode.style.animation = 'pulse-glow-purple 0.8s ease';
+        var tid4 = setTimeout(function () {
+          if (container.parentNode) container.parentNode.style.animation = '';
+        }, 800);
+        this._timers.push(tid4);
+      }
+
+      // Quality 5+: celebration overlay
+      if (quality >= 5) {
+        var celebDiv = document.createElement('div');
+        celebDiv.className = 'slot-celebration';
+        var celebName = document.createElement('div');
+        celebName.className = 'slot-celebration__name';
+        celebName.style.color = qColor;
+        celebName.textContent = equip.name;
+        var celebQ = document.createElement('div');
+        celebQ.className = 'slot-celebration__quality';
+        celebQ.style.color = qColor;
+        celebQ.textContent = qName;
+        celebDiv.appendChild(celebName);
+        celebDiv.appendChild(celebQ);
+
+        if (container.parentNode) {
+          container.parentNode.style.position = 'relative';
+          container.parentNode.appendChild(celebDiv);
+        }
+
+        // Gold particles via LootParticles if quality 5
+        if (quality === 5 && AbyssPanel._LootParticles && container.parentNode) {
+          var goldRewards = { gold: 2000, exp: 0, iron: 0, jade: 0 };
+          AbyssPanel._LootParticles.start(goldRewards, container.parentNode, function () {});
+        }
+
+        // Remove celebration after 2s
+        var tidCeleb = setTimeout(function () {
+          if (celebDiv.parentNode) celebDiv.parentNode.removeChild(celebDiv);
+        }, 2000);
+        this._timers.push(tidCeleb);
+      }
+
+      // Quality 6: mythic flash + shake before effect
+      if (quality >= 6 && container.parentNode) {
+        var flash = document.createElement('div');
+        flash.className = 'equip-mythic-flash';
+        container.parentNode.appendChild(flash);
+        container.parentNode.style.animation = 'shake 0.1s ease 4';
+
+        var tidFlash = setTimeout(function () {
+          if (flash.parentNode) flash.parentNode.removeChild(flash);
+          if (container.parentNode) container.parentNode.style.animation = '';
+        }, 1200);
+        this._timers.push(tidFlash);
+      }
+
+      EventBus.emit('abyss:equip_reveal', { equipment: equip, quality: quality });
     },
 
     skip: function () {
+      // Clear all timers
       for (var t = 0; t < this._timers.length; t++) clearTimeout(this._timers[t]);
       this._timers = [];
-      for (var c = 0; c < this._cards.length; c++) {
-        if (!this._cards[c].revealed) {
-          this._cards[c].inner.classList.add('flipped');
-          this._cards[c].revealed = true;
+
+      // Show all targets immediately
+      if (this._container) {
+        var reels = this._container.querySelectorAll('.slot-reel');
+        for (var r = 0; r < reels.length; r++) {
+          reels[r].style.transition = 'none';
+          var targetItems = reels[r].querySelectorAll('[data-target="true"]');
+          if (targetItems.length > 0) {
+            var idx = Array.prototype.indexOf.call(reels[r].children, targetItems[0]);
+            reels[r].style.transform = 'translateY(' + (-(idx * 72)) + 'px)';
+          }
+        }
+        // Remove all effects
+        var celebrations = this._container.parentNode ? this._container.parentNode.querySelectorAll('.slot-celebration') : [];
+        for (var c = 0; c < celebrations.length; c++) {
+          if (celebrations[c].parentNode) celebrations[c].parentNode.removeChild(celebrations[c]);
+        }
+        var flashes = this._container.parentNode ? this._container.parentNode.querySelectorAll('.equip-mythic-flash') : [];
+        for (var f = 0; f < flashes.length; f++) {
+          if (flashes[f].parentNode) flashes[f].parentNode.removeChild(flashes[f]);
         }
       }
-      // Remove any flash/pillar effects
-      if (this._container) {
-        var flashes = this._container.parentNode.querySelectorAll('.equip-mythic-flash');
-        for (var f = 0; f < flashes.length; f++) { if (flashes[f].parentNode) flashes[f].parentNode.removeChild(flashes[f]); }
-        var pillars = this._container.querySelectorAll('.equip-light-pillar');
-        for (var p = 0; p < pillars.length; p++) { if (pillars[p].parentNode) pillars[p].parentNode.removeChild(pillars[p]); }
-      }
+
+      AbyssPanel._LootParticles.stop();
     },
 
     stop: function () {
       this.skip();
-      this._cards = [];
       this._container = null;
       this._onComplete = null;
+    }
+  },
+
+  /* ============================
+   * Floor Transition System
+   * ============================ */
+  _Transition: {
+    _timers: [],
+    _container: null,
+
+    showBossEntrance: function (bossData, theme, onComplete) {
+      this._clearTimers();
+      var container = document.createElement('div');
+      container.className = 'abyss-transition';
+      container.style.animation = 'fadeIn 0.3s ease';
+      this._container = container;
+
+      var bgColor = (theme && theme.bossFrameColor) ? theme.bossFrameColor : '#ff4444';
+
+      // Boss SVG silhouette placeholder
+      container.innerHTML = ''
+        + '<!-- PLACEHOLDER: Boss 登场剪影\n'
+        + '     位置：过场画面中央\n'
+        + '     尺寸：160×220px\n'
+        + '     内容：Boss 角色全身剪影（暗色轮廓 + 主题色背光）\n'
+        + '     替换方式：将此 <svg> 替换为 <img src="assets/abyss/boss_' + (bossData.id || 'unknown') + '.svg"> -->'
+        + '<div class="abyss-transition__boss">'
+        + '<svg width="160" height="220" viewBox="0 0 160 220">'
+        + '<defs><radialGradient id="boss-glow-' + (bossData.id || 'x') + '">'
+        + '<stop offset="0%" stop-color="' + bgColor + '" stop-opacity="0.4"/>'
+        + '<stop offset="100%" stop-color="transparent"/>'
+        + '</radialGradient></defs>'
+        + '<circle cx="80" cy="110" r="100" fill="url(#boss-glow-' + (bossData.id || 'x') + ')"/>'
+        + '<ellipse cx="80" cy="60" rx="25" ry="30" fill="#1a1a1a" stroke="#333" stroke-width="1"/>'
+        + '<rect x="55" y="85" width="50" height="80" rx="5" fill="#1a1a1a" stroke="#333" stroke-width="1"/>'
+        + '<rect x="45" y="165" width="20" height="50" rx="3" fill="#1a1a1a"/>'
+        + '<rect x="95" y="165" width="20" height="50" rx="3" fill="#1a1a1a"/>'
+        + '<text x="80" y="200" text-anchor="middle" fill="#555" font-size="10">BOSS</text>'
+        + '</svg>'
+        + '</div>'
+        + '<div class="abyss-transition__name" style="color:' + bgColor + ';">' + (bossData.name || '???') + '</div>'
+        + '<div class="abyss-transition__title" style="color:var(--color-text-dim);">' + (bossData.title || '') + '</div>';
+
+      return { el: container, start: function (parentEl) {
+        parentEl.appendChild(container);
+        var self2 = AbyssPanel._Transition;
+        // Fade out after 1.5s
+        var tid = setTimeout(function () {
+          container.style.opacity = '0';
+          container.style.transition = 'opacity 0.3s ease';
+          var tid2 = setTimeout(function () {
+            if (container.parentNode) container.parentNode.removeChild(container);
+            if (onComplete) onComplete();
+          }, 300);
+          self2._timers.push(tid2);
+        }, 1500);
+        self2._timers.push(tid);
+      }};
+    },
+
+    showFloorClear: function (floor, rewards, onComplete) {
+      this._clearTimers();
+      var container = document.createElement('div');
+      container.className = 'abyss-floor-clear';
+      container.style.animation = 'slideUp 0.3s ease';
+      this._container = container;
+
+      var rewardStr = '';
+      if (rewards) {
+        if (rewards.gold) rewardStr += (typeof UIIcons !== 'undefined' ? UIIcons.icon('gold') : '💰') + rewards.gold + ' ';
+        if (rewards.exp) rewardStr += (typeof UIIcons !== 'undefined' ? UIIcons.icon('exp') : '✨') + rewards.exp + ' ';
+        if (rewards.iron) rewardStr += (typeof UIIcons !== 'undefined' ? UIIcons.icon('iron') : '⛏️') + rewards.iron + ' ';
+        if (rewards.jade) rewardStr += (typeof UIIcons !== 'undefined' ? UIIcons.icon('jade') : '💎') + rewards.jade + ' ';
+      }
+
+      container.innerHTML = '<div class="abyss-floor-clear__text">✅ 第 ' + floor + ' 层通过！</div>'
+        + '<div class="abyss-floor-clear__rewards">' + rewardStr.trim() + '</div>';
+
+      return { el: container, start: function (parentEl) {
+        parentEl.appendChild(container);
+        var self2 = AbyssPanel._Transition;
+        var tid = setTimeout(function () {
+          container.style.opacity = '0';
+          container.style.transition = 'opacity 0.3s ease';
+          var tid2 = setTimeout(function () {
+            if (container.parentNode) container.parentNode.removeChild(container);
+            if (onComplete) onComplete();
+          }, 300);
+          self2._timers.push(tid2);
+        }, 1500);
+        self2._timers.push(tid);
+      }};
+    },
+
+    _clearTimers: function () {
+      for (var i = 0; i < this._timers.length; i++) clearTimeout(this._timers[i]);
+      this._timers = [];
+    },
+
+    stop: function () {
+      this._clearTimers();
+      if (this._container && this._container.parentNode) {
+        this._container.parentNode.removeChild(this._container);
+      }
+      this._container = null;
     }
   },
 
@@ -309,11 +543,12 @@ var AbyssPanel = {
   init: function () {
     var self = this;
     EventBus.on('abyss:entered', this._onUpdate.bind(this));
-    EventBus.on('abyss:floor_cleared', this._onUpdate.bind(this));
+    EventBus.on('abyss:floor_cleared', this._onFloorCleared.bind(this));
     EventBus.on('abyss:completed', this._onSettlementTrigger.bind(this));
     EventBus.on('abyss:failed', this._onSettlementTrigger.bind(this));
     EventBus.on('overlay:closed', function (closedId) {
       if (closedId === 'abyss') {
+        self._Transition.stop();
         self._cleanupSettlement();
       }
     });
@@ -322,6 +557,56 @@ var AbyssPanel = {
   _onUpdate: function () {
     var el = document.getElementById('abyss-panel-content');
     if (el) this.show();
+  },
+
+  /** Handle floor cleared: show transition animations in normal mode */
+  _onFloorCleared: function (data) {
+    var run = AbyssManager.getCurrentRun();
+    if (!run) return;
+
+    // Quick battle: skip all transitions
+    if (run.quickBattle) return;
+
+    // If not visible, skip transition but leave phase as 'transition'
+    var el = document.getElementById('abyss-panel-content');
+    if (!el) return;
+
+    // Show floor clear banner → then boss entrance → then advance floor
+    var self = this;
+    var transitionZone = document.getElementById('abyss-transition-zone');
+    if (!transitionZone) {
+      this.show();
+      transitionZone = document.getElementById('abyss-transition-zone');
+    }
+    if (!transitionZone) return;
+
+    var floorClear = this._Transition.showFloorClear(data.floor, data.rewards, function () {
+      // After floor clear banner fades, check if there's a next floor
+      var currentRun = AbyssManager.getCurrentRun();
+      if (!currentRun || currentRun.phase !== 'transition') return;
+
+      var abyss = AbyssData[currentRun.abyssId];
+      if (!abyss || currentRun.currentFloor >= abyss.floors.length) return;
+
+      // Show next boss entrance
+      var nextFloorData = abyss.floors[currentRun.currentFloor]; // currentFloor is still the cleared one
+      if (!nextFloorData) return;
+
+      var bossData = {
+        id: nextFloorData.boss.id,
+        name: nextFloorData.boss.name,
+        title: nextFloorData.boss.title || ''
+      };
+      var theme = abyss.theme || {};
+
+      var bossEntrance = self._Transition.showBossEntrance(bossData, theme, function () {
+        // Advance floor after boss entrance
+        AbyssManager.advanceFloor();
+        self.show();
+      });
+      if (transitionZone) bossEntrance.start(transitionZone);
+    });
+    floorClear.start(transitionZone);
   },
 
   _onSettlementTrigger: function () {
@@ -356,6 +641,8 @@ var AbyssPanel = {
     if (currentRun) {
       if (currentRun.phase === 'complete' || currentRun.phase === 'defeat') {
         html += this._renderSettlement(currentRun);
+      } else if (currentRun.phase === 'transition') {
+        html += this._renderTransitionPhase(currentRun);
       } else {
         html += this._renderActiveRun(currentRun);
       }
@@ -365,6 +652,86 @@ var AbyssPanel = {
 
     html += '</div>';
     return html;
+  },
+
+  _renderTransitionPhase: function (run) {
+    var abyss = AbyssData[run.abyssId];
+    var theme = abyss.theme || {};
+    var bgGrad = theme.bgGradient || 'linear-gradient(180deg, #1a0a2e, #0d0d0d)';
+    var html = '';
+
+    html += '<div style="background:' + bgGrad + ';border-radius:8px;padding:12px;margin-bottom:8px;">';
+    html += '<div style="text-align:center;">';
+    html += '<div style="font-size:1.1rem;font-weight:bold;color:' + (theme.bossFrameColor || '#fff') + ';">';
+    html += abyss.name + ' · 过场中...</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Transition zone where floor clear / boss entrance will be rendered
+    html += '<div id="abyss-transition-zone" style="position:relative;min-height:300px;display:flex;align-items:center;justify-content:center;"></div>';
+
+    return html;
+  },
+
+  _showQuickProgress: function (run, abyssId) {
+    var self = this;
+    var abyss = AbyssData[abyssId];
+    var totalFloors = abyss ? abyss.floors.length : 5;
+
+    var html = '<div class="abyss-quick-progress">';
+    // SVG background placeholder
+    html += '<!-- PLACEHOLDER: 快速战斗背景\n'
+      + '     位置：进度过渡画面全屏背景\n'
+      + '     尺寸：100% × 100%\n'
+      + '     内容：深渊主题暗色背景 + 模糊战斗剪影\n'
+      + '     替换方式：将 <svg> 替换为 <img src="assets/abyss/quick-battle-bg.png">\n'
+      + '     当前使用 SVG 渐变 + 几何图形占位 -->';
+    html += '<svg viewBox="0 0 400 280" preserveAspectRatio="none">'
+      + '<defs><linearGradient id="qb-bg" x1="0" y1="0" x2="0" y2="1">'
+      + '<stop offset="0%" stop-color="#1a0a2e"/>'
+      + '<stop offset="100%" stop-color="#0d0d0d"/>'
+      + '</linearGradient></defs>'
+      + '<rect width="400" height="280" fill="url(#qb-bg)"/>'
+      + '<circle cx="200" cy="140" r="80" fill="rgba(192,57,43,0.1)"/>'
+      + '<circle cx="200" cy="140" r="40" fill="rgba(192,57,43,0.15)"/>'
+      + '<text x="200" y="130" text-anchor="middle" fill="rgba(255,255,255,0.1)" font-size="48">⚔</text>'
+      + '<text x="200" y="160" text-anchor="middle" fill="rgba(255,255,255,0.06)" font-size="14">快速战斗中</text>'
+      + '</svg>';
+    html += '<div class="progress-label">⚡ 快速战斗</div>';
+    html += '<div class="progress-bar"><div class="progress-fill" id="qb-progress-fill" style="width:0%;"></div></div>';
+    html += '<div class="progress-text" id="qb-progress-text">第 1/' + totalFloors + ' 层...</div>';
+    html += '</div>';
+
+    OverlayPanel.show({
+      title: UIIcons.icon('abyss') + ' 深渊挑战',
+      content: '<div id="abyss-panel-content">' + html + '</div>',
+      panelId: 'abyss',
+      height: 'full'
+    });
+
+    // Animate progress bar over 2.5 seconds
+    var progressSteps = totalFloors;
+    var stepDuration = 2500 / progressSteps;
+    var currentStep = 0;
+
+    var progressInterval = setInterval(function () {
+      currentStep++;
+      var pct = (currentStep / progressSteps) * 100;
+      var fillEl = document.getElementById('qb-progress-fill');
+      var textEl = document.getElementById('qb-progress-text');
+      if (fillEl) fillEl.style.width = pct + '%';
+      if (textEl) textEl.textContent = '第 ' + Math.min(currentStep, progressSteps) + '/' + progressSteps + ' 层...';
+
+      if (currentStep >= progressSteps) {
+        clearInterval(progressInterval);
+        // Trigger settlement after progress completes
+        setTimeout(function () {
+          self._onSettlementTrigger();
+        }, 200);
+      }
+    }, stepDuration);
+
+    this._settlement.phaseTimers.push(progressInterval);
   },
 
   _renderActiveRun: function (run) {
@@ -652,11 +1019,17 @@ var AbyssPanel = {
     if (this._settlement.skipped) { if (onComplete) onComplete(); return; }
     this._settlement.phase = 'equip_reveal';
 
-    // Filter quality >= 4 for card reveal
+    // prefers-reduced-motion: skip slot machine, go direct
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Filter quality >= 3 for slot machine reveal
     var highQuality = [];
     if (run.droppedEquipment) {
       for (var i = 0; i < run.droppedEquipment.length; i++) {
-        if (run.droppedEquipment[i].quality >= 4) {
+        if (run.droppedEquipment[i].quality >= 3) {
           highQuality.push(run.droppedEquipment[i]);
         }
       }
@@ -668,7 +1041,7 @@ var AbyssPanel = {
     }
 
     equipRevealEl.style.display = '';
-    this._EquipReveal.start(highQuality, equipRevealEl, onComplete);
+    this._SlotMachine.start(highQuality, equipRevealEl, onComplete);
   },
 
   _showFinalSummary: function (summaryArea) {
@@ -695,8 +1068,8 @@ var AbyssPanel = {
     // Stop particles
     this._LootParticles.stop();
 
-    // Skip/stop equip reveal
-    this._EquipReveal.skip();
+    // Skip/stop slot machine
+    this._SlotMachine.skip();
 
     // Show final values for countup
     var run = this._settlement.run || AbyssManager.getCurrentRun();
@@ -756,7 +1129,8 @@ var AbyssPanel = {
       this._settlement.countUpRafId = null;
     }
     this._LootParticles.stop();
-    this._EquipReveal.stop();
+    this._SlotMachine.stop();
+    this._Transition.stop();
     this._settlement.phase = null;
     this._settlement.skipped = false;
     this._settlement.run = null;
@@ -811,9 +1185,13 @@ var AbyssPanel = {
       if (!unlocked) {
         html += '<div style="font-size:0.72rem;color:var(--color-danger);">' + UIIcons.icon('lock') + ' 通关 ' + abyss.unlockCondition.stage + ' 后解锁</div>';
       } else {
-        html += '<div style="text-align:right;">';
+        html += '<div style="text-align:right;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">';
         html += '<button class="btn abyss-enter" data-abyss-id="' + aid + '" ';
         html += 'style="font-size:0.78rem;padding:5px 16px;background:' + (theme.bossFrameColor || 'var(--color-primary)') + ';">' + UIIcons.icon('attack') + ' 进入</button>';
+        // Quick battle button: only if firstCleared
+        if (inst && inst.firstCleared) {
+          html += '<button class="btn abyss-quick-btn abyss-quick-enter" data-abyss-id="' + aid + '">⚡ 快速战斗</button>';
+        }
         html += '</div>';
       }
 
@@ -838,7 +1216,34 @@ var AbyssPanel = {
           content: '<div style="text-align:center;">将消耗入场券资源<br>确定要进入深渊挑战吗？</div>',
           confirmText: '进入',
           onConfirm: function () {
-            if (AbyssManager.enterAbyss(aid)) self.show();
+            if (AbyssManager.enterAbyss(aid)) {
+              // Show boss entrance for floor 1
+              var abyss = AbyssData[aid];
+              if (abyss && abyss.floors && abyss.floors[0]) {
+                self.show();
+                var transitionZone = document.getElementById('abyss-transition-zone');
+                // In normal enter, show boss entrance for floor 1 in the active run view
+                // The active run renders normally, boss entrance is optional on first enter
+              }
+              self.show();
+            }
+          }
+        });
+      };
+    });
+
+    // Quick battle buttons
+    document.querySelectorAll('.abyss-quick-enter').forEach(function (btn) {
+      btn.onclick = function () {
+        var aid = this.getAttribute('data-abyss-id');
+        Modal.show({
+          title: '⚡ 快速战斗',
+          content: '<div style="text-align:center;">将消耗入场券资源<br>一键完成全部楼层战斗</div>',
+          confirmText: '开始',
+          onConfirm: function () {
+            if (AbyssManager.quickBattle(aid)) {
+              self._showQuickProgress(AbyssManager.getCurrentRun(), aid);
+            }
           }
         });
       };

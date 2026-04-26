@@ -1208,6 +1208,41 @@
         }
       ],
       "currentTask": null
+    },
+    "abyss-ux-overhaul": {
+      "name": "深渊体验大改（快速战斗+过场+老虎机特效）",
+      "stage": "IMPLEMENT",
+      "prd": "specs/game-prds/abyss-ux-overhaul.md",
+      "spec": "specs/product-specs/abyss-ux-overhaul.md",
+      "execPlan": "specs/exec-plans/abyss-ux-overhaul.md",
+      "testFiles": [],
+      "changelog": null,
+      "adr": null,
+      "acceptance": {
+        "product": null,
+        "numerical": null
+      },
+      "history": [
+        {
+          "stage": "PRD",
+          "result": "completed",
+          "timestamp": "2026-04-26",
+          "note": "基于用户反馈创建 PRD"
+        },
+        {
+          "stage": "DESIGN",
+          "result": "completed",
+          "timestamp": "2026-04-26",
+          "note": "3个能力：快速战斗+过场+老虎机"
+        },
+        {
+          "stage": "PLAN",
+          "result": "completed",
+          "timestamp": "2026-04-26",
+          "note": "6个任务3个阶段"
+        }
+      ],
+      "currentTask": "T1"
     }
   }
 }
