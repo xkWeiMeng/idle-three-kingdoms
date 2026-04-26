@@ -1,0 +1,334 @@
+{
+  "generatedBy": "OpenAI image generation skill + tools/extract-ui-icons-from-sheets.py",
+  "style": "three-kingdoms-ink-gold-pixel-raster",
+  "size": "96x96",
+  "sourcePromptSummary": "4 张 4x4 生图母版，统一要求 16-bit pixel art、三国古风、深墨描边、朱红与鎏金点缀、纯 #00ff00 绿幕背景、无文字标签。",
+  "sourceSheets": [
+    "ui-icons-sheet-1.png",
+    "ui-icons-sheet-2.png",
+    "ui-icons-sheet-3.png",
+    "ui-icons-sheet-4.png"
+  ],
+  "icons": {
+    "gold": {
+      "label": "金币",
+      "category": "resource",
+      "file": "gold.png"
+    },
+    "jade": {
+      "label": "玉璧",
+      "category": "resource",
+      "file": "jade.png"
+    },
+    "food": {
+      "label": "粮草",
+      "category": "resource",
+      "file": "food.png"
+    },
+    "exp": {
+      "label": "经验",
+      "category": "resource",
+      "file": "exp.png"
+    },
+    "wood": {
+      "label": "木材",
+      "category": "resource",
+      "file": "wood.png"
+    },
+    "stone": {
+      "label": "石材",
+      "category": "resource",
+      "file": "stone.png"
+    },
+    "iron": {
+      "label": "铁矿",
+      "category": "resource",
+      "file": "iron.png"
+    },
+    "town": {
+      "label": "城镇",
+      "category": "navigation",
+      "file": "town.png"
+    },
+    "heroes": {
+      "label": "武将",
+      "category": "navigation",
+      "file": "heroes.png"
+    },
+    "battle": {
+      "label": "战斗",
+      "category": "navigation",
+      "file": "battle.png"
+    },
+    "recruit": {
+      "label": "招募",
+      "category": "navigation",
+      "file": "recruit.png"
+    },
+    "more": {
+      "label": "更多",
+      "category": "navigation",
+      "file": "more.png"
+    },
+    "adventure": {
+      "label": "冒险",
+      "category": "navigation",
+      "file": "adventure.png"
+    },
+    "quest": {
+      "label": "任务",
+      "category": "navigation",
+      "file": "quest.png"
+    },
+    "equipment": {
+      "label": "装备",
+      "category": "navigation",
+      "file": "equipment.png"
+    },
+    "merchant": {
+      "label": "商人",
+      "category": "navigation",
+      "file": "merchant.png"
+    },
+    "forge": {
+      "label": "锻造",
+      "category": "system",
+      "file": "forge.png"
+    },
+    "build": {
+      "label": "建造",
+      "category": "system",
+      "file": "build.png"
+    },
+    "defense": {
+      "label": "城防",
+      "category": "system",
+      "file": "defense.png"
+    },
+    "abyss": {
+      "label": "深渊",
+      "category": "system",
+      "file": "abyss.png"
+    },
+    "trial": {
+      "label": "试炼",
+      "category": "system",
+      "file": "trial.png"
+    },
+    "daily": {
+      "label": "日挑",
+      "category": "system",
+      "file": "daily.png"
+    },
+    "farm": {
+      "label": "菜园",
+      "category": "system",
+      "file": "farm.png"
+    },
+    "parking": {
+      "label": "驿站",
+      "category": "system",
+      "file": "parking.png"
+    },
+    "achievement": {
+      "label": "成就",
+      "category": "system",
+      "file": "achievement.png"
+    },
+    "economy": {
+      "label": "经济",
+      "category": "system",
+      "file": "economy.png"
+    },
+    "story": {
+      "label": "剧情",
+      "category": "system",
+      "file": "story.png"
+    },
+    "settings": {
+      "label": "设置",
+      "category": "system",
+      "file": "settings.png"
+    },
+    "manage": {
+      "label": "管理",
+      "category": "system",
+      "file": "manage.png"
+    },
+    "core": {
+      "label": "核心",
+      "category": "system",
+      "file": "core.png"
+    },
+    "production": {
+      "label": "生产",
+      "category": "system",
+      "file": "production.png"
+    },
+    "functional": {
+      "label": "功能",
+      "category": "system",
+      "file": "functional.png"
+    },
+    "lock": {
+      "label": "未解锁",
+      "category": "state",
+      "file": "lock.png"
+    },
+    "check": {
+      "label": "完成",
+      "category": "state",
+      "file": "check.png"
+    },
+    "close": {
+      "label": "关闭",
+      "category": "state",
+      "file": "close.png"
+    },
+    "warning": {
+      "label": "警告",
+      "category": "state",
+      "file": "warning.png"
+    },
+    "gift": {
+      "label": "奖励",
+      "category": "action",
+      "file": "gift.png"
+    },
+    "sort": {
+      "label": "排序",
+      "category": "action",
+      "file": "sort.png"
+    },
+    "sell": {
+      "label": "售卖",
+      "category": "action",
+      "file": "sell.png"
+    },
+    "speed": {
+      "label": "速度",
+      "category": "action",
+      "file": "speed.png"
+    },
+    "time": {
+      "label": "时间",
+      "category": "action",
+      "file": "time.png"
+    },
+    "idea": {
+      "label": "建议",
+      "category": "action",
+      "file": "idea.png"
+    },
+    "sparkle": {
+      "label": "特殊",
+      "category": "action",
+      "file": "sparkle.png"
+    },
+    "victory": {
+      "label": "胜利",
+      "category": "state",
+      "file": "victory.png"
+    },
+    "defeat": {
+      "label": "失败",
+      "category": "state",
+      "file": "defeat.png"
+    },
+    "chest": {
+      "label": "宝箱",
+      "category": "item",
+      "file": "chest.png"
+    },
+    "bag": {
+      "label": "背包",
+      "category": "item",
+      "file": "bag.png"
+    },
+    "user": {
+      "label": "角色",
+      "category": "state",
+      "file": "user.png"
+    },
+    "enemy": {
+      "label": "敌人",
+      "category": "combat",
+      "file": "enemy.png"
+    },
+    "crown": {
+      "label": "首领",
+      "category": "combat",
+      "file": "crown.png"
+    },
+    "boss": {
+      "label": "Boss",
+      "category": "combat",
+      "file": "boss.png"
+    },
+    "attack": {
+      "label": "攻击",
+      "category": "combat",
+      "file": "attack.png"
+    },
+    "weapon": {
+      "label": "武器",
+      "category": "item",
+      "file": "weapon.png"
+    },
+    "armor": {
+      "label": "防具",
+      "category": "item",
+      "file": "armor.png"
+    },
+    "accessory": {
+      "label": "饰品",
+      "category": "item",
+      "file": "accessory.png"
+    },
+    "mount": {
+      "label": "坐骑",
+      "category": "item",
+      "file": "mount.png"
+    },
+    "hp": {
+      "label": "生命",
+      "category": "stat",
+      "file": "hp.png"
+    },
+    "spd": {
+      "label": "速度",
+      "category": "stat",
+      "file": "spd.png"
+    },
+    "book": {
+      "label": "图鉴",
+      "category": "item",
+      "file": "book.png"
+    },
+    "tag": {
+      "label": "折扣",
+      "category": "action",
+      "file": "tag.png"
+    },
+    "calendar": {
+      "label": "日历",
+      "category": "system",
+      "file": "calendar.png"
+    },
+    "list": {
+      "label": "列表",
+      "category": "action",
+      "file": "list.png"
+    },
+    "flame": {
+      "label": "火焰",
+      "category": "combat",
+      "file": "flame.png"
+    },
+    "hammer": {
+      "label": "锤子",
+      "category": "action",
+      "file": "hammer.png"
+    }
+  }
+}

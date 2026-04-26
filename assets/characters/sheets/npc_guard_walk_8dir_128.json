@@ -1,0 +1,937 @@
+{
+  "name": "npc_guard_walk_8dir_128",
+  "file": "assets/img/town-pixel/characters/sheets/npc_guard_walk_8dir_128.png",
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "columns": 6,
+  "rows": 8,
+  "framesPerDirection": 6,
+  "directions": [
+    "north",
+    "northeast",
+    "east",
+    "southeast",
+    "south",
+    "southwest",
+    "west",
+    "northwest"
+  ],
+  "background": "#00ff00",
+  "source": "assets/img/town-pixel/raw/npc_guard_walk_8dir_source_v2.png",
+  "style": "红白机风格守卫 8 方向行走循环",
+  "scaleApplied": 0.821917808219178,
+  "frames": [
+    {
+      "direction": "north",
+      "row": 0,
+      "frame": 0,
+      "x": 0,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        66,
+        29,
+        142,
+        174
+      ],
+      "spriteSize": [
+        62,
+        119
+      ]
+    },
+    {
+      "direction": "north",
+      "row": 0,
+      "frame": 1,
+      "x": 128,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        227,
+        29,
+        305,
+        174
+      ],
+      "spriteSize": [
+        64,
+        119
+      ]
+    },
+    {
+      "direction": "north",
+      "row": 0,
+      "frame": 2,
+      "x": 256,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        395,
+        29,
+        470,
+        174
+      ],
+      "spriteSize": [
+        62,
+        119
+      ]
+    },
+    {
+      "direction": "north",
+      "row": 0,
+      "frame": 3,
+      "x": 384,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        565,
+        29,
+        643,
+        174
+      ],
+      "spriteSize": [
+        64,
+        119
+      ]
+    },
+    {
+      "direction": "north",
+      "row": 0,
+      "frame": 4,
+      "x": 512,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        740,
+        29,
+        816,
+        171
+      ],
+      "spriteSize": [
+        62,
+        117
+      ]
+    },
+    {
+      "direction": "north",
+      "row": 0,
+      "frame": 5,
+      "x": 640,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        902,
+        29,
+        979,
+        172
+      ],
+      "spriteSize": [
+        63,
+        118
+      ]
+    },
+    {
+      "direction": "northeast",
+      "row": 1,
+      "frame": 0,
+      "x": 0,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        61,
+        205,
+        138,
+        350
+      ],
+      "spriteSize": [
+        63,
+        119
+      ]
+    },
+    {
+      "direction": "northeast",
+      "row": 1,
+      "frame": 1,
+      "x": 128,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        223,
+        205,
+        300,
+        350
+      ],
+      "spriteSize": [
+        63,
+        119
+      ]
+    },
+    {
+      "direction": "northeast",
+      "row": 1,
+      "frame": 2,
+      "x": 256,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        392,
+        205,
+        469,
+        350
+      ],
+      "spriteSize": [
+        63,
+        119
+      ]
+    },
+    {
+      "direction": "northeast",
+      "row": 1,
+      "frame": 3,
+      "x": 384,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        560,
+        205,
+        639,
+        350
+      ],
+      "spriteSize": [
+        65,
+        119
+      ]
+    },
+    {
+      "direction": "northeast",
+      "row": 1,
+      "frame": 4,
+      "x": 512,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        736,
+        205,
+        815,
+        349
+      ],
+      "spriteSize": [
+        65,
+        118
+      ]
+    },
+    {
+      "direction": "northeast",
+      "row": 1,
+      "frame": 5,
+      "x": 640,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        898,
+        205,
+        979,
+        350
+      ],
+      "spriteSize": [
+        67,
+        119
+      ]
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 0,
+      "x": 0,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        72,
+        381,
+        141,
+        525
+      ],
+      "spriteSize": [
+        57,
+        118
+      ]
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 1,
+      "x": 128,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        231,
+        381,
+        305,
+        522
+      ],
+      "spriteSize": [
+        61,
+        116
+      ]
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 2,
+      "x": 256,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        403,
+        381,
+        473,
+        524
+      ],
+      "spriteSize": [
+        58,
+        118
+      ]
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 3,
+      "x": 384,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        557,
+        382,
+        635,
+        525
+      ],
+      "spriteSize": [
+        64,
+        118
+      ]
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 4,
+      "x": 512,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        743,
+        381,
+        816,
+        525
+      ],
+      "spriteSize": [
+        60,
+        118
+      ]
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 5,
+      "x": 640,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        914,
+        381,
+        985,
+        525
+      ],
+      "spriteSize": [
+        58,
+        118
+      ]
+    },
+    {
+      "direction": "southeast",
+      "row": 3,
+      "frame": 0,
+      "x": 0,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        59,
+        559,
+        144,
+        698
+      ],
+      "spriteSize": [
+        70,
+        114
+      ]
+    },
+    {
+      "direction": "southeast",
+      "row": 3,
+      "frame": 1,
+      "x": 128,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        224,
+        559,
+        309,
+        698
+      ],
+      "spriteSize": [
+        70,
+        114
+      ]
+    },
+    {
+      "direction": "southeast",
+      "row": 3,
+      "frame": 2,
+      "x": 256,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        393,
+        559,
+        476,
+        697
+      ],
+      "spriteSize": [
+        68,
+        113
+      ]
+    },
+    {
+      "direction": "southeast",
+      "row": 3,
+      "frame": 3,
+      "x": 384,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        558,
+        559,
+        641,
+        698
+      ],
+      "spriteSize": [
+        68,
+        114
+      ]
+    },
+    {
+      "direction": "southeast",
+      "row": 3,
+      "frame": 4,
+      "x": 512,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        736,
+        559,
+        820,
+        698
+      ],
+      "spriteSize": [
+        69,
+        114
+      ]
+    },
+    {
+      "direction": "southeast",
+      "row": 3,
+      "frame": 5,
+      "x": 640,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        906,
+        559,
+        988,
+        698
+      ],
+      "spriteSize": [
+        67,
+        114
+      ]
+    },
+    {
+      "direction": "south",
+      "row": 4,
+      "frame": 0,
+      "x": 0,
+      "y": 512,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        63,
+        735,
+        143,
+        881
+      ],
+      "spriteSize": [
+        66,
+        120
+      ]
+    },
+    {
+      "direction": "south",
+      "row": 4,
+      "frame": 1,
+      "x": 128,
+      "y": 512,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        229,
+        735,
+        309,
+        881
+      ],
+      "spriteSize": [
+        66,
+        120
+      ]
+    },
+    {
+      "direction": "south",
+      "row": 4,
+      "frame": 2,
+      "x": 256,
+      "y": 512,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        399,
+        735,
+        478,
+        881
+      ],
+      "spriteSize": [
+        65,
+        120
+      ]
+    },
+    {
+      "direction": "south",
+      "row": 4,
+      "frame": 3,
+      "x": 384,
+      "y": 512,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        564,
+        735,
+        643,
+        880
+      ],
+      "spriteSize": [
+        65,
+        119
+      ]
+    },
+    {
+      "direction": "south",
+      "row": 4,
+      "frame": 4,
+      "x": 512,
+      "y": 512,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        741,
+        735,
+        820,
+        881
+      ],
+      "spriteSize": [
+        65,
+        120
+      ]
+    },
+    {
+      "direction": "south",
+      "row": 4,
+      "frame": 5,
+      "x": 640,
+      "y": 512,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        911,
+        735,
+        990,
+        881
+      ],
+      "spriteSize": [
+        65,
+        120
+      ]
+    },
+    {
+      "direction": "southwest",
+      "row": 5,
+      "frame": 0,
+      "x": 0,
+      "y": 640,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        62,
+        918,
+        134,
+        1062
+      ],
+      "spriteSize": [
+        59,
+        118
+      ]
+    },
+    {
+      "direction": "southwest",
+      "row": 5,
+      "frame": 1,
+      "x": 128,
+      "y": 640,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        224,
+        918,
+        297,
+        1061
+      ],
+      "spriteSize": [
+        60,
+        118
+      ]
+    },
+    {
+      "direction": "southwest",
+      "row": 5,
+      "frame": 2,
+      "x": 256,
+      "y": 640,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        397,
+        918,
+        466,
+        1062
+      ],
+      "spriteSize": [
+        57,
+        118
+      ]
+    },
+    {
+      "direction": "southwest",
+      "row": 5,
+      "frame": 3,
+      "x": 384,
+      "y": 640,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        559,
+        918,
+        633,
+        1062
+      ],
+      "spriteSize": [
+        61,
+        118
+      ]
+    },
+    {
+      "direction": "southwest",
+      "row": 5,
+      "frame": 4,
+      "x": 512,
+      "y": 640,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        740,
+        918,
+        809,
+        1062
+      ],
+      "spriteSize": [
+        57,
+        118
+      ]
+    },
+    {
+      "direction": "southwest",
+      "row": 5,
+      "frame": 5,
+      "x": 640,
+      "y": 640,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        908,
+        918,
+        979,
+        1062
+      ],
+      "spriteSize": [
+        58,
+        118
+      ]
+    },
+    {
+      "direction": "west",
+      "row": 6,
+      "frame": 0,
+      "x": 0,
+      "y": 768,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        64,
+        1091,
+        139,
+        1230
+      ],
+      "spriteSize": [
+        62,
+        114
+      ]
+    },
+    {
+      "direction": "west",
+      "row": 6,
+      "frame": 1,
+      "x": 128,
+      "y": 768,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        228,
+        1091,
+        303,
+        1231
+      ],
+      "spriteSize": [
+        62,
+        115
+      ]
+    },
+    {
+      "direction": "west",
+      "row": 6,
+      "frame": 2,
+      "x": 256,
+      "y": 768,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        394,
+        1091,
+        472,
+        1233
+      ],
+      "spriteSize": [
+        64,
+        117
+      ]
+    },
+    {
+      "direction": "west",
+      "row": 6,
+      "frame": 3,
+      "x": 384,
+      "y": 768,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        560,
+        1091,
+        638,
+        1233
+      ],
+      "spriteSize": [
+        64,
+        117
+      ]
+    },
+    {
+      "direction": "west",
+      "row": 6,
+      "frame": 4,
+      "x": 512,
+      "y": 768,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        734,
+        1092,
+        815,
+        1233
+      ],
+      "spriteSize": [
+        67,
+        116
+      ]
+    },
+    {
+      "direction": "west",
+      "row": 6,
+      "frame": 5,
+      "x": 640,
+      "y": 768,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        907,
+        1091,
+        985,
+        1233
+      ],
+      "spriteSize": [
+        64,
+        117
+      ]
+    },
+    {
+      "direction": "northwest",
+      "row": 7,
+      "frame": 0,
+      "x": 0,
+      "y": 896,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        59,
+        1267,
+        133,
+        1413
+      ],
+      "spriteSize": [
+        61,
+        120
+      ]
+    },
+    {
+      "direction": "northwest",
+      "row": 7,
+      "frame": 1,
+      "x": 128,
+      "y": 896,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        221,
+        1267,
+        298,
+        1413
+      ],
+      "spriteSize": [
+        63,
+        120
+      ]
+    },
+    {
+      "direction": "northwest",
+      "row": 7,
+      "frame": 2,
+      "x": 256,
+      "y": 896,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        390,
+        1267,
+        469,
+        1413
+      ],
+      "spriteSize": [
+        65,
+        120
+      ]
+    },
+    {
+      "direction": "northwest",
+      "row": 7,
+      "frame": 3,
+      "x": 384,
+      "y": 896,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        560,
+        1267,
+        637,
+        1413
+      ],
+      "spriteSize": [
+        63,
+        120
+      ]
+    },
+    {
+      "direction": "northwest",
+      "row": 7,
+      "frame": 4,
+      "x": 512,
+      "y": 896,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        733,
+        1267,
+        810,
+        1413
+      ],
+      "spriteSize": [
+        63,
+        120
+      ]
+    },
+    {
+      "direction": "northwest",
+      "row": 7,
+      "frame": 5,
+      "x": 640,
+      "y": 896,
+      "w": 128,
+      "h": 128,
+      "sourceBox": [
+        903,
+        1267,
+        977,
+        1413
+      ],
+      "spriteSize": [
+        61,
+        120
+      ]
+    }
+  ]
+}

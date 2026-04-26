@@ -1,0 +1,63 @@
+{
+  "name": "npc_female_walk_4dir_128",
+  "file": "assets/img/town-pixel/characters/sheets/npc_female_walk_4dir_128.png",
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "columns": 6,
+  "rows": 4,
+  "framesPerDirection": 6,
+  "directions": [
+    "south",
+    "west",
+    "east",
+    "north"
+  ],
+  "background": "transparent",
+  "sourceReferences": [
+    "assets/img/town-pixel/characters/npc_female.png",
+    "C:\\Users\\ws\\.codex\\generated_images\\019dbef8-fc70-7ae1-b10a-9dbac47727e1\\ig_02faf1b60abad2700169eb425e81bc8195a05d1f3f2a828ad1.png"
+  ],
+  "style": "参考工程内村妇立绘生成的三国风村妇 4 方向 6 帧行走循环，红白机风格限定调色板，硬边像素。",
+  "generationMethod": "使用内置 image_gen 生成四方向素材后，本地按非品红像素分割、重排为 6x4 网格、最近邻缩放并映射到限定调色板。 最终将 #ff00ff 背景像素转换为 alpha 透明。",
+  "palette": {
+    "background": "transparent",
+    "colorCount": 31,
+    "colors": [
+      "#000000",
+      "#111010",
+      "#162b32",
+      "#231d1a",
+      "#24444e",
+      "#3a281e",
+      "#40473f",
+      "#42696f",
+      "#543828",
+      "#5a361e",
+      "#5b1e2d",
+      "#696f59",
+      "#732117",
+      "#744a32",
+      "#842d41",
+      "#895b28",
+      "#9d6142",
+      "#a8a06f",
+      "#b14856",
+      "#bb3d1f",
+      "#be8f41",
+      "#cd8958",
+      "#d86976",
+      "#e8cb69",
+      "#ee6f2e",
+      "#ef929a",
+      "#f2b276",
+      "#f6ebd3",
+      "#ffdb9a",
+      "#fff1bf",
+      "#ffffff"
+    ]
+  },
+  "alpha": {
+    "transparentColorRemoved": "#ff00ff",
+    "transparentPixels": 304454
+  }
+}

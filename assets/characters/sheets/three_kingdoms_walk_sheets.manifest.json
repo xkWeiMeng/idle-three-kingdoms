@@ -1,0 +1,416 @@
+{
+  "name": "three_kingdoms_walk_sheets",
+  "reference": "assets/img/town-pixel/characters/sheets/guanyu_walk_4dir_128.png",
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "columns": 6,
+  "rows": 4,
+  "framesPerDirection": 6,
+  "directions": [
+    "south",
+    "west",
+    "east",
+    "north"
+  ],
+  "background": "#ff00ff",
+  "style": "以 guanyu_walk_4dir_128.png 为高质量像素参考，保留原始轮廓、明暗和边缘细节后进行角色化调色",
+  "generatedBy": "tools/generate_three_kingdoms_walk_sheets.py",
+  "entries": [
+    {
+      "id": "shu_zhugeliang",
+      "name": "诸葛亮",
+      "atlasId": "hero_zhugeliang_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zhugeliang_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "fan",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_liubei",
+      "name": "刘备",
+      "atlasId": "hero_liubei_walk",
+      "file": "assets/img/town-pixel/characters/sheets/liubei_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "crown",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_guanyu",
+      "name": "关羽",
+      "atlasId": "hero_guanyu_walk",
+      "file": "assets/img/town-pixel/characters/sheets/guanyu_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "guandao",
+      "method": "reference-original"
+    },
+    {
+      "id": "shu_zhangfei",
+      "name": "张飞",
+      "atlasId": "hero_zhangfei_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zhangfei_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "spear",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_zhaoyun",
+      "name": "赵云",
+      "atlasId": "hero_zhaoyun_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zhaoyun_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "spear",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_huangzhong",
+      "name": "黄忠",
+      "atlasId": "hero_huangzhong_walk",
+      "file": "assets/img/town-pixel/characters/sheets/huangzhong_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "bow",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_machao",
+      "name": "马超",
+      "atlasId": "hero_machao_walk",
+      "file": "assets/img/town-pixel/characters/sheets/machao_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "horse",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_jiangwei",
+      "name": "姜维",
+      "atlasId": "hero_jiangwei_walk",
+      "file": "assets/img/town-pixel/characters/sheets/jiangwei_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "scroll",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_pangtong",
+      "name": "庞统",
+      "atlasId": "hero_pangtong_walk",
+      "file": "assets/img/town-pixel/characters/sheets/pangtong_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "scholar",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "shu_weiyan",
+      "name": "魏延",
+      "atlasId": "hero_weiyan_walk",
+      "file": "assets/img/town-pixel/characters/sheets/weiyan_walk_4dir_128.png",
+      "faction": "shu",
+      "role": "curved",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_caocao",
+      "name": "曹操",
+      "atlasId": "hero_caocao_walk",
+      "file": "assets/img/town-pixel/characters/sheets/caocao_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "crown",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_simayi",
+      "name": "司马懿",
+      "atlasId": "hero_simayi_walk",
+      "file": "assets/img/town-pixel/characters/sheets/simayi_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "fan",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_xiahoudun",
+      "name": "夏侯惇",
+      "atlasId": "hero_xiahoudun_walk",
+      "file": "assets/img/town-pixel/characters/sheets/xiahoudun_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "eyepatch",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_zhangliao",
+      "name": "张辽",
+      "atlasId": "hero_zhangliao_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zhangliao_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "halberd",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_dianwei",
+      "name": "典韦",
+      "atlasId": "hero_dianwei_walk",
+      "file": "assets/img/town-pixel/characters/sheets/dianwei_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "axe",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_xunyu",
+      "name": "荀彧",
+      "atlasId": "hero_xunyu_walk",
+      "file": "assets/img/town-pixel/characters/sheets/xunyu_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "scroll",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_guojia",
+      "name": "郭嘉",
+      "atlasId": "hero_guojia_walk",
+      "file": "assets/img/town-pixel/characters/sheets/guojia_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "book",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_xuchu",
+      "name": "许褚",
+      "atlasId": "hero_xuchu_walk",
+      "file": "assets/img/town-pixel/characters/sheets/xuchu_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "club",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_caoren",
+      "name": "曹仁",
+      "atlasId": "hero_caoren_walk",
+      "file": "assets/img/town-pixel/characters/sheets/caoren_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "shield",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wei_zhanghe",
+      "name": "张郃",
+      "atlasId": "hero_zhanghe_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zhanghe_walk_4dir_128.png",
+      "faction": "wei",
+      "role": "plume",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_sunquan",
+      "name": "孙权",
+      "atlasId": "hero_sunquan_walk",
+      "file": "assets/img/town-pixel/characters/sheets/sunquan_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "crown",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_zhouyu",
+      "name": "周瑜",
+      "atlasId": "hero_zhouyu_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zhouyu_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "lute",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_sunshangxiang",
+      "name": "孙尚香",
+      "atlasId": "hero_sunshangxiang_walk",
+      "file": "assets/img/town-pixel/characters/sheets/sunshangxiang_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "bow",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_taishici",
+      "name": "太史慈",
+      "atlasId": "hero_taishici_walk",
+      "file": "assets/img/town-pixel/characters/sheets/taishici_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "spear",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_lvmeng",
+      "name": "吕蒙",
+      "atlasId": "hero_lvmeng_walk",
+      "file": "assets/img/town-pixel/characters/sheets/lvmeng_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "book",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_luxun",
+      "name": "陆逊",
+      "atlasId": "hero_luxun_walk",
+      "file": "assets/img/town-pixel/characters/sheets/luxun_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "fire",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_ganning",
+      "name": "甘宁",
+      "atlasId": "hero_ganning_walk",
+      "file": "assets/img/town-pixel/characters/sheets/ganning_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "dagger",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_huanggai",
+      "name": "黄盖",
+      "atlasId": "hero_huanggai_walk",
+      "file": "assets/img/town-pixel/characters/sheets/huanggai_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "hammer",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_daqiao",
+      "name": "大乔",
+      "atlasId": "hero_daqiao_walk",
+      "file": "assets/img/town-pixel/characters/sheets/daqiao_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "fan",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "wu_xiaoqiao",
+      "name": "小乔",
+      "atlasId": "hero_xiaoqiao_walk",
+      "file": "assets/img/town-pixel/characters/sheets/xiaoqiao_walk_4dir_128.png",
+      "faction": "wu",
+      "role": "lute",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_lvbu",
+      "name": "吕布",
+      "atlasId": "hero_lvbu_walk",
+      "file": "assets/img/town-pixel/characters/sheets/lvbu_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "halberd",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_diaochan",
+      "name": "貂蝉",
+      "atlasId": "hero_diaochan_walk",
+      "file": "assets/img/town-pixel/characters/sheets/diaochan_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "ribbon",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_huatuo",
+      "name": "华佗",
+      "atlasId": "hero_huatuo_walk",
+      "file": "assets/img/town-pixel/characters/sheets/huatuo_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "herb",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_yuanshao",
+      "name": "袁绍",
+      "atlasId": "hero_yuanshao_walk",
+      "file": "assets/img/town-pixel/characters/sheets/yuanshao_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "crown",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_dongzhuo",
+      "name": "董卓",
+      "atlasId": "hero_dongzhuo_walk",
+      "file": "assets/img/town-pixel/characters/sheets/dongzhuo_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "mace",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_zhangjiao",
+      "name": "张角",
+      "atlasId": "hero_zhangjiao_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zhangjiao_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "lightning",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_gongsunzan",
+      "name": "公孙瓒",
+      "atlasId": "hero_gongsunzan_walk",
+      "file": "assets/img/town-pixel/characters/sheets/gongsunzan_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "horse",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_zuoci",
+      "name": "左慈",
+      "atlasId": "hero_zuoci_walk",
+      "file": "assets/img/town-pixel/characters/sheets/zuoci_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "orb",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_caiwenji",
+      "name": "蔡文姬",
+      "atlasId": "hero_caiwenji_walk",
+      "file": "assets/img/town-pixel/characters/sheets/caiwenji_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "lute",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "qun_menghuo",
+      "name": "孟获",
+      "atlasId": "hero_menghuo_walk",
+      "file": "assets/img/town-pixel/characters/sheets/menghuo_walk_4dir_128.png",
+      "faction": "qun",
+      "role": "club",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "common_soldier",
+      "name": "普通士兵",
+      "atlasId": "unit_soldier_walk",
+      "file": "assets/img/town-pixel/characters/sheets/common_soldier_walk_4dir_128.png",
+      "faction": "common",
+      "role": "sword",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "common_archer",
+      "name": "弓箭手",
+      "atlasId": "unit_archer_walk",
+      "file": "assets/img/town-pixel/characters/sheets/common_archer_walk_4dir_128.png",
+      "faction": "common",
+      "role": "bow",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "common_cavalry",
+      "name": "骑兵",
+      "atlasId": "unit_cavalry_walk",
+      "file": "assets/img/town-pixel/characters/sheets/common_cavalry_walk_4dir_128.png",
+      "faction": "common",
+      "role": "horse",
+      "method": "reference-recolor"
+    },
+    {
+      "id": "common_guard",
+      "name": "盾兵",
+      "atlasId": "unit_guard_walk",
+      "file": "assets/img/town-pixel/characters/sheets/common_guard_walk_4dir_128.png",
+      "faction": "common",
+      "role": "shield",
+      "method": "reference-recolor"
+    }
+  ]
+}

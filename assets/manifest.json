@@ -1,0 +1,870 @@
+{
+  "style": {
+    "theme": "三国城镇像素风",
+    "view": "3/4 俯视角",
+    "lighting": "白天柔和光照",
+    "notes": "由 Codex 图像生成后统一抠图、切片和重排。"
+  },
+  "sources": [
+    {
+      "rawFile": "raw/buildings-a.png",
+      "alphaFile": "sheets/buildings-a.png",
+      "category": "buildings",
+      "assets": [
+        "town_hall",
+        "lumber_camp",
+        "quarry",
+        "iron_mine",
+        "farmland",
+        "barracks"
+      ]
+    },
+    {
+      "rawFile": "raw/buildings-b.png",
+      "alphaFile": "sheets/buildings-b.png",
+      "category": "buildings",
+      "assets": [
+        "training_ground",
+        "blacksmith",
+        "city_wall",
+        "adventure_guild",
+        "tavern",
+        "warehouse"
+      ]
+    },
+    {
+      "rawFile": "raw/buildings-c.png",
+      "alphaFile": "sheets/buildings-c.png",
+      "category": "buildings",
+      "assets": [
+        "market",
+        "tax_office",
+        "weapon_workshop",
+        "stable",
+        "academy",
+        "watermill"
+      ]
+    },
+    {
+      "rawFile": "raw/buildings-d.png",
+      "alphaFile": "sheets/buildings-d.png",
+      "category": "buildings",
+      "assets": [
+        "stone_mason",
+        "smelter",
+        "vegetable_garden",
+        "compost_pit",
+        "seed_shop",
+        "parking_lot"
+      ]
+    },
+    {
+      "rawFile": "raw/terrain-ground.png",
+      "alphaFile": "sheets/terrain-ground.png",
+      "category": "terrain",
+      "assets": [
+        "ground_grass",
+        "ground_stone_plaza",
+        "ground_dirt_path",
+        "ground_water",
+        "ground_farmland_soil",
+        "ground_mossy_earth"
+      ]
+    },
+    {
+      "rawFile": "raw/terrain-decor.png",
+      "alphaFile": "sheets/terrain-decor.png",
+      "category": "terrain",
+      "assets": [
+        "tree_pine",
+        "bush_bamboo",
+        "rock_scholar",
+        "flower_patch",
+        "flag_banner",
+        "lantern_post"
+      ]
+    },
+    {
+      "rawFile": "raw/characters-town.png",
+      "alphaFile": "sheets/characters-town.png",
+      "category": "characters",
+      "assets": [
+        "npc_male",
+        "npc_female",
+        "npc_guard",
+        "npc_child",
+        "hero_shu",
+        "hero_wei",
+        "hero_wu_m",
+        "hero_wu_f",
+        "hero_qun_m",
+        "hero_qun_f"
+      ]
+    }
+  ],
+  "categories": {
+    "buildings": {
+      "atlasFile": "sheets/buildings-atlas.png",
+      "cellSize": {
+        "w": 560,
+        "h": 448
+      },
+      "entries": [
+        {
+          "name": "town_hall",
+          "file": "buildings/town_hall.png",
+          "sourceSheet": "buildings-a.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 0,
+            "cellY": 0,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 40,
+            "spriteY": 16,
+            "spriteW": 479,
+            "spriteH": 415
+          }
+        },
+        {
+          "name": "lumber_camp",
+          "file": "buildings/lumber_camp.png",
+          "sourceSheet": "buildings-a.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 560,
+            "cellY": 0,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 601,
+            "spriteY": 30,
+            "spriteW": 477,
+            "spriteH": 387
+          }
+        },
+        {
+          "name": "quarry",
+          "file": "buildings/quarry.png",
+          "sourceSheet": "buildings-a.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1120,
+            "cellY": 0,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1161,
+            "spriteY": 27,
+            "spriteW": 477,
+            "spriteH": 394
+          }
+        },
+        {
+          "name": "iron_mine",
+          "file": "buildings/iron_mine.png",
+          "sourceSheet": "buildings-a.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1680,
+            "cellY": 0,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1717,
+            "spriteY": 26,
+            "spriteW": 486,
+            "spriteH": 395
+          }
+        },
+        {
+          "name": "farmland",
+          "file": "buildings/farmland.png",
+          "sourceSheet": "buildings-a.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2240,
+            "cellY": 0,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2274,
+            "spriteY": 34,
+            "spriteW": 491,
+            "spriteH": 379
+          }
+        },
+        {
+          "name": "barracks",
+          "file": "buildings/barracks.png",
+          "sourceSheet": "buildings-a.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2800,
+            "cellY": 0,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2836,
+            "spriteY": 23,
+            "spriteW": 487,
+            "spriteH": 401
+          }
+        },
+        {
+          "name": "training_ground",
+          "file": "buildings/training_ground.png",
+          "sourceSheet": "buildings-b.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 0,
+            "cellY": 448,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 24,
+            "spriteY": 479,
+            "spriteW": 511,
+            "spriteH": 385
+          }
+        },
+        {
+          "name": "blacksmith",
+          "file": "buildings/blacksmith.png",
+          "sourceSheet": "buildings-b.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 560,
+            "cellY": 448,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 613,
+            "spriteY": 472,
+            "spriteW": 454,
+            "spriteH": 399
+          }
+        },
+        {
+          "name": "city_wall",
+          "file": "buildings/city_wall.png",
+          "sourceSheet": "buildings-b.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1120,
+            "cellY": 448,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1141,
+            "spriteY": 469,
+            "spriteW": 518,
+            "spriteH": 405
+          }
+        },
+        {
+          "name": "adventure_guild",
+          "file": "buildings/adventure_guild.png",
+          "sourceSheet": "buildings-b.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1680,
+            "cellY": 448,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1716,
+            "spriteY": 472,
+            "spriteW": 488,
+            "spriteH": 400
+          }
+        },
+        {
+          "name": "tavern",
+          "file": "buildings/tavern.png",
+          "sourceSheet": "buildings-b.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2240,
+            "cellY": 448,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2296,
+            "spriteY": 465,
+            "spriteW": 447,
+            "spriteH": 414
+          }
+        },
+        {
+          "name": "warehouse",
+          "file": "buildings/warehouse.png",
+          "sourceSheet": "buildings-b.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2800,
+            "cellY": 448,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2833,
+            "spriteY": 474,
+            "spriteW": 494,
+            "spriteH": 395
+          }
+        },
+        {
+          "name": "market",
+          "file": "buildings/market.png",
+          "sourceSheet": "buildings-c.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 0,
+            "cellY": 896,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 60,
+            "spriteY": 952,
+            "spriteW": 439,
+            "spriteH": 335
+          }
+        },
+        {
+          "name": "tax_office",
+          "file": "buildings/tax_office.png",
+          "sourceSheet": "buildings-c.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 560,
+            "cellY": 896,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 605,
+            "spriteY": 934,
+            "spriteW": 470,
+            "spriteH": 372
+          }
+        },
+        {
+          "name": "weapon_workshop",
+          "file": "buildings/weapon_workshop.png",
+          "sourceSheet": "buildings-c.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1120,
+            "cellY": 896,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1170,
+            "spriteY": 929,
+            "spriteW": 459,
+            "spriteH": 382
+          }
+        },
+        {
+          "name": "stable",
+          "file": "buildings/stable.png",
+          "sourceSheet": "buildings-c.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1680,
+            "cellY": 896,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1723,
+            "spriteY": 947,
+            "spriteW": 474,
+            "spriteH": 346
+          }
+        },
+        {
+          "name": "academy",
+          "file": "buildings/academy.png",
+          "sourceSheet": "buildings-c.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2240,
+            "cellY": 896,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2278,
+            "spriteY": 922,
+            "spriteW": 483,
+            "spriteH": 395
+          }
+        },
+        {
+          "name": "watermill",
+          "file": "buildings/watermill.png",
+          "sourceSheet": "buildings-c.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2800,
+            "cellY": 896,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2840,
+            "spriteY": 950,
+            "spriteW": 479,
+            "spriteH": 340
+          }
+        },
+        {
+          "name": "stone_mason",
+          "file": "buildings/stone_mason.png",
+          "sourceSheet": "buildings-d.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 0,
+            "cellY": 1344,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 31,
+            "spriteY": 1374,
+            "spriteW": 497,
+            "spriteH": 388
+          }
+        },
+        {
+          "name": "smelter",
+          "file": "buildings/smelter.png",
+          "sourceSheet": "buildings-d.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 560,
+            "cellY": 1344,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 593,
+            "spriteY": 1370,
+            "spriteW": 493,
+            "spriteH": 396
+          }
+        },
+        {
+          "name": "vegetable_garden",
+          "file": "buildings/vegetable_garden.png",
+          "sourceSheet": "buildings-d.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1120,
+            "cellY": 1344,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1155,
+            "spriteY": 1382,
+            "spriteW": 489,
+            "spriteH": 372
+          }
+        },
+        {
+          "name": "compost_pit",
+          "file": "buildings/compost_pit.png",
+          "sourceSheet": "buildings-d.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 1680,
+            "cellY": 1344,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 1720,
+            "spriteY": 1385,
+            "spriteW": 480,
+            "spriteH": 366
+          }
+        },
+        {
+          "name": "seed_shop",
+          "file": "buildings/seed_shop.png",
+          "sourceSheet": "buildings-d.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2240,
+            "cellY": 1344,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2289,
+            "spriteY": 1373,
+            "spriteW": 462,
+            "spriteH": 390
+          }
+        },
+        {
+          "name": "parking_lot",
+          "file": "buildings/parking_lot.png",
+          "sourceSheet": "buildings-d.png",
+          "atlas": {
+            "file": "sheets/buildings-atlas.png",
+            "cellX": 2800,
+            "cellY": 1344,
+            "cellW": 560,
+            "cellH": 448,
+            "spriteX": 2826,
+            "spriteY": 1382,
+            "spriteW": 508,
+            "spriteH": 371
+          }
+        }
+      ]
+    },
+    "terrain": {
+      "atlasFile": "sheets/terrain-atlas.png",
+      "cellSize": {
+        "w": 432,
+        "h": 448
+      },
+      "entries": [
+        {
+          "name": "ground_grass",
+          "file": "terrain/ground_grass.png",
+          "sourceSheet": "terrain-ground.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 0,
+            "cellY": 0,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 152,
+            "spriteY": 160,
+            "spriteW": 128,
+            "spriteH": 128
+          }
+        },
+        {
+          "name": "ground_stone_plaza",
+          "file": "terrain/ground_stone_plaza.png",
+          "sourceSheet": "terrain-ground.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 432,
+            "cellY": 0,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 584,
+            "spriteY": 160,
+            "spriteW": 128,
+            "spriteH": 128
+          }
+        },
+        {
+          "name": "ground_dirt_path",
+          "file": "terrain/ground_dirt_path.png",
+          "sourceSheet": "terrain-ground.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 864,
+            "cellY": 0,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 1016,
+            "spriteY": 160,
+            "spriteW": 128,
+            "spriteH": 128
+          }
+        },
+        {
+          "name": "ground_water",
+          "file": "terrain/ground_water.png",
+          "sourceSheet": "terrain-ground.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 1296,
+            "cellY": 0,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 1448,
+            "spriteY": 160,
+            "spriteW": 128,
+            "spriteH": 128
+          }
+        },
+        {
+          "name": "ground_farmland_soil",
+          "file": "terrain/ground_farmland_soil.png",
+          "sourceSheet": "terrain-ground.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 1728,
+            "cellY": 0,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 1880,
+            "spriteY": 160,
+            "spriteW": 128,
+            "spriteH": 128
+          }
+        },
+        {
+          "name": "ground_mossy_earth",
+          "file": "terrain/ground_mossy_earth.png",
+          "sourceSheet": "terrain-ground.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 2160,
+            "cellY": 0,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 2312,
+            "spriteY": 160,
+            "spriteW": 128,
+            "spriteH": 128
+          }
+        },
+        {
+          "name": "tree_pine",
+          "file": "terrain/tree_pine.png",
+          "sourceSheet": "terrain-decor.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 0,
+            "cellY": 448,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 19,
+            "spriteY": 468,
+            "spriteW": 393,
+            "spriteH": 407
+          }
+        },
+        {
+          "name": "bush_bamboo",
+          "file": "terrain/bush_bamboo.png",
+          "sourceSheet": "terrain-decor.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 432,
+            "cellY": 448,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 490,
+            "spriteY": 466,
+            "spriteW": 316,
+            "spriteH": 411
+          }
+        },
+        {
+          "name": "rock_scholar",
+          "file": "terrain/rock_scholar.png",
+          "sourceSheet": "terrain-decor.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 864,
+            "cellY": 448,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 913,
+            "spriteY": 493,
+            "spriteW": 334,
+            "spriteH": 358
+          }
+        },
+        {
+          "name": "flower_patch",
+          "file": "terrain/flower_patch.png",
+          "sourceSheet": "terrain-decor.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 1296,
+            "cellY": 448,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 1313,
+            "spriteY": 532,
+            "spriteW": 398,
+            "spriteH": 280
+          }
+        },
+        {
+          "name": "flag_banner",
+          "file": "terrain/flag_banner.png",
+          "sourceSheet": "terrain-decor.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 1728,
+            "cellY": 448,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 1830,
+            "spriteY": 467,
+            "spriteW": 228,
+            "spriteH": 409
+          }
+        },
+        {
+          "name": "lantern_post",
+          "file": "terrain/lantern_post.png",
+          "sourceSheet": "terrain-decor.png",
+          "atlas": {
+            "file": "sheets/terrain-atlas.png",
+            "cellX": 2160,
+            "cellY": 448,
+            "cellW": 432,
+            "cellH": 448,
+            "spriteX": 2279,
+            "spriteY": 475,
+            "spriteW": 193,
+            "spriteH": 393
+          }
+        }
+      ]
+    },
+    "characters": {
+      "atlasFile": "sheets/characters-atlas.png",
+      "cellSize": {
+        "w": 336,
+        "h": 448
+      },
+      "entries": [
+        {
+          "name": "npc_male",
+          "file": "characters/npc_male.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 0,
+            "cellY": 0,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 83,
+            "spriteY": 54,
+            "spriteW": 169,
+            "spriteH": 339
+          }
+        },
+        {
+          "name": "npc_female",
+          "file": "characters/npc_female.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 336,
+            "cellY": 0,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 431,
+            "spriteY": 52,
+            "spriteW": 145,
+            "spriteH": 344
+          }
+        },
+        {
+          "name": "npc_guard",
+          "file": "characters/npc_guard.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 672,
+            "cellY": 0,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 736,
+            "spriteY": 26,
+            "spriteW": 207,
+            "spriteH": 395
+          }
+        },
+        {
+          "name": "npc_child",
+          "file": "characters/npc_child.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 1008,
+            "cellY": 0,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 1108,
+            "spriteY": 90,
+            "spriteW": 136,
+            "spriteH": 267
+          }
+        },
+        {
+          "name": "hero_shu",
+          "file": "characters/hero_shu.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 1344,
+            "cellY": 0,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 1364,
+            "spriteY": 19,
+            "spriteW": 295,
+            "spriteH": 409
+          }
+        },
+        {
+          "name": "hero_wei",
+          "file": "characters/hero_wei.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 0,
+            "cellY": 448,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 20,
+            "spriteY": 473,
+            "spriteW": 296,
+            "spriteH": 398
+          }
+        },
+        {
+          "name": "hero_wu_m",
+          "file": "characters/hero_wu_m.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 336,
+            "cellY": 448,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 357,
+            "spriteY": 476,
+            "spriteW": 294,
+            "spriteH": 392
+          }
+        },
+        {
+          "name": "hero_wu_f",
+          "file": "characters/hero_wu_f.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 672,
+            "cellY": 448,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 707,
+            "spriteY": 487,
+            "spriteW": 265,
+            "spriteH": 369
+          }
+        },
+        {
+          "name": "hero_qun_m",
+          "file": "characters/hero_qun_m.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 1008,
+            "cellY": 448,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 1032,
+            "spriteY": 478,
+            "spriteW": 287,
+            "spriteH": 388
+          }
+        },
+        {
+          "name": "hero_qun_f",
+          "file": "characters/hero_qun_f.png",
+          "sourceSheet": "characters-town.png",
+          "atlas": {
+            "file": "sheets/characters-atlas.png",
+            "cellX": 1344,
+            "cellY": 448,
+            "cellW": 336,
+            "cellH": 448,
+            "spriteX": 1363,
+            "spriteY": 495,
+            "spriteW": 297,
+            "spriteH": 353
+          }
+        }
+      ]
+    }
+  }
+}
