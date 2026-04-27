@@ -285,3 +285,4 @@ AI agent 生成较长的设计文档、方案对比、数据表等应保存到�
 - 状态中**禁止存储函数或循环引用**（deepClone 用 JSON 序列化）
 - 数字显示用 `Utils.formatNumber()`，ID 生成用 `Utils.uid()`
 - CSS 颜色用已定义的 CSS Variables
+- **生成图片资源必须配套 JSON 说明文件**：Agent 生成的任何图片资源（精灵表、图标、贴图等）都必须同目录输出一份同名 `.json` 元数据文件，记录帧尺寸、网格布局、方向/动画定义、分类标签等信息，便于后续 Agent 读取和维护（参考 `assets/characters/sheets/*.json` 和 `assets/ui-icons/manifest.json` 的格式）
