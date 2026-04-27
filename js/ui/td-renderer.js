@@ -1362,12 +1362,20 @@ var TDRenderer = {
 
       var fontSize = 14;
       var color = '#FFF';
+      var glow = false;
       if (dt.type === 'kill') {
         fontSize = 16;
         color = '#FF4444';
+      } else if (dt.type === 'skill') {
+        fontSize = 18;
+        color = '#FF8C00';
+      } else if (dt.type === 'manual_skill') {
+        fontSize = 22;
+        color = '#FFD700';
+        glow = true;
       } else if (dt.type === 'emergency') {
         fontSize = 18;
-        color = '#FFD700';
+        color = '#FF3333';
       } else if (dt.type === 'heal') {
         fontSize = 16;
         color = '#4CAF50';
@@ -1389,10 +1397,21 @@ var TDRenderer = {
       ctx.lineWidth = 3;
       var text = (typeof dt.damage === 'number') ? Math.floor(dt.damage).toString() : dt.damage;
       if (dt.merged && dt.merged > 1) text += ' ×' + dt.merged;
-      ctx.strokeText(text, dt.x, dt.y + offsetY);
 
+      // 手动技能发光效果
+      if (glow) {
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 12;
+      }
+
+      ctx.strokeText(text, dt.x, dt.y + offsetY);
       ctx.fillStyle = color;
       ctx.fillText(text, dt.x, dt.y + offsetY);
+
+      if (glow) {
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+      }
     }
     ctx.restore();
   },

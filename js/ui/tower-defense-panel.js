@@ -103,8 +103,12 @@ var TowerDefensePanel = {
     html += '<span style="font-size:18px;font-weight:bold;color:' + (stamina.current > 0 ? 'var(--color-success)' : 'var(--color-danger)') + ';">';
     html += stamina.current + '</span>';
     html += '<span style="color:var(--color-text-dim);"> / ' + stamina.max + '</span>';
-    if (stamina.current < stamina.max && typeof TD_ENHANCEMENT !== 'undefined') {
-      html += '<span style="color:var(--color-text-dim);font-size:11px;margin-left:8px;">（每' + TD_ENHANCEMENT.STAMINA.RECOVER_INTERVAL_MIN + '分钟恢复1点）</span>';
+    if (stamina.current >= stamina.max) {
+      html += '<span style="color:var(--color-success);font-size:11px;margin-left:8px;">（体力已满）</span>';
+    } else if (stamina.nextRecoverSec > 0) {
+      var min = Math.floor(stamina.nextRecoverSec / 60);
+      var sec = stamina.nextRecoverSec % 60;
+      html += '<span style="color:var(--color-text-dim);font-size:11px;margin-left:8px;">（' + min + ':' + (sec < 10 ? '0' : '') + sec + ' 后恢复1点）</span>';
     }
     html += '</div>';
 
@@ -389,6 +393,15 @@ var TowerDefensePanel = {
     // TownWorld._render() 已经在自己的 rAF 中调用了，
     // 所以这里直接在当前帧中叠加 TD 层即可
 
+    // 震屏偏移
+    var shake = TowerDefenseManager.getScreenShake();
+    if (shake) {
+      var shakeIntensity = shake.intensity * (1 - shake.elapsed / shake.duration);
+      var sx = (Math.random() - 0.5) * 2 * shakeIntensity;
+      var sy = (Math.random() - 0.5) * 2 * shakeIntensity;
+      ctx.translate(sx, sy);
+    }
+
     ctx.save();
     ctx.scale(TownWorld._cam.zoom, TownWorld._cam.zoom);
     ctx.translate(-TownWorld._cam.x, -TownWorld._cam.y);
@@ -410,7 +423,36 @@ var TowerDefensePanel = {
     // 绘制放置预览
     this._drawPlacementPreview(ctx);
 
+    // 金币粒子（世界坐标）
+    var particles = TowerDefenseManager.getParticles();
+    if (particles.length > 0) {
+      for (var pi = 0; pi < particles.length; pi++) {
+        var p = particles[pi];
+        var alpha = 1 - (p.life / p.maxLife);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        // 小光晕
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.fillStyle = '#FFF';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
     ctx.restore();
+
+    // Boss 白色闪光（屏幕坐标）
+    var flash = TowerDefenseManager.getWhiteFlash();
+    if (flash) {
+      var flashAlpha = 0.5 * (1 - flash.elapsed / flash.duration);
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + flashAlpha + ')';
+      ctx.fillRect(0, 0, w, h);
+    }
 
     // 绘制 HUD（屏幕坐标）
     this._drawTownHallHpBar(ctx, w, h);
@@ -447,6 +489,20 @@ var TowerDefensePanel = {
       // Phase 1: 速度指示器
       var speed = TowerDefenseManager.getSpeed();
       TDRenderer.drawSpeedIndicator(ctx, speed, w);
+
+      // Phase 1: 暂停遮罩
+      if (TowerDefenseManager.isPaused()) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⏸ 已暂停', w / 2, h / 2);
+        ctx.font = '14px sans-serif';
+        ctx.fillStyle = '#ccc';
+        ctx.fillText('点击"继续"恢复战斗', w / 2, h / 2 + 32);
+      }
     }
   },
 
@@ -788,6 +844,9 @@ var TowerDefensePanel = {
       } else if (battle.phase === 'active') {
         phaseText = ' ⚔战斗中 (' + battle.enemies.length + '敌)';
       }
+      if (battle.isPractice) {
+        phaseText += ' 🎯练习';
+      }
     }
 
     // 体力显示
@@ -858,17 +917,21 @@ var TowerDefensePanel = {
 
     if (!isActive) {
       if (currentStage) {
-        html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;background:linear-gradient(180deg,#d4392b,#a02820);border-color:rgba(232,81,58,0.4);" onclick="TowerDefensePanel._onStartWave()">⚔ 开始战斗</button>';
+        var stamina = TowerDefenseManager.getStamina();
+        var canStart = stamina.current > 0;
+        html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;' + (canStart ? 'background:linear-gradient(180deg,#d4392b,#a02820);border-color:rgba(232,81,58,0.4);' : 'opacity:0.4;') + '" ' + (canStart ? 'onclick="TowerDefensePanel._onStartWave()"' : 'disabled') + '>⚔ 开始战斗' + (canStart ? '' : '（体力不足）') + '</button>';
       } else {
         html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._exitDefenseMode()">✓ 完成布阵</button>';
       }
     } else if (battle.phase === 'prep') {
       html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;background:linear-gradient(180deg,#d4a849,#a08030);border-color:rgba(212,168,73,0.4);" onclick="TowerDefensePanel._onSkipPrep()">⏩ 跳过准备</button>';
     } else {
-      // 战斗中 — 速度按钮
+      // 战斗中 — 暂停 + 速度按钮
+      var paused = TowerDefenseManager.isPaused();
       var speed = TowerDefenseManager.getSpeed();
+      html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;background:' + (paused ? '#a08030' : '#333') + ';" onclick="TowerDefensePanel._togglePause()">' + (paused ? '▶ 继续' : '⏸ 暂停') + '</button>';
       html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;background:' + (speed >= 3 ? '#a02820' : speed >= 2 ? '#a08030' : '#333') + ';" onclick="TowerDefensePanel._toggleSpeed()">' + speed + '× 速度</button>';
-      html += '<button class="btn" style="flex:2;font-size:12px;padding:6px 0;opacity:0.6;" disabled>⚔ 战斗中...</button>';
+      html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;opacity:0.6;" disabled>⚔ 战斗中</button>';
     }
 
     html += '</div>';
@@ -1007,6 +1070,11 @@ var TowerDefensePanel = {
 
   _toggleSpeed: function () {
     TowerDefenseManager.toggleSpeed();
+    this._updateToolbar();
+  },
+
+  _togglePause: function () {
+    TowerDefenseManager.togglePause();
     this._updateToolbar();
   },
 
@@ -1421,6 +1489,14 @@ var TowerDefensePanel = {
     var self = this;
     var isManual = !data.auto;
     var bonusText = isManual ? '<p style="font-size:11px;color:var(--color-success);">手动加成: +30%金币 +20%经验</p>' : '';
+    var practiceText = data.isPractice ? '<p style="font-size:11px;color:var(--color-text-dim);">🎯 练习模式 — 奖励×25%，无装备/玉石掉落</p>' : '';
+
+    // 连杀加成信息
+    var killStreakText = '';
+    if (data.maxKillStreak && data.maxKillStreak >= 2) {
+      var bonusPct = Math.round((data.killStreakGoldBonus || 0) * 100);
+      killStreakText = '<p style="font-size:11px;color:#FFD700;">🔥 最高连杀: ' + data.maxKillStreak + (bonusPct > 0 ? '（金币+' + bonusPct + '%）' : '') + '</p>';
+    }
 
     Modal.show({
       title: titleText,
@@ -1431,6 +1507,8 @@ var TowerDefensePanel = {
           (rewards.jade ? '<p>💎 ' + rewards.jade + ' 玉璧</p>' : '') +
           (rewards.equipDrop ? '<p style="color:var(--color-primary);">🎁 获得装备掉落！</p>' : '') +
           bonusText +
+          practiceText +
+          killStreakText +
         '</div>',
       confirmText: '返回',
       showCancel: false,

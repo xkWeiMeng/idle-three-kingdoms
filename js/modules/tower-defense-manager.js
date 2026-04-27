@@ -284,6 +284,10 @@ var TowerDefenseManager = {
   },
 
   buildTower: function (typeId, gridX, gridY) {
+    // 暂停中禁止建造
+    if (this._battle && this._battle.paused) {
+      return { ok: false, reason: '暂停中无法操作' };
+    }
     var check = this.canBuildTower(typeId, gridX, gridY);
     if (!check.ok) return check;
 
@@ -380,6 +384,10 @@ var TowerDefenseManager = {
   },
 
   sellTower: function (towerUid) {
+    // 暂停中禁止出售
+    if (this._battle && this._battle.paused) {
+      return { ok: false, reason: '暂停中无法操作' };
+    }
     var tower = this._findTower(towerUid);
     if (!tower) return { ok: false, reason: '塔不存在' };
 
@@ -742,6 +750,11 @@ var TowerDefenseManager = {
         hero.autoReleaseTimer = 0;
       }
       var chargeTime = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.SKILL_CHARGE.BASE_CHARGE_TIME : 10;
+      // CD 缩减（来自装备/等级，未来扩展）
+      if (typeof TD_ENHANCEMENT !== 'undefined' && heroStats && heroStats.skillCdReduction) {
+        var reduction = Math.min(heroStats.skillCdReduction, TD_ENHANCEMENT.SKILL_CHARGE.MAX_CD_REDUCTION);
+        chargeTime = chargeTime / (1 + reduction);
+      }
       var autoTimeout = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.SKILL_CHARGE.AUTO_RELEASE_TIMEOUT : 5;
 
       if (!hero.chargeReady) {
@@ -890,12 +903,16 @@ var TowerDefenseManager = {
 
     hero.skillCooldown = cooldown;
 
+    // 飘字类型：手动释放 vs 自动释放
+    var dmgTextType = hero.manualRelease ? 'manual_skill' : 'skill';
+
     // 添加技能特效
     if (!this._battle.skillEffects) this._battle.skillEffects = [];
 
     if (skill.type === 'damage') {
       // 单体伤害
       target.hp -= skillDmg;
+      this._addDamageText(target.x, target.y, Math.floor(skillDmg), dmgTextType);
       this._battle.skillEffects.push({
         type: 'projectile_hit',
         x: hero.x, y: hero.y,
@@ -918,7 +935,9 @@ var TowerDefenseManager = {
         var dx = enemy.x - target.x;
         var dy = enemy.y - target.y;
         if (Math.sqrt(dx * dx + dy * dy) <= aoeRange) {
-          enemy.hp -= skillDmg * 0.6;
+          var aoeDmg = skillDmg * 0.6;
+          enemy.hp -= aoeDmg;
+          this._addDamageText(enemy.x, enemy.y, Math.floor(aoeDmg), dmgTextType);
           if (enemy.hp <= 0) this._killEnemy(enemy, null);
         }
       }
@@ -935,6 +954,7 @@ var TowerDefenseManager = {
     } else {
       // 默认：单体伤害
       target.hp -= skillDmg;
+      this._addDamageText(target.x, target.y, Math.floor(skillDmg), dmgTextType);
       this._battle.skillEffects.push({
         type: 'slash_arc',
         x: hero.x, y: hero.y,
@@ -1071,9 +1091,12 @@ var TowerDefenseManager = {
       skillEffects: [],
       // Phase 1 增强
       speedMultiplier: 1.0,
+      paused: false,
       isPractice: false,
       damageTexts: [],
       killStreak: { count: 0, timer: 0, lastLevel: 0 },
+      maxKillStreakGoldBonus: 0,
+      maxKillStreakCount: 0,
       emergencySkills: {
         arrow_rain: { cd: 0 },
         battle_charge: { cd: 0, active: false, timer: 0 },
@@ -1083,7 +1106,9 @@ var TowerDefenseManager = {
       battleChargeTimer: 0,
       ironWallActive: false,
       ironWallTimer: 0,
-      dyingEnemies: []
+      dyingEnemies: [],
+      particles: [],
+      screenShake: null
     };
   },
 
@@ -1115,6 +1140,13 @@ var TowerDefenseManager = {
 
     var dt = (timestamp - this._battle.lastFrameTime) / 1000;
     this._battle.lastFrameTime = timestamp;
+
+    // 暂停时仅更新 UI 动画（飘字淡出、死亡动画），跳过逻辑
+    if (this._battle.paused) {
+      this._tickDamageTexts(dt);
+      this._tickDyingEnemies(dt);
+      return;
+    }
 
     // 原始dt（用于UI动画，不受速度影响）
     var rawDt = dt;
@@ -1158,6 +1190,8 @@ var TowerDefenseManager = {
       this._tickKillStreak(dt);
       this._tickDyingEnemies(rawDt);
       this._tickEmergencyBuffs(dt);
+      this._tickParticles(rawDt);
+      this._tickScreenShake(rawDt);
       // Check win/lose
       this._checkBattleEnd();
     }
@@ -2053,6 +2087,16 @@ var TowerDefenseManager = {
     // 生成击杀飘字
     this._addDamageText(enemy.x, enemy.y - 10, '击杀', 'kill');
 
+    // 金币粒子
+    this._spawnGoldParticles(enemy.x, enemy.y, enemy.isBoss ? 6 : 3);
+
+    // Boss 击杀效果
+    if (enemy.isBoss) {
+      this._battle.screenShake = { intensity: 3, duration: 0.3, elapsed: 0 };
+      // 白色闪光通过 whiteFlash 标记
+      this._battle.whiteFlash = { duration: 0.2, elapsed: 0 };
+    }
+
     // 移到dying队列
     if (!this._battle.dyingEnemies) this._battle.dyingEnemies = [];
     this._battle.dyingEnemies.push(enemy);
@@ -2132,8 +2176,11 @@ var TowerDefenseManager = {
     // 重置 Phase 1 运行时
     this._battle.damageTexts = [];
     this._battle.killStreak = { count: 0, timer: 0, lastLevel: 0 };
+    this._battle.maxKillStreakGoldBonus = 0;
+    this._battle.maxKillStreakCount = 0;
     this._battle.dyingEnemies = [];
     this._battle.speedMultiplier = 1.0;
+    this._battle.paused = false;
 
     // Init wall instances for hp tracking
     this._initWallInstances();
@@ -2241,6 +2288,13 @@ var TowerDefenseManager = {
       delete rewards.equipDrop;
     }
 
+    // 连杀金币加成
+    var killStreakBonus = this._battle.maxKillStreakGoldBonus || 0;
+    if (killStreakBonus > 0 && rewards.gold) {
+      rewards.gold = Math.floor(rewards.gold * (1 + killStreakBonus));
+    }
+    var maxStreak = this._battle.maxKillStreakCount || 0;
+
     // Grant rewards
     this._grantRewards(rewards, rewardMultiplier);
 
@@ -2258,7 +2312,10 @@ var TowerDefenseManager = {
       rewards: rewards,
       auto: false,
       chapter: this._currentStage ? this._currentStage.chapter : null,
-      stage: this._currentStage ? this._currentStage.stage : null
+      stage: this._currentStage ? this._currentStage.stage : null,
+      maxKillStreak: maxStreak,
+      killStreakGoldBonus: killStreakBonus,
+      isPractice: this._battle.isPractice
     });
 
     // Stop battle loop, return to idle
@@ -2723,12 +2780,35 @@ var TowerDefenseManager = {
     return this._battle ? this._battle.speedMultiplier : 1.0;
   },
 
+  togglePause: function () {
+    if (!this._battle.active || this._battle.phase !== 'active') return false;
+    this._battle.paused = !this._battle.paused;
+    EventBus.emit('td:pause_changed', { paused: this._battle.paused });
+    return true;
+  },
+
+  isPaused: function () {
+    return this._battle ? this._battle.paused : false;
+  },
+
   // ========== Phase 1: 体力系统 (CAP-TDE-02) ==========
 
   getStamina: function () {
+    var max = (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.STAMINA.MAX : 12;
+    var current = this._state.stamina.current;
+    var nextRecoverSec = 0;
+    if (current < max && typeof TD_ENHANCEMENT !== 'undefined') {
+      var interval = TD_ENHANCEMENT.STAMINA.RECOVER_INTERVAL_MIN;
+      var elapsed = (Date.now() - (this._state.stamina.lastRecover || Date.now())) / 60000;
+      var remaining = interval - elapsed;
+      if (remaining > 0) {
+        nextRecoverSec = Math.ceil(remaining * 60);
+      }
+    }
     return {
-      current: this._state.stamina.current,
-      max: (typeof TD_ENHANCEMENT !== 'undefined') ? TD_ENHANCEMENT.STAMINA.MAX : 12
+      current: current,
+      max: max,
+      nextRecoverSec: nextRecoverSec
     };
   },
 
@@ -2833,6 +2913,67 @@ var TowerDefenseManager = {
     return this._battle ? (this._battle.dyingEnemies || []) : [];
   },
 
+  _spawnGoldParticles: function (x, y, count) {
+    if (!this._battle.particles) this._battle.particles = [];
+    var maxParticles = 30;
+    for (var i = 0; i < count; i++) {
+      if (this._battle.particles.length >= maxParticles) {
+        this._battle.particles.shift();
+      }
+      var angle = (Math.random() * Math.PI) - Math.PI; // upward arc
+      var speed = 80 + Math.random() * 60;
+      this._battle.particles.push({
+        x: x, y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 60,
+        life: 0, maxLife: 0.6 + Math.random() * 0.3,
+        size: 3 + Math.random() * 2
+      });
+    }
+  },
+
+  _tickParticles: function (rawDt) {
+    if (!this._battle.particles) return;
+    for (var i = this._battle.particles.length - 1; i >= 0; i--) {
+      var p = this._battle.particles[i];
+      p.life += rawDt;
+      if (p.life >= p.maxLife) {
+        this._battle.particles.splice(i, 1);
+        continue;
+      }
+      p.x += p.vx * rawDt;
+      p.y += p.vy * rawDt;
+      p.vy += 200 * rawDt; // gravity
+    }
+  },
+
+  _tickScreenShake: function (rawDt) {
+    if (this._battle.screenShake) {
+      this._battle.screenShake.elapsed += rawDt;
+      if (this._battle.screenShake.elapsed >= this._battle.screenShake.duration) {
+        this._battle.screenShake = null;
+      }
+    }
+    if (this._battle.whiteFlash) {
+      this._battle.whiteFlash.elapsed += rawDt;
+      if (this._battle.whiteFlash.elapsed >= this._battle.whiteFlash.duration) {
+        this._battle.whiteFlash = null;
+      }
+    }
+  },
+
+  getParticles: function () {
+    return this._battle ? (this._battle.particles || []) : [];
+  },
+
+  getScreenShake: function () {
+    return this._battle ? this._battle.screenShake : null;
+  },
+
+  getWhiteFlash: function () {
+    return this._battle ? this._battle.whiteFlash : null;
+  },
+
   // ========== Phase 1: 武将技能手动释放 (CAP-TDE-05) ==========
 
   manualReleaseSkill: function (heroUid) {
@@ -2883,6 +3024,15 @@ var TowerDefenseManager = {
     if (currentLevel > ks.lastLevel && currentLevel > 0) {
       var levelData = cfg.LEVELS[currentLevel - 1];
       ks.lastLevel = currentLevel;
+
+      // 跟踪本波最高连杀金币加成
+      if (levelData.goldBonus > (this._battle.maxKillStreakGoldBonus || 0)) {
+        this._battle.maxKillStreakGoldBonus = levelData.goldBonus;
+      }
+      if (ks.count > (this._battle.maxKillStreakCount || 0)) {
+        this._battle.maxKillStreakCount = ks.count;
+      }
+
       EventBus.emit('td:kill_streak', {
         count: ks.count,
         level: currentLevel,

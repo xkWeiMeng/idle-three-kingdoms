@@ -609,6 +609,27 @@ var AbyssPanel = {
   },
 
   /* ============================
+   * Theme & Clear Art Helpers
+   * ============================ */
+  _getAbyssTheme: function (abyss) {
+    if (abyss.theme) return abyss.theme;
+    return {
+      bgGradient: abyss.bgGradient ? 'linear-gradient(180deg, ' + abyss.bgGradient[0] + ', ' + abyss.bgGradient[1] + ')' : null,
+      particleColor: abyss.particleColor || null,
+      bossFrameColor: abyss.bossFrameColor || null
+    };
+  },
+
+  _renderClearArt: function (run, isVictory) {
+    if (!isVictory) return '';
+    var abyss = AbyssData[run.abyssId];
+    if (!abyss || !abyss.clearArt) return '';
+    return '<div class="abyss-clear-art">'
+      + '<img src="' + abyss.clearArt + '" alt="' + (abyss.clearArtAlt || abyss.name + ' 通关') + '">'
+      + '</div>';
+  },
+
+  /* ============================
    * Init & Event Binding
    * ============================ */
   init: function () {
@@ -668,7 +689,7 @@ var AbyssPanel = {
         name: nextFloorData.boss.name,
         title: nextFloorData.boss.title || ''
       };
-      var theme = abyss.theme || {};
+      var theme = self._getAbyssTheme(abyss);
 
       var bossEntrance = self._Transition.showBossEntrance(bossData, theme, function () {
         // Advance floor after boss entrance
@@ -727,7 +748,7 @@ var AbyssPanel = {
 
   _renderTransitionPhase: function (run) {
     var abyss = AbyssData[run.abyssId];
-    var theme = abyss.theme || {};
+    var theme = this._getAbyssTheme(abyss);
     var bgGrad = theme.bgGradient || 'linear-gradient(180deg, #1a0a2e, #0d0d0d)';
     var html = '';
 
@@ -811,7 +832,7 @@ var AbyssPanel = {
     var abyss = AbyssData[run.abyssId];
     var html = '';
 
-    var theme = abyss.theme || {};
+    var theme = this._getAbyssTheme(abyss);
     var bgGrad = theme.bgGradient || 'linear-gradient(180deg, #1a0a2e, #0d0d0d)';
     html += '<div style="background:' + bgGrad + ';border-radius:8px;padding:12px;margin-bottom:8px;">';
     html += '<div style="text-align:center;">';
@@ -890,6 +911,7 @@ var AbyssPanel = {
       html += '<div style="font-size:0.78rem;color:var(--color-text-dim);margin-top:4px;">止步于第 ' + run.currentFloor + ' 层</div>';
     }
     html += '</div>';
+    html += this._renderClearArt(run, isVictory);
 
     // Resources area
     html += '<div class="abyss-settlement__resources" id="abyss-resources" style="display:none;"></div>';
@@ -916,6 +938,7 @@ var AbyssPanel = {
       html += '<div style="font-size:0.78rem;color:var(--color-text-dim);margin-top:4px;">止步于第 ' + run.currentFloor + ' 层</div>';
     }
     html += '</div>';
+    html += this._renderClearArt(run, isVictory);
     html += this._renderSummaryContent(run, isVictory);
     html += '</div>';
     return html;
@@ -1173,7 +1196,7 @@ var AbyssPanel = {
     var items = [];
     if (r.gold) items.push({ emoji: UIIcons.icon('gold'), label: '金币', value: Utils.formatNumber(r.gold) });
     if (r.exp) items.push({ emoji: UIIcons.icon('exp'), label: '经验', value: Utils.formatNumber(r.exp) });
-    if (r.iron) items.push({ emoji: UIIcons.icon('iron'), label: '铁瞿', value: r.iron });
+    if (r.iron) items.push({ emoji: UIIcons.icon('iron'), label: '铁矿', value: r.iron });
     if (r.jade) items.push({ emoji: UIIcons.icon('jade'), label: '玉璧', value: r.jade });
     var html = '';
     for (var i = 0; i < items.length; i++) {
@@ -1213,7 +1236,7 @@ var AbyssPanel = {
       var inst = AbyssManager.getInstance(aid);
       var unlocked = AbyssManager.isAbyssUnlocked(aid);
 
-      var theme = abyss.theme || {};
+      var theme = this._getAbyssTheme(abyss);
       var bgGrad = theme.bgGradient || 'linear-gradient(180deg, #1a0a2e, #0d0d0d)';
 
       html += '<div class="card" style="border:1px solid ' + (unlocked ? (theme.bossFrameColor || '#444') : '#333') + ';';
