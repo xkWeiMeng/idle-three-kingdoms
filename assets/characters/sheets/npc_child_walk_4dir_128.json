@@ -1,0 +1,551 @@
+{
+  "name": "npc_child_walk_4dir_128",
+  "file": "assets/characters/sheets/npc_child_walk_4dir_128.png",
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "columns": 6,
+  "rows": 4,
+  "framesPerDirection": 6,
+  "directions": [
+    "south",
+    "west",
+    "east",
+    "north"
+  ],
+  "background": "#ff00ff",
+  "sourceReferences": [
+    "assets/characters/npc_child.png",
+    "C:/Users/ws/.codex/generated_images/019dcef4-1cfc-7cf3-939f-7e894c43a9dd/ig_0b36842cbd46002f0169ef5f23922c8197a47a502966cf3e88.png"
+  ],
+  "style": "三国题材 NPC，设计简洁，红白机风格有限调色板，硬边像素，无抗锯齿。",
+  "generationPrompt": "创建像素艺术精灵表，4方向角色行走循环，每方向6帧，4行动画，网格布局，三国英雄，设计简洁，每格128x128像素，纯色背景，红白机风格调色板，图片背景色用品红，边缘锐利，无抗锯齿。",
+  "generationMethod": "使用内置 image_gen 按参考 NPC 生成 6x4 行走精灵表；本地最近邻缩放到 768x512，并将近品红背景统一为 #ff00ff，前景压到有限复古调色板。",
+  "originalGeneratedSize": [
+    1536,
+    1024
+  ],
+  "palette": {
+    "background": "#ff00ff",
+    "colorCount": 35,
+    "colors": [
+      "#080808",
+      "#18120e",
+      "#1f3040",
+      "#2b1c12",
+      "#30485c",
+      "#3a2c24",
+      "#3f2918",
+      "#464e34",
+      "#486278",
+      "#524434",
+      "#541812",
+      "#54371f",
+      "#5a6438",
+      "#647c8e",
+      "#694628",
+      "#6f5d41",
+      "#788046",
+      "#805630",
+      "#842218",
+      "#8c9ca8",
+      "#917c4f",
+      "#969152",
+      "#99673a",
+      "#b0321e",
+      "#b17742",
+      "#cd9052",
+      "#da4a2a",
+      "#e16e46",
+      "#e8ab65",
+      "#ebe6d2",
+      "#f5965f",
+      "#f8d291",
+      "#ffbe82",
+      "#ffebbe",
+      "#fff8e1"
+    ]
+  },
+  "transparentPixels": 299409,
+  "frames": [
+    {
+      "direction": "south",
+      "row": 0,
+      "frame": 0,
+      "x": 0,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        47,
+        12,
+        100,
+        125
+      ],
+      "spriteSize": [
+        54,
+        114
+      ],
+      "opaquePixels": 4195
+    },
+    {
+      "direction": "south",
+      "row": 0,
+      "frame": 1,
+      "x": 128,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        45,
+        11,
+        101,
+        127
+      ],
+      "spriteSize": [
+        57,
+        117
+      ],
+      "opaquePixels": 4211
+    },
+    {
+      "direction": "south",
+      "row": 0,
+      "frame": 2,
+      "x": 256,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        45,
+        11,
+        101,
+        124
+      ],
+      "spriteSize": [
+        57,
+        114
+      ],
+      "opaquePixels": 4216
+    },
+    {
+      "direction": "south",
+      "row": 0,
+      "frame": 3,
+      "x": 384,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        40,
+        11,
+        94,
+        127
+      ],
+      "spriteSize": [
+        55,
+        117
+      ],
+      "opaquePixels": 4102
+    },
+    {
+      "direction": "south",
+      "row": 0,
+      "frame": 4,
+      "x": 512,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        34,
+        11,
+        88,
+        127
+      ],
+      "spriteSize": [
+        55,
+        117
+      ],
+      "opaquePixels": 4135
+    },
+    {
+      "direction": "south",
+      "row": 0,
+      "frame": 5,
+      "x": 640,
+      "y": 0,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        28,
+        12,
+        83,
+        126
+      ],
+      "spriteSize": [
+        56,
+        115
+      ],
+      "opaquePixels": 4207
+    },
+    {
+      "direction": "west",
+      "row": 1,
+      "frame": 0,
+      "x": 0,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        46,
+        12,
+        95,
+        119
+      ],
+      "spriteSize": [
+        50,
+        108
+      ],
+      "opaquePixels": 3653
+    },
+    {
+      "direction": "west",
+      "row": 1,
+      "frame": 1,
+      "x": 128,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        40,
+        11,
+        94,
+        119
+      ],
+      "spriteSize": [
+        55,
+        109
+      ],
+      "opaquePixels": 3820
+    },
+    {
+      "direction": "west",
+      "row": 1,
+      "frame": 2,
+      "x": 256,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        33,
+        11,
+        90,
+        119
+      ],
+      "spriteSize": [
+        58,
+        109
+      ],
+      "opaquePixels": 3708
+    },
+    {
+      "direction": "west",
+      "row": 1,
+      "frame": 3,
+      "x": 384,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        35,
+        11,
+        83,
+        119
+      ],
+      "spriteSize": [
+        49,
+        109
+      ],
+      "opaquePixels": 3592
+    },
+    {
+      "direction": "west",
+      "row": 1,
+      "frame": 4,
+      "x": 512,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        26,
+        10,
+        81,
+        119
+      ],
+      "spriteSize": [
+        56,
+        110
+      ],
+      "opaquePixels": 3908
+    },
+    {
+      "direction": "west",
+      "row": 1,
+      "frame": 5,
+      "x": 640,
+      "y": 128,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        25,
+        10,
+        76,
+        119
+      ],
+      "spriteSize": [
+        52,
+        110
+      ],
+      "opaquePixels": 3642
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 0,
+      "x": 0,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        51,
+        7,
+        99,
+        127
+      ],
+      "spriteSize": [
+        49,
+        121
+      ],
+      "opaquePixels": 3649
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 1,
+      "x": 128,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        43,
+        7,
+        96,
+        127
+      ],
+      "spriteSize": [
+        54,
+        121
+      ],
+      "opaquePixels": 3685
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 2,
+      "x": 256,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        40,
+        7,
+        93,
+        127
+      ],
+      "spriteSize": [
+        54,
+        121
+      ],
+      "opaquePixels": 3596
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 3,
+      "x": 384,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        37,
+        7,
+        86,
+        127
+      ],
+      "spriteSize": [
+        50,
+        121
+      ],
+      "opaquePixels": 3531
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 4,
+      "x": 512,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        33,
+        8,
+        85,
+        127
+      ],
+      "spriteSize": [
+        53,
+        120
+      ],
+      "opaquePixels": 3729
+    },
+    {
+      "direction": "east",
+      "row": 2,
+      "frame": 5,
+      "x": 640,
+      "y": 256,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        30,
+        7,
+        78,
+        127
+      ],
+      "spriteSize": [
+        49,
+        121
+      ],
+      "opaquePixels": 3551
+    },
+    {
+      "direction": "north",
+      "row": 3,
+      "frame": 0,
+      "x": 0,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        47,
+        0,
+        101,
+        110
+      ],
+      "spriteSize": [
+        55,
+        111
+      ],
+      "opaquePixels": 4108
+    },
+    {
+      "direction": "north",
+      "row": 3,
+      "frame": 1,
+      "x": 128,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        44,
+        0,
+        98,
+        112
+      ],
+      "spriteSize": [
+        55,
+        113
+      ],
+      "opaquePixels": 4118
+    },
+    {
+      "direction": "north",
+      "row": 3,
+      "frame": 2,
+      "x": 256,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        41,
+        0,
+        95,
+        112
+      ],
+      "spriteSize": [
+        55,
+        113
+      ],
+      "opaquePixels": 4126
+    },
+    {
+      "direction": "north",
+      "row": 3,
+      "frame": 3,
+      "x": 384,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        38,
+        0,
+        92,
+        112
+      ],
+      "spriteSize": [
+        55,
+        113
+      ],
+      "opaquePixels": 4061
+    },
+    {
+      "direction": "north",
+      "row": 3,
+      "frame": 4,
+      "x": 512,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        32,
+        0,
+        86,
+        112
+      ],
+      "spriteSize": [
+        55,
+        113
+      ],
+      "opaquePixels": 4106
+    },
+    {
+      "direction": "north",
+      "row": 3,
+      "frame": 5,
+      "x": 640,
+      "y": 384,
+      "w": 128,
+      "h": 128,
+      "spriteBox": [
+        28,
+        0,
+        82,
+        111
+      ],
+      "spriteSize": [
+        55,
+        112
+      ],
+      "opaquePixels": 4158
+    }
+  ]
+}

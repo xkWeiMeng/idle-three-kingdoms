@@ -1,6 +1,6 @@
 {
-  "name": "npc_villager_walk_4dir_128",
-  "file": "assets/img/town-pixel/characters/sheets/npc_villager_walk_4dir_128.png",
+  "name": "npc_guard_walk_4dir_128",
+  "file": "assets/characters/sheets/npc_guard_walk_4dir_128.png",
   "frameWidth": 128,
   "frameHeight": 128,
   "columns": 6,
@@ -14,39 +14,13 @@
   ],
   "background": "#ff00ff",
   "sourceReferences": [
-    "assets/img/town-pixel/characters/npc_male.png",
-    "assets/img/town-pixel/raw/characters-town.png"
+    "C:\\Users\\ws\\.codex\\generated_images\\019dce13-8d1d-76f0-ad22-c8d36d4ddc03\\ig_059e81835cdaa2780169ef2040204881949312f4cbd82ebd49.png",
+    "assets/characters/sheets/common_guard_walk_4dir_128.png",
+    "assets/characters/sheets/common_soldier_walk_4dir_128.png",
+    "assets/characters/sheets/npc_female_walk_4dir_128.png"
   ],
-  "style": "参考 npc_male.png 的三国村民 4 方向 6 帧行走循环，红白机风格调色板，硬边无抗锯齿",
-  "generationMethod": "手工像素骨架重绘；发髻、头巾、蓝色斜襟、布衣、腰带、宽裤和布鞋均参考 npc_male.png",
-  "palette": {
-    "colorCount": 21,
-    "background": "#ff00ff",
-    "colors": [
-      "#140f0c",
-      "#2a1b12",
-      "#2d1f17",
-      "#31241b",
-      "#523723",
-      "#526579",
-      "#533019",
-      "#585449",
-      "#5b4832",
-      "#5c5d56",
-      "#6b4c33",
-      "#748797",
-      "#85643d",
-      "#8e5d2f",
-      "#906e46",
-      "#a65b3a",
-      "#ad8359",
-      "#d3ac7a",
-      "#e59d63",
-      "#ecd8ad",
-      "#ff00ff"
-    ]
-  },
-  "generatedBy": "tools/generate_villager_walk_sheet.py",
+  "style": "参考工程内其它人物精灵表生成的三国城镇守卫 NPC，4 方向 6 帧行走循环，硬边像素风。",
+  "generationMethod": "使用内置 image_gen 生成 6x4 品红背景源图后，本地识别 24 个角色连通区域、按行列重排、最近邻缩放并脚底对齐到 128x128 单元。",
   "frames": [
     {
       "direction": "south",
@@ -56,15 +30,19 @@
       "y": 0,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        88,
+        45,
+        201,
+        228
       ],
       "spriteSize": [
-        68,
-        118
+        72,
+        116
+      ],
+      "drawOffset": [
+        28,
+        4
       ]
     },
     {
@@ -75,15 +53,19 @@
       "y": 0,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        0,
-        100,
-        118
+      "sourceBox": [
+        318,
+        44,
+        428,
+        228
       ],
       "spriteSize": [
-        68,
-        118
+        69,
+        116
+      ],
+      "drawOffset": [
+        29,
+        4
       ]
     },
     {
@@ -94,15 +76,19 @@
       "y": 0,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        569,
+        44,
+        675,
+        227
       ],
       "spriteSize": [
-        68,
-        118
+        67,
+        116
+      ],
+      "drawOffset": [
+        30,
+        4
       ]
     },
     {
@@ -113,15 +99,19 @@
       "y": 0,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        0,
-        100,
-        118
+      "sourceBox": [
+        815,
+        44,
+        924,
+        227
       ],
       "spriteSize": [
-        68,
-        118
+        69,
+        116
+      ],
+      "drawOffset": [
+        29,
+        4
       ]
     },
     {
@@ -132,15 +122,19 @@
       "y": 0,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        1074,
+        44,
+        1183,
+        228
       ],
       "spriteSize": [
-        68,
-        118
+        69,
+        116
+      ],
+      "drawOffset": [
+        29,
+        4
       ]
     },
     {
@@ -151,15 +145,19 @@
       "y": 0,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        1320,
+        44,
+        1432,
+        228
       ],
       "spriteSize": [
-        68,
-        118
+        71,
+        116
+      ],
+      "drawOffset": [
+        28,
+        4
       ]
     },
     {
@@ -170,15 +168,19 @@
       "y": 128,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        28,
-        2,
-        88,
-        120
+      "sourceBox": [
+        99,
+        271,
+        194,
+        455
       ],
       "spriteSize": [
         60,
-        118
+        116
+      ],
+      "drawOffset": [
+        34,
+        4
       ]
     },
     {
@@ -189,15 +191,19 @@
       "y": 128,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        28,
-        0,
-        88,
-        118
+      "sourceBox": [
+        323,
+        270,
+        424,
+        455
       ],
       "spriteSize": [
-        60,
-        118
+        63,
+        116
+      ],
+      "drawOffset": [
+        32,
+        4
       ]
     },
     {
@@ -208,15 +214,19 @@
       "y": 128,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        28,
-        2,
-        88,
-        120
+      "sourceBox": [
+        566,
+        271,
+        676,
+        455
       ],
       "spriteSize": [
-        60,
-        118
+        69,
+        116
+      ],
+      "drawOffset": [
+        29,
+        4
       ]
     },
     {
@@ -227,15 +237,19 @@
       "y": 128,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        28,
-        0,
-        88,
-        118
+      "sourceBox": [
+        813,
+        272,
+        921,
+        455
       ],
       "spriteSize": [
-        60,
-        118
+        68,
+        116
+      ],
+      "drawOffset": [
+        30,
+        4
       ]
     },
     {
@@ -246,15 +260,19 @@
       "y": 128,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        28,
-        2,
-        88,
-        120
+      "sourceBox": [
+        1072,
+        272,
+        1181,
+        455
       ],
       "spriteSize": [
-        60,
-        118
+        69,
+        116
+      ],
+      "drawOffset": [
+        29,
+        4
       ]
     },
     {
@@ -265,15 +283,19 @@
       "y": 128,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        28,
-        2,
-        88,
-        120
+      "sourceBox": [
+        1330,
+        273,
+        1424,
+        455
       ],
       "spriteSize": [
         60,
-        118
+        116
+      ],
+      "drawOffset": [
+        34,
+        4
       ]
     },
     {
@@ -284,15 +306,19 @@
       "y": 256,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        40,
-        2,
-        100,
-        120
+      "sourceBox": [
+        98,
+        503,
+        186,
+        681
       ],
       "spriteSize": [
-        60,
-        118
+        57,
+        116
+      ],
+      "drawOffset": [
+        35,
+        4
       ]
     },
     {
@@ -303,15 +329,19 @@
       "y": 256,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        40,
-        0,
-        100,
-        118
+      "sourceBox": [
+        329,
+        503,
+        425,
+        681
       ],
       "spriteSize": [
-        60,
-        118
+        63,
+        116
+      ],
+      "drawOffset": [
+        32,
+        4
       ]
     },
     {
@@ -322,15 +352,19 @@
       "y": 256,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        40,
-        2,
-        100,
-        120
+      "sourceBox": [
+        561,
+        503,
+        664,
+        682
       ],
       "spriteSize": [
-        60,
-        118
+        67,
+        116
+      ],
+      "drawOffset": [
+        30,
+        4
       ]
     },
     {
@@ -341,15 +375,19 @@
       "y": 256,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        40,
-        0,
-        100,
-        118
+      "sourceBox": [
+        812,
+        503,
+        920,
+        683
       ],
       "spriteSize": [
-        60,
-        118
+        70,
+        116
+      ],
+      "drawOffset": [
+        29,
+        4
       ]
     },
     {
@@ -360,15 +398,19 @@
       "y": 256,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        40,
-        2,
-        100,
-        120
+      "sourceBox": [
+        1085,
+        503,
+        1187,
+        681
       ],
       "spriteSize": [
-        60,
-        118
+        66,
+        116
+      ],
+      "drawOffset": [
+        31,
+        4
       ]
     },
     {
@@ -379,15 +421,19 @@
       "y": 256,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        40,
-        2,
-        100,
-        120
+      "sourceBox": [
+        1336,
+        504,
+        1434,
+        682
       ],
       "spriteSize": [
-        60,
-        118
+        64,
+        116
+      ],
+      "drawOffset": [
+        32,
+        4
       ]
     },
     {
@@ -398,15 +444,19 @@
       "y": 384,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        88,
+        735,
+        190,
+        928
       ],
       "spriteSize": [
-        68,
-        118
+        61,
+        116
+      ],
+      "drawOffset": [
+        33,
+        4
       ]
     },
     {
@@ -417,15 +467,19 @@
       "y": 384,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        0,
-        100,
-        118
+      "sourceBox": [
+        327,
+        732,
+        425,
+        928
       ],
       "spriteSize": [
-        68,
-        118
+        58,
+        116
+      ],
+      "drawOffset": [
+        35,
+        4
       ]
     },
     {
@@ -436,15 +490,19 @@
       "y": 384,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        568,
+        732,
+        661,
+        928
       ],
       "spriteSize": [
-        68,
-        118
+        55,
+        116
+      ],
+      "drawOffset": [
+        36,
+        4
       ]
     },
     {
@@ -455,15 +513,19 @@
       "y": 384,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        0,
-        100,
-        118
+      "sourceBox": [
+        818,
+        732,
+        914,
+        928
       ],
       "spriteSize": [
-        68,
-        118
+        57,
+        116
+      ],
+      "drawOffset": [
+        35,
+        4
       ]
     },
     {
@@ -474,15 +536,19 @@
       "y": 384,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        1086,
+        732,
+        1191,
+        928
       ],
       "spriteSize": [
-        68,
-        118
+        62,
+        116
+      ],
+      "drawOffset": [
+        33,
+        4
       ]
     },
     {
@@ -493,15 +559,19 @@
       "y": 384,
       "w": 128,
       "h": 128,
-      "spriteBox": [
-        32,
-        2,
-        100,
-        120
+      "sourceBox": [
+        1336,
+        732,
+        1432,
+        928
       ],
       "spriteSize": [
-        68,
-        118
+        57,
+        116
+      ],
+      "drawOffset": [
+        35,
+        4
       ]
     }
   ]

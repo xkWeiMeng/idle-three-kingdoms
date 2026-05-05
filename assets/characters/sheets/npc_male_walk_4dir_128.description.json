@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "assetId": "npc_male_walk_4dir_128",
+  "purpose": "城镇成年男性村民 NPC 的四方向行走动画精灵表描述，供后续 Agent 理解资源语义、网格规则和编辑约束。",
+  "files": {
+    "sheet": "assets/characters/sheets/npc_male_walk_4dir_128.png",
+    "frameMetadata": "assets/characters/sheets/npc_male_walk_4dir_128.json",
+    "referenceImage": "assets/characters/npc_male.png"
+  },
+  "character": {
+    "type": "npc",
+    "role": "male_villager",
+    "displayName": "男性村民",
+    "worldContext": "三国题材城镇居民，用于城镇场景中闲逛、对话、工匠或普通村民氛围表现。",
+    "visualIdentity": [
+      "成年男性体型，比例比小孩 NPC 更高更厚实",
+      "黑色发髻，头部有布质头巾或绑带",
+      "米褐色短袖上衣",
+      "蓝灰色斜襟马甲或布带是主要识别色",
+      "棕色腰带和宽松棕色裤装",
+      "布鞋，无武器、无盔甲、无大件道具"
+    ]
+  },
+  "sheetLayout": {
+    "imageSize": {
+      "width": 768,
+      "height": 512
+    },
+    "grid": {
+      "columns": 6,
+      "rows": 4,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "framesPerDirection": 6
+    },
+    "rowOrder": [
+      {
+        "row": 0,
+        "direction": "south",
+        "meaning": "正面朝下"
+      },
+      {
+        "row": 1,
+        "direction": "west",
+        "meaning": "向左行走"
+      },
+      {
+        "row": 2,
+        "direction": "east",
+        "meaning": "向右行走"
+      },
+      {
+        "row": 3,
+        "direction": "north",
+        "meaning": "背面朝上"
+      }
+    ],
+    "frameIndexing": "第 n 帧源矩形为 x = n * 128, y = row * 128, w = 128, h = 128。"
+  },
+  "animation": {
+    "cycle": "每个方向 6 帧循环播放。",
+    "recommendedFps": 8,
+    "motionNotes": [
+      "脚步左右交替，适合城镇慢速移动。",
+      "所有帧脚底应尽量保持同一基线，避免角色跳动。",
+      "第 0 帧可作为静止或朝向展示帧使用。"
+    ]
+  },
+  "rendering": {
+    "backgroundColor": "#ff00ff",
+    "backgroundMeaning": "品红为抠图背景色，运行时通过 SpriteSheetProcessor 处理为透明。",
+    "style": "红白机风格有限调色板，硬边像素，无抗锯齿。",
+    "paletteConstraint": "前景使用有限复古调色板；如后续重绘，避免引入大面积渐变、半透明阴影或现代高清插画质感。",
+    "edgeConstraint": "边缘应保持锐利像素块，避免柔边、模糊、抗锯齿和脏色背景。"
+  },
+  "integration": {
+    "registry": "js/data/walk-sheet-registry.js",
+    "registryKey": "npc_male",
+    "npcSpriteMap": {
+      "sourceSprite": "npc_male",
+      "walkSheetKey": "npc_male"
+    },
+    "expectedRuntime": "TownCharacters 通过 WalkSheetRegistry.NPC_SPRITE_MAP 获取该表，并按 facing 映射到对应行。"
+  },
+  "agentGuidance": {
+    "safeEdits": [
+      "优化单帧像素细节",
+      "微调步态幅度",
+      "修正脚底基线",
+      "压缩调色板或清理品红背景噪点"
+    ],
+    "avoidEdits": [
+      "改变 768x512 总尺寸",
+      "改变 6x4 网格",
+      "改变 128x128 单帧尺寸",
+      "更改行方向顺序",
+      "把品红背景替换为透明或其它颜色",
+      "给角色添加武器、盔甲、坐骑或大件道具"
+    ],
+    "regenerationPrompt": "创建像素艺术精灵表，4方向角色行走循环，每方向6帧，4行动画，网格布局，三国男性村民 NPC，设计简洁，每格128x128像素，纯色背景，红白机风格调色板，图片背景色用品红，边缘锐利，无抗锯齿；参考 npc_male.png 的黑色发髻、布头巾、米褐短袖、蓝灰斜襟、棕色腰带和宽松裤装。"
+  },
+  "validationChecklist": [
+    "PNG 尺寸必须为 768x512。",
+    "每个方向必须有 6 帧，整表共 24 帧。",
+    "所有帧必须非空。",
+    "背景必须为纯 #ff00ff。",
+    "角色应明显区别于小孩 NPC，身高和体型更成熟。",
+    "运行 npm run test:walk-review 应通过。"
+  ]
+}
