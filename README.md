@@ -151,3 +151,9 @@ idle-three-kingdoms/
 3. 模块使用全局单例对象（如 `ResourceManager`），通过 EventBus 通信
 4. CSS 使用 CSS Variables 统一主题色
 5. `ai-docs/` 目录仅本地使用，已在 `.gitignore` 中排除
+
+---
+
+## 作者
+
+**XieKang**
