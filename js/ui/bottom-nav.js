@@ -21,6 +21,7 @@ var BottomNav = {
     { id: 'abyss',     icon: 'abyss',       label: '深渊' },
     { id: 'roguelike', icon: 'trial',       label: '试炼' },
     { id: 'daily',     icon: 'daily',       label: '日挑' },
+    { id: 'pachinko',  icon: 'recruit',     label: '弹珠' },
     { id: 'farm',      icon: 'farm',        label: '菜园' },
     { id: 'parking',   icon: 'parking',     label: '驿站' },
     { id: 'achievement', icon: 'achievement', label: '成就' },
@@ -133,6 +134,9 @@ var BottomNav = {
     }
     if (panelId === 'daily' && typeof DailyChallengePanel !== 'undefined') {
       DailyChallengePanel.show(); return;
+    }
+    if (panelId === 'pachinko' && typeof PachinkoPanel !== 'undefined') {
+      PachinkoPanel.open(); return;
     }
 
     var titles = {

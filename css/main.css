@@ -4901,3 +4901,121 @@ html, body, #app {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
 }
+
+/* ===========================================
+   Pachinko (弹珠)
+   =========================================== */
+.pachinko-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 4px;
+}
+.pachinko-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--color-surface-dark);
+  border-radius: 6px;
+  border: 1px solid var(--color-secondary);
+}
+.pachinko-jade {
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--color-gold);
+}
+.pachinko-cost {
+  font-size: 0.78rem;
+  color: var(--color-text-dim);
+}
+.pachinko-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  background: #0d0d1a;
+  border-radius: 8px;
+  border: 2px solid var(--color-secondary);
+  overflow: hidden;
+}
+.pachinko-canvas-wrap canvas {
+  display: block;
+  max-width: 100%;
+}
+.pachinko-actions {
+  display: flex;
+  justify-content: center;
+}
+.pachinko-launch-btn {
+  font-size: 1.1rem;
+  padding: 10px 40px;
+  background: linear-gradient(135deg, var(--color-gold) 0%, #c0942e 100%);
+  color: #1a1410;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(212, 168, 73, 0.3);
+}
+.pachinko-launch-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(212, 168, 73, 0.5);
+}
+.pachinko-launch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pachinko-result {
+  text-align: center;
+  min-height: 24px;
+}
+.pachinko-result-text {
+  font-size: 1rem;
+  font-weight: bold;
+  animation: pachinko-result-in 0.3s ease-out;
+}
+@keyframes pachinko-result-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.pachinko-stats {
+  background: var(--color-surface-dark);
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid var(--color-secondary);
+}
+.pachinko-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.pachinko-stat {
+  text-align: center;
+}
+.pachinko-stat-label {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--color-text-dim);
+}
+.pachinko-stat-value {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: bold;
+  color: var(--color-text);
+}
+.pachinko-history-toggle {
+  background: var(--color-surface-dark);
+  border-radius: 6px;
+  padding: 8px;
+  border: 1px solid var(--color-secondary);
+}
+.pachinko-history-toggle summary {
+  cursor: pointer;
+  color: var(--color-text-dim);
+  font-size: 0.8rem;
+}
+.pachinko-history-item {
+  padding: 3px 0;
+  font-size: 0.78rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}

@@ -32,6 +32,7 @@
       achievement: AchievementManager.getState(),
       roguelike: RoguelikeManager.getState(),
       dailyChallenge: DailyChallengeManager.getState(),
+      pachinko: PachinkoManager.getState(),
       tutorial: TutorialManager.getState(),
       settings: typeof SettingsPanel !== 'undefined' && SettingsPanel.getState
         ? SettingsPanel.getState() : {},
@@ -67,6 +68,7 @@
     AchievementManager.init(saved);
     RoguelikeManager.init(saved);
     DailyChallengeManager.init(saved);
+    PachinkoManager.init(saved);
     TutorialManager.init(saved);
 
     // 初始化 UI
@@ -99,6 +101,7 @@
     AchievementPanel.init();
     RoguelikePanel.init();
     DailyChallengePanel.init();
+    PachinkoPanel.init();
 
     // 注册 tick 回调
     EventBus.on('game:tick', (dt) => {
