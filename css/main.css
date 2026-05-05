@@ -1450,6 +1450,23 @@ img, svg { display: block; max-width: 100%; }
   max-width: 180px;
 }
 
+/* --- Clear Art --- */
+.abyss-clear-art {
+  width: min(100%, 360px);
+  margin: 0 auto 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(245, 197, 24, 0.32);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.38), 0 0 22px rgba(245,197,24,0.14);
+  background: rgba(0,0,0,0.24);
+}
+.abyss-clear-art img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 18 / 11;
+  object-fit: cover;
+}
+
 /* --- Quick Battle Progress --- */
 .abyss-quick-progress {
   position: relative;
@@ -1760,7 +1777,8 @@ img, svg { display: block; max-width: 100%; }
   .jackpot-particle,
   .abyss-transition,
   .abyss-floor-clear,
-  .abyss-quick-progress .progress-fill {
+  .abyss-quick-progress .progress-fill,
+  .abyss-clear-art {
     animation: none !important;
     transition: none !important;
   }
