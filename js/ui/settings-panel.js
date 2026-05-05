@@ -362,7 +362,7 @@ var SettingsPanel = {
       '<div style="font-size:14px;font-weight:bold;color:var(--color-gold);">' +
         CONSTANTS.GAME_TITLE + ' v' + CONSTANTS.VERSION + ' Alpha' +
       '</div>' +
-      '<div style="font-size:12px;color:var(--color-text-dim);margin-top:4px;">Made with ❤️</div>' +
+      '<div style="font-size:12px;color:var(--color-text-dim);margin-top:4px;">Made with ❤️ by XieKang</div>' +
     '</div>';
   },
 
