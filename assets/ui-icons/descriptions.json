@@ -1,0 +1,784 @@
+{
+  "schemaVersion": 1,
+  "purpose": "为后续 Agent 提供 UI 图标资源的语义说明，避免仅凭文件名或画面猜测用途。",
+  "style": "96x96 PNG，三国古风 16-bit 像素图标，深墨描边，朱红与鎏金点缀，透明背景。",
+  "basePath": "assets/ui-icons/",
+  "fields": {
+    "label": "面向玩家或策划的中文名称。",
+    "category": "图标所属语义分类。",
+    "file": "相对 basePath 的图片文件名。",
+    "visual": "图片里实际画了什么。",
+    "meaning": "在游戏系统中代表什么对象、状态或动作。",
+    "usage": "推荐使用位置。"
+  },
+  "icons": {
+    "gold": {
+      "label": "金币",
+      "category": "resource",
+      "file": "gold.png",
+      "visual": "金色钱币或钱袋式财富符号。",
+      "meaning": "基础货币资源，用于升级、购买、强化等常规消耗。",
+      "usage": ["资源栏", "奖励结算", "消耗提示", "商店价格"]
+    },
+    "jade": {
+      "label": "玉璧",
+      "category": "resource",
+      "file": "jade.png",
+      "visual": "青绿色玉石或玉璧宝物。",
+      "meaning": "高级货币资源，用于加速、稀有招募或高级功能消耗。",
+      "usage": ["资源栏", "高级消耗", "签到奖励", "加速按钮"]
+    },
+    "food": {
+      "label": "粮草",
+      "category": "resource",
+      "file": "food.png",
+      "visual": "粮食、肉食或军粮包。",
+      "meaning": "战斗与冒险消耗的粮草资源。",
+      "usage": ["资源栏", "战斗消耗", "奖励展示"]
+    },
+    "exp": {
+      "label": "经验",
+      "category": "resource",
+      "file": "exp.png",
+      "visual": "发光星芒或经验晶体。",
+      "meaning": "武将成长经验。",
+      "usage": ["资源栏", "离线收益", "关卡结算", "试炼奖励"]
+    },
+    "wood": {
+      "label": "木材",
+      "category": "resource",
+      "file": "wood.png",
+      "visual": "木料、原木或木材堆。",
+      "meaning": "建造和升级建筑所需的基础材料。",
+      "usage": ["资源栏", "建筑成本", "挂机收益"]
+    },
+    "stone": {
+      "label": "石材",
+      "category": "resource",
+      "file": "stone.png",
+      "visual": "灰色石块或石材堆。",
+      "meaning": "建筑升级和城防建设材料。",
+      "usage": ["资源栏", "建筑成本", "挂机收益"]
+    },
+    "iron": {
+      "label": "铁矿",
+      "category": "resource",
+      "file": "iron.png",
+      "visual": "铁矿石或金属矿物。",
+      "meaning": "锻造、装备和高级建筑相关材料。",
+      "usage": ["资源栏", "锻造消耗", "深渊门票", "挂机收益"]
+    },
+    "town": {
+      "label": "城镇",
+      "category": "navigation",
+      "file": "town.png",
+      "visual": "古风城镇或主城建筑。",
+      "meaning": "返回城镇主场景或主城系统入口。",
+      "usage": ["底部导航", "城镇标题", "建筑相关提示"]
+    },
+    "heroes": {
+      "label": "武将",
+      "category": "navigation",
+      "file": "heroes.png",
+      "visual": "武将头像或人物标识。",
+      "meaning": "武将列表、队伍培养和角色相关入口。",
+      "usage": ["底部导航", "武将面板", "成就分类"]
+    },
+    "battle": {
+      "label": "战斗",
+      "category": "navigation",
+      "file": "battle.png",
+      "visual": "兵器或战斗标识。",
+      "meaning": "关卡战斗、战斗记录或战斗统计。",
+      "usage": ["底部导航", "战斗次数", "战斗入口"]
+    },
+    "recruit": {
+      "label": "招募",
+      "category": "navigation",
+      "file": "recruit.png",
+      "visual": "招募令、签筒或召唤标识。",
+      "meaning": "武将招募、免费招募次数或抽卡入口。",
+      "usage": ["底部导航", "签到奖励", "招募冷却"]
+    },
+    "more": {
+      "label": "更多",
+      "category": "navigation",
+      "file": "more.png",
+      "visual": "更多菜单或扩展入口标识。",
+      "meaning": "展开次级系统菜单。",
+      "usage": ["底部导航更多按钮"]
+    },
+    "adventure": {
+      "label": "冒险",
+      "category": "navigation",
+      "file": "adventure.png",
+      "visual": "远行、道路或探索道具。",
+      "meaning": "冒险地图、挂机刷图和区域选择系统。",
+      "usage": ["更多菜单", "冒险面板标题", "区域推荐"]
+    },
+    "quest": {
+      "label": "任务",
+      "category": "navigation",
+      "file": "quest.png",
+      "visual": "任务卷轴或清单。",
+      "meaning": "每日任务、主线任务或任务完成提示。",
+      "usage": ["更多菜单", "任务面板", "成就分类"]
+    },
+    "equipment": {
+      "label": "装备",
+      "category": "navigation",
+      "file": "equipment.png",
+      "visual": "装备组合或武具标识。",
+      "meaning": "装备背包、穿戴、强化和属性查看。",
+      "usage": ["更多菜单", "装备面板标题", "装备属性"]
+    },
+    "merchant": {
+      "label": "商人",
+      "category": "navigation",
+      "file": "merchant.png",
+      "visual": "商贩或货摊。",
+      "meaning": "商店、购买、神秘商人系统。",
+      "usage": ["更多菜单", "商店入口"]
+    },
+    "forge": {
+      "label": "锻造",
+      "category": "system",
+      "file": "forge.png",
+      "visual": "熔炉、铁砧或锻造火光。",
+      "meaning": "装备锻造、图纸制造和强化相关系统。",
+      "usage": ["更多菜单", "锻造面板", "锻造提示"]
+    },
+    "build": {
+      "label": "建造",
+      "category": "system",
+      "file": "build.png",
+      "visual": "建筑施工或营造标识。",
+      "meaning": "建筑建造、扩建或建筑槽位。",
+      "usage": ["建筑按钮", "建筑菜单", "城镇扩建"]
+    },
+    "defense": {
+      "label": "城防",
+      "category": "system",
+      "file": "defense.png",
+      "visual": "盾牌、城墙或防御标识。",
+      "meaning": "城防、塔防、防御属性。",
+      "usage": ["城防入口", "防御属性", "防御增益"]
+    },
+    "abyss": {
+      "label": "深渊",
+      "category": "system",
+      "file": "abyss.png",
+      "visual": "黑暗裂隙、深渊入口或危险副本标识。",
+      "meaning": "深渊副本挑战系统。",
+      "usage": ["更多菜单", "深渊面板", "副本入口"]
+    },
+    "trial": {
+      "label": "试炼",
+      "category": "system",
+      "file": "trial.png",
+      "visual": "古风试炼塔、令牌或挑战符号。",
+      "meaning": "无尽试炼 Roguelike 模式。",
+      "usage": ["更多菜单", "试炼标题", "试炼开始按钮"]
+    },
+    "daily": {
+      "label": "日挑",
+      "category": "system",
+      "file": "daily.png",
+      "visual": "日历、令牌或每日挑战标识。",
+      "meaning": "每日挑战玩法入口。",
+      "usage": ["更多菜单", "每日挑战入口"]
+    },
+    "farm": {
+      "label": "菜园",
+      "category": "system",
+      "file": "farm.png",
+      "visual": "菜园、农田或作物标识。",
+      "meaning": "菜园种植、作物和料理系统入口。",
+      "usage": ["更多菜单", "菜园标题"]
+    },
+    "parking": {
+      "label": "驿站",
+      "category": "system",
+      "file": "parking.png",
+      "visual": "马厩、车马或驿站标识。",
+      "meaning": "驿站、停驻或坐骑相关系统。",
+      "usage": ["更多菜单", "驿站入口"]
+    },
+    "achievement": {
+      "label": "成就",
+      "category": "system",
+      "file": "achievement.png",
+      "visual": "奖章或成就徽记。",
+      "meaning": "成就系统入口和成就进度。",
+      "usage": ["更多菜单", "成就面板", "胜率统计"]
+    },
+    "economy": {
+      "label": "经济",
+      "category": "system",
+      "file": "economy.png",
+      "visual": "账册、钱币或经济统计标识。",
+      "meaning": "经济统计、资源流向和预警。",
+      "usage": ["更多菜单", "经济面板", "资源趋势"]
+    },
+    "story": {
+      "label": "剧情",
+      "category": "system",
+      "file": "story.png",
+      "visual": "书卷或剧情文本标识。",
+      "meaning": "主线剧情、人物对话和章节。",
+      "usage": ["更多菜单", "剧情面板"]
+    },
+    "settings": {
+      "label": "设置",
+      "category": "system",
+      "file": "settings.png",
+      "visual": "齿轮或设置器具。",
+      "meaning": "游戏设置、存档和系统选项。",
+      "usage": ["更多菜单", "设置面板"]
+    },
+    "manage": {
+      "label": "管理",
+      "category": "system",
+      "file": "manage.png",
+      "visual": "管理工具或调整标识。",
+      "meaning": "管理、移动、排序或维护操作。",
+      "usage": ["建筑移动", "管理按钮", "操作入口"]
+    },
+    "core": {
+      "label": "核心",
+      "category": "system",
+      "file": "core.png",
+      "visual": "主城核心或核心建筑徽记。",
+      "meaning": "核心建筑、核心分类或主城关键系统。",
+      "usage": ["建筑分类", "核心系统说明"]
+    },
+    "production": {
+      "label": "生产",
+      "category": "system",
+      "file": "production.png",
+      "visual": "产出、工坊或资源生产标识。",
+      "meaning": "资源生产建筑或产出加成。",
+      "usage": ["建筑分类", "生产加成", "产出说明"]
+    },
+    "functional": {
+      "label": "功能",
+      "category": "system",
+      "file": "functional.png",
+      "visual": "功能模块或工具徽记。",
+      "meaning": "功能型建筑或非资源生产系统。",
+      "usage": ["建筑分类", "功能入口"]
+    },
+    "lock": {
+      "label": "未解锁",
+      "category": "state",
+      "file": "lock.png",
+      "visual": "锁头。",
+      "meaning": "功能、区域、建筑或内容未解锁。",
+      "usage": ["锁定区域", "未满足条件", "灰态入口"]
+    },
+    "check": {
+      "label": "完成",
+      "category": "state",
+      "file": "check.png",
+      "visual": "勾选、对号或完成印记。",
+      "meaning": "已完成、已领取、已通过。",
+      "usage": ["签到已领取", "成就完成", "关卡通关"]
+    },
+    "close": {
+      "label": "关闭",
+      "category": "state",
+      "file": "close.png",
+      "visual": "关闭符号。",
+      "meaning": "关闭弹窗或退出界面。",
+      "usage": ["弹窗关闭", "面板关闭"]
+    },
+    "warning": {
+      "label": "警告",
+      "category": "state",
+      "file": "warning.png",
+      "visual": "警示牌或危险标识。",
+      "meaning": "警告、错误、未知或需要注意。",
+      "usage": ["错误提示", "兜底图标", "风险说明"]
+    },
+    "gift": {
+      "label": "奖励",
+      "category": "action",
+      "file": "gift.png",
+      "visual": "礼盒、宝物或奖励包。",
+      "meaning": "奖励、掉落、礼包或额外收益。",
+      "usage": ["奖励结算", "掉落提示", "任务奖励"]
+    },
+    "sort": {
+      "label": "排序",
+      "category": "action",
+      "file": "sort.png",
+      "visual": "排序箭头或排列标识。",
+      "meaning": "背包排序、列表排序。",
+      "usage": ["装备排序按钮", "列表工具栏"]
+    },
+    "sell": {
+      "label": "售卖",
+      "category": "action",
+      "file": "sell.png",
+      "visual": "售卖标签、钱币或出货标识。",
+      "meaning": "出售物品、批量售卖或变现。",
+      "usage": ["装备售卖", "作物出售", "商店交易"]
+    },
+    "speed": {
+      "label": "速度",
+      "category": "action",
+      "file": "speed.png",
+      "visual": "加速符号或闪电速度标识。",
+      "meaning": "加速、速度、快速战斗或行动速度。",
+      "usage": ["加速按钮", "快速战斗", "速度属性"]
+    },
+    "time": {
+      "label": "时间",
+      "category": "action",
+      "file": "time.png",
+      "visual": "沙漏、钟表或计时标识。",
+      "meaning": "时间、倒计时、持续时间或挂机时长。",
+      "usage": ["倒计时", "挂机统计", "料理持续时间"]
+    },
+    "idea": {
+      "label": "建议",
+      "category": "action",
+      "file": "idea.png",
+      "visual": "灯泡或灵感标识。",
+      "meaning": "推荐、提示、建议操作。",
+      "usage": ["推荐挂机区域", "新手提示", "策略建议"]
+    },
+    "sparkle": {
+      "label": "特殊",
+      "category": "action",
+      "file": "sparkle.png",
+      "visual": "闪光、星芒或特殊效果。",
+      "meaning": "特殊奖励、稀有状态或泛用高亮效果。",
+      "usage": ["稀有提示", "成熟作物兜底", "特殊状态"]
+    },
+    "victory": {
+      "label": "胜利",
+      "category": "state",
+      "file": "victory.png",
+      "visual": "胜利徽章、旗帜或庆祝标识。",
+      "meaning": "战斗胜利或挑战成功。",
+      "usage": ["战斗结算", "每日挑战成功", "深渊通关"]
+    },
+    "defeat": {
+      "label": "失败",
+      "category": "state",
+      "file": "defeat.png",
+      "visual": "失败、骷髅或破损标识。",
+      "meaning": "战斗失败、挑战结束、单位死亡。",
+      "usage": ["战斗结算", "试炼结束", "失败提示"]
+    },
+    "chest": {
+      "label": "宝箱",
+      "category": "item",
+      "file": "chest.png",
+      "visual": "宝箱。",
+      "meaning": "宝箱奖励、额外奖励或关卡掉落。",
+      "usage": ["任务宝箱", "掉落奖励", "结算奖励"]
+    },
+    "bag": {
+      "label": "背包",
+      "category": "item",
+      "file": "bag.png",
+      "visual": "背包或行囊。",
+      "meaning": "背包容量、库存、携带物。",
+      "usage": ["装备背包", "菜园背包", "资源上限"]
+    },
+    "user": {
+      "label": "角色",
+      "category": "state",
+      "file": "user.png",
+      "visual": "人物头像或用户标识。",
+      "meaning": "角色、玩家、武将选择。",
+      "usage": ["选择武将", "角色信息", "用户状态"]
+    },
+    "enemy": {
+      "label": "敌人",
+      "category": "combat",
+      "file": "enemy.png",
+      "visual": "敌军或怪物标识。",
+      "meaning": "普通敌方单位。",
+      "usage": ["敌人列表", "战斗场景", "敌军提示"]
+    },
+    "crown": {
+      "label": "首领",
+      "category": "combat",
+      "file": "crown.png",
+      "visual": "王冠或首领标识。",
+      "meaning": "首领、最高层级、王者状态。",
+      "usage": ["Boss 标记", "成就进度", "最高记录"]
+    },
+    "boss": {
+      "label": "Boss",
+      "category": "combat",
+      "file": "boss.png",
+      "visual": "强敌首领或 Boss 徽记。",
+      "meaning": "Boss 敌人、精英首领或关底敌人。",
+      "usage": ["试炼 Boss", "深渊 Boss", "关卡首领"]
+    },
+    "attack": {
+      "label": "攻击",
+      "category": "combat",
+      "file": "attack.png",
+      "visual": "刀剑、攻击动作或战斗火光。",
+      "meaning": "攻击属性、开战、推图模式或战斗操作。",
+      "usage": ["攻击属性", "开始挑战", "推图模式", "战斗按钮"]
+    },
+    "weapon": {
+      "label": "武器",
+      "category": "item",
+      "file": "weapon.png",
+      "visual": "刀剑或武器标识。",
+      "meaning": "武器装备槽和武器类物品。",
+      "usage": ["装备槽", "武器筛选", "装备兜底"]
+    },
+    "armor": {
+      "label": "防具",
+      "category": "item",
+      "file": "armor.png",
+      "visual": "铠甲或护具。",
+      "meaning": "防具装备槽和防具类物品。",
+      "usage": ["装备槽", "防具筛选"]
+    },
+    "accessory": {
+      "label": "饰品",
+      "category": "item",
+      "file": "accessory.png",
+      "visual": "玉佩、戒指或饰品。",
+      "meaning": "饰品装备槽和生命类装备。",
+      "usage": ["装备槽", "饰品筛选"]
+    },
+    "mount": {
+      "label": "坐骑",
+      "category": "item",
+      "file": "mount.png",
+      "visual": "马匹或坐骑标识。",
+      "meaning": "坐骑装备槽和速度类装备。",
+      "usage": ["装备槽", "坐骑筛选", "敌军骑兵兜底"]
+    },
+    "hp": {
+      "label": "生命",
+      "category": "stat",
+      "file": "hp.png",
+      "visual": "生命心形或生命徽记。",
+      "meaning": "HP、生命上限或治疗相关属性。",
+      "usage": ["属性面板", "生命增益", "装备属性"]
+    },
+    "spd": {
+      "label": "速度",
+      "category": "stat",
+      "file": "spd.png",
+      "visual": "速度属性徽记。",
+      "meaning": "SPD 速度属性。",
+      "usage": ["属性面板", "速度装备", "战斗排序"]
+    },
+    "book": {
+      "label": "图鉴",
+      "category": "item",
+      "file": "book.png",
+      "visual": "书籍、卷册或图鉴。",
+      "meaning": "图鉴、报告、文档或知识类信息。",
+      "usage": ["离线报告", "图纸提示", "剧情文本"]
+    },
+    "tag": {
+      "label": "折扣",
+      "category": "action",
+      "file": "tag.png",
+      "visual": "价格标签或折扣牌。",
+      "meaning": "折扣、优惠或价格变化。",
+      "usage": ["商店折扣", "招募折扣", "种子折扣"]
+    },
+    "calendar": {
+      "label": "日历",
+      "category": "system",
+      "file": "calendar.png",
+      "visual": "日历牌。",
+      "meaning": "日期、签到、每日挑战或周期性内容。",
+      "usage": ["每日签到", "每日挑战", "日历状态"]
+    },
+    "list": {
+      "label": "列表",
+      "category": "action",
+      "file": "list.png",
+      "visual": "清单、列表或条目。",
+      "meaning": "列表、一览、详情清单。",
+      "usage": ["全等级一览", "任务列表", "记录列表"]
+    },
+    "flame": {
+      "label": "火焰",
+      "category": "combat",
+      "file": "flame.png",
+      "visual": "火焰。",
+      "meaning": "火焰伤害、技能、热度或战斗特效。",
+      "usage": ["终极技能兜底", "火焰敌人", "战斗特效"]
+    },
+    "hammer": {
+      "label": "锤子",
+      "category": "action",
+      "file": "hammer.png",
+      "visual": "铁锤或建造锤。",
+      "meaning": "建造、施工、强化、锻造操作。",
+      "usage": ["悬浮建造按钮", "施工中", "强化按钮"]
+    },
+    "trophy": {
+      "label": "奖杯",
+      "category": "state",
+      "file": "trophy.png",
+      "visual": "金色奖杯，两侧带红色挂饰。",
+      "meaning": "最高纪录、成就总览、胜率或挑战排名。",
+      "usage": ["试炼最高层", "今日最高分", "成就总进度", "胜率统计"]
+    },
+    "map": {
+      "label": "地图",
+      "category": "navigation",
+      "file": "map.png",
+      "visual": "古风卷轴地图，带山川路线和标记。",
+      "meaning": "区域地图、探索路线或冒险区域。",
+      "usage": ["冒险区域", "探索成就", "地图选择"]
+    },
+    "idle": {
+      "label": "挂机",
+      "category": "action",
+      "file": "idle.png",
+      "visual": "红金双色循环箭头。",
+      "meaning": "自动循环、挂机模式、重复刷图。",
+      "usage": ["挂机模式按钮", "自动冒险", "循环收益"]
+    },
+    "stats": {
+      "label": "统计",
+      "category": "system",
+      "file": "stats.png",
+      "visual": "金红柱状统计图。",
+      "meaning": "统计数据、累计次数、效率分析。",
+      "usage": ["挂机统计", "累计天数", "经济图表", "成就统计"]
+    },
+    "fertilizer": {
+      "label": "肥料",
+      "category": "item",
+      "file": "fertilizer.png",
+      "visual": "玻璃药瓶，内含绿色肥料液体，瓶口系红绳。",
+      "meaning": "菜园肥料道具，用于提高作物产量。",
+      "usage": ["菜园肥料数量", "施肥按钮", "Boss 战利品肥料"]
+    },
+    "seed": {
+      "label": "种子",
+      "category": "item",
+      "file": "seed.png",
+      "visual": "发芽种子从土堆中长出。",
+      "meaning": "种子、播种、种植入口。",
+      "usage": ["菜园种植标签", "种子背包", "播种成功提示"]
+    },
+    "crop": {
+      "label": "作物",
+      "category": "item",
+      "file": "crop.png",
+      "visual": "成熟的绿色白菜。",
+      "meaning": "通用作物、蔬菜收获物或菜园未解锁展示。",
+      "usage": ["菜园空状态", "作物库存", "收获作物标题"]
+    },
+    "soil": {
+      "label": "田地",
+      "category": "system",
+      "file": "soil.png",
+      "visual": "四格棕色翻耕土壤。",
+      "meaning": "空闲田地、可播种地块。",
+      "usage": ["菜园地块空闲状态", "田地数量说明"]
+    },
+    "water": {
+      "label": "浇水",
+      "category": "action",
+      "file": "water.png",
+      "visual": "蓝色水滴，带浅色水纹。",
+      "meaning": "浇水操作、水分状态、生长加速。",
+      "usage": ["浇水按钮", "已浇状态", "浇水成功提示"]
+    },
+    "pest": {
+      "label": "虫害",
+      "category": "state",
+      "file": "pest.png",
+      "visual": "黑橙甲虫。",
+      "meaning": "作物虫害、减产状态或除虫操作。",
+      "usage": ["虫害警告", "除虫按钮", "虫害提示"]
+    },
+    "harvest": {
+      "label": "收获",
+      "category": "action",
+      "file": "harvest.png",
+      "visual": "金色麦束，红绳束口。",
+      "meaning": "作物成熟收获、产出领取。",
+      "usage": ["收获按钮", "收获成功提示", "产出奖励"]
+    },
+    "compost": {
+      "label": "堆肥",
+      "category": "system",
+      "file": "compost.png",
+      "visual": "环形箭头围绕土堆和新芽。",
+      "meaning": "堆肥、材料循环、肥料制作。",
+      "usage": ["制作肥料标题", "堆肥坑功能", "资源转化"]
+    },
+    "synth": {
+      "label": "合成",
+      "category": "action",
+      "file": "synth.png",
+      "visual": "金边炼金镜或合成仪。",
+      "meaning": "种子合成、材料合成或炼成操作。",
+      "usage": ["菜园合成标签", "种子合成标题", "合成成功提示"]
+    },
+    "cook": {
+      "label": "料理",
+      "category": "action",
+      "file": "cook.png",
+      "visual": "热锅翻炒食材，底部有火焰。",
+      "meaning": "料理制作、烹饪操作。",
+      "usage": ["料理标签", "料理配方标题", "制作料理成功提示"]
+    },
+    "meal": {
+      "label": "餐食",
+      "category": "item",
+      "file": "meal.png",
+      "visual": "盘装熟食，带热气和配菜。",
+      "meaning": "料理成品、当前增益食物。",
+      "usage": ["当前料理增益", "食物奖励", "料理结果"]
+    },
+    "shop": {
+      "label": "商铺",
+      "category": "system",
+      "file": "shop.png",
+      "visual": "红顶货摊，摆放蔬菜和商品。",
+      "meaning": "购买、种子铺、商店类入口。",
+      "usage": ["购买种子标题", "商店入口", "货摊展示"]
+    },
+    "buff-attack": {
+      "label": "虎威",
+      "category": "buff",
+      "file": "buff-attack.png",
+      "visual": "燃烧红焰的虎头。",
+      "meaning": "试炼攻击增益，提高全体攻击。",
+      "usage": ["试炼增益选择", "已获增益列表", "攻击强化提示"]
+    },
+    "buff-defense": {
+      "label": "龟甲",
+      "category": "buff",
+      "file": "buff-defense.png",
+      "visual": "金边龟甲盾。",
+      "meaning": "试炼防御增益，提高全体防御。",
+      "usage": ["试炼增益选择", "已获增益列表", "防御强化提示"]
+    },
+    "buff-hp": {
+      "label": "生机",
+      "category": "buff",
+      "file": "buff-hp.png",
+      "visual": "绿色生命心形，带金色藤饰。",
+      "meaning": "试炼生命增益，提高 HP 并可回复生命。",
+      "usage": ["试炼增益选择", "生命强化", "回复类增益"]
+    },
+    "buff-speed": {
+      "label": "神速",
+      "category": "buff",
+      "file": "buff-speed.png",
+      "visual": "黄色闪电，带红色速度残影。",
+      "meaning": "试炼速度增益，提高行动速度。",
+      "usage": ["试炼增益选择", "速度强化", "快速行动提示"]
+    },
+    "buff-crit": {
+      "label": "破军",
+      "category": "buff",
+      "file": "buff-crit.png",
+      "visual": "带红焰装饰的骷髅面具。",
+      "meaning": "暴击率、破军、致命打击增益。",
+      "usage": ["试炼增益选择", "暴击强化", "敌军死亡/危险兜底"]
+    },
+    "buff-heal": {
+      "label": "妙手",
+      "category": "buff",
+      "file": "buff-heal.png",
+      "visual": "卷起的绷带和红色系带。",
+      "meaning": "治疗、回复生命或医疗类增益。",
+      "usage": ["试炼增益选择", "治疗按钮", "回复提示"]
+    },
+    "buff-lifesteal": {
+      "label": "嗜血",
+      "category": "buff",
+      "file": "buff-lifesteal.png",
+      "visual": "红色血滴，周围有火焰气息。",
+      "meaning": "吸血、伤害转化生命。",
+      "usage": ["试炼增益选择", "吸血词缀", "战斗属性"]
+    },
+    "buff-thorns": {
+      "label": "荆棘",
+      "category": "buff",
+      "file": "buff-thorns.png",
+      "visual": "带刺藤蔓枝条。",
+      "meaning": "反伤、荆棘护体、防御反击。",
+      "usage": ["试炼增益选择", "反伤词缀", "受击反馈"]
+    },
+    "buff-double": {
+      "label": "连击",
+      "category": "buff",
+      "file": "buff-double.png",
+      "visual": "交叉双剑，背后有红色战焰。",
+      "meaning": "连击、双击概率或多段攻击。",
+      "usage": ["试炼增益选择", "双击属性", "连续攻击提示"]
+    },
+    "buff-energy": {
+      "label": "气海",
+      "category": "buff",
+      "file": "buff-energy.png",
+      "visual": "蓝白旋涡气流，带金色装饰。",
+      "meaning": "能量、真气、初始能量增加。",
+      "usage": ["试炼增益选择", "终极技能能量", "气海增益"]
+    },
+    "enemy-dagger": {
+      "label": "匕首敌兵",
+      "category": "combat",
+      "file": "enemy-dagger.png",
+      "visual": "弯曲短匕首，柄部有红色流苏。",
+      "meaning": "近战山贼、刺击型普通敌人。",
+      "usage": ["试炼敌军头像", "山贼/普通近战敌人", "匕首类攻击"]
+    },
+    "enemy-archer": {
+      "label": "弓手",
+      "category": "combat",
+      "file": "enemy-archer.png",
+      "visual": "金色弓箭，带红色挂饰。",
+      "meaning": "远程弓手敌人。",
+      "usage": ["试炼敌军头像", "弓手单位", "远程攻击提示"]
+    },
+    "enemy-shield": {
+      "label": "盾卫",
+      "category": "combat",
+      "file": "enemy-shield.png",
+      "visual": "黑金重盾，盾面有兽首纹样。",
+      "meaning": "高防御盾卫、铁甲卫或防御型敌人。",
+      "usage": ["试炼敌军头像", "盾卫单位", "防御敌人"]
+    },
+    "enemy-magic": {
+      "label": "术士",
+      "category": "combat",
+      "file": "enemy-magic.png",
+      "visual": "蓝色水晶法球和金色底座。",
+      "meaning": "法术敌人、巫师、魔法攻击单位。",
+      "usage": ["试炼敌军头像", "术士单位", "法术技能提示"]
+    },
+    "enemy-assassin": {
+      "label": "刺客",
+      "category": "combat",
+      "file": "enemy-assassin.png",
+      "visual": "黑色兜帽刺客面具，红色眼睛。",
+      "meaning": "暗杀者、快速高爆发敌人。",
+      "usage": ["试炼敌军头像", "刺客单位", "高速敌人提示"]
+    },
+    "enemy-drum": {
+      "label": "战鼓",
+      "category": "combat",
+      "file": "enemy-drum.png",
+      "visual": "红龙纹战鼓。",
+      "meaning": "战鼓手、辅助型敌人或士气增益来源。",
+      "usage": ["试炼敌军头像", "战鼓手单位", "敌方辅助提示"]
+    }
+  }
+}

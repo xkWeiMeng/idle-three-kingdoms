@@ -48,35 +48,39 @@ var SpriteAtlas = {
     // 根据 Shikashi 说明文件，按顺序排列的图标类别
     // 索引 = row * 16 + col (0-based)
 
-    // --- 装备图标 (映射到游戏装备数据) ---
+    // --- 装备图标 (三国像素装备，映射到游戏装备数据) ---
     equipment: {
-      // 武器 (row 5: 武器行)
-      weapon_common:    { row: 5, col: 0 },   // 木剑
-      weapon_uncommon:  { row: 5, col: 2 },   // 附魔剑
-      weapon_rare:      { row: 5, col: 3 },   // 太刀
-      weapon_epic:      { row: 5, col: 4 },   // 短剑
-      weapon_legendary: { row: 5, col: 1 },   // 长剑
+      // 武器：长戟/刀枪，按品质递进
+      weapon_common:    { row: 22, col: 0 },
+      weapon_uncommon:  { row: 22, col: 1 },
+      weapon_rare:      { row: 22, col: 2 },
+      weapon_epic:      { row: 22, col: 3 },
+      weapon_legendary: { row: 22, col: 4 },
+      weapon_mythic:    { row: 22, col: 5 },
 
-      // 防具 (row 7: 服装与铠甲)
-      armor_common:    { row: 7, col: 8 },    // 蓝色长袍
-      armor_uncommon:  { row: 7, col: 6 },    // 皮甲
-      armor_rare:      { row: 7, col: 4 },    // 铁甲
-      armor_epic:      { row: 7, col: 5 },    // 钢甲
-      armor_legendary: { row: 7, col: 7 },    // 板甲
+      // 防具：甲胄/战袍，按品质递进
+      armor_common:    { row: 22, col: 6 },
+      armor_uncommon:  { row: 22, col: 7 },
+      armor_rare:      { row: 22, col: 8 },
+      armor_epic:      { row: 22, col: 9 },
+      armor_legendary: { row: 22, col: 10 },
+      armor_mythic:    { row: 22, col: 11 },
 
-      // 饰品 (row 8: 戒指/项链)
-      accessory_common:    { row: 8, col: 4 }, // 戒指
-      accessory_uncommon:  { row: 8, col: 5 }, // 钻戒
-      accessory_rare:      { row: 8, col: 6 }, // 金项链
-      accessory_epic:      { row: 8, col: 7 }, // 念珠
-      accessory_legendary: { row: 8, col: 8 }, // 部族项链
+      // 饰品：玉佩/龙纹佩，按品质递进
+      accessory_common:    { row: 22, col: 12 },
+      accessory_uncommon:  { row: 22, col: 13 },
+      accessory_rare:      { row: 22, col: 14 },
+      accessory_epic:      { row: 22, col: 15 },
+      accessory_legendary: { row: 23, col: 0 },
+      accessory_mythic:    { row: 23, col: 1 },
 
-      // 坐骑 → 用靴子/护手图标代替
-      mount_common:    { row: 8, col: 2 },  // 皮靴
-      mount_uncommon:  { row: 8, col: 3 },  // 铁靴
-      mount_rare:      { row: 8, col: 0 },  // 皮护手
-      mount_epic:      { row: 8, col: 1 },  // 铁护手
-      mount_legendary: { row: 8, col: 9 }   // 皮囊
+      // 坐骑：战马，按品质递进
+      mount_common:    { row: 23, col: 2 },
+      mount_uncommon:  { row: 23, col: 3 },
+      mount_rare:      { row: 23, col: 4 },
+      mount_epic:      { row: 23, col: 5 },
+      mount_legendary: { row: 23, col: 6 },
+      mount_mythic:    { row: 23, col: 7 }
     },
 
     // --- 技能效果图标 (row 3: 特殊招式) ---
@@ -157,7 +161,7 @@ var SpriteAtlas = {
 
   // 获取装备图标键名
   getEquipmentIconKey: function (type, quality) {
-    var qualityNames = { 1: 'common', 2: 'uncommon', 3: 'rare', 4: 'epic', 5: 'legendary' };
+    var qualityNames = { 1: 'common', 2: 'uncommon', 3: 'rare', 4: 'epic', 5: 'legendary', 6: 'mythic' };
     var qName = qualityNames[quality] || 'common';
     return type + '_' + qName;
   }

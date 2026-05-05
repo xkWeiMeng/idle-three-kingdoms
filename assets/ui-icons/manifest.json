@@ -2,12 +2,14 @@
   "generatedBy": "OpenAI image generation skill + tools/extract-ui-icons-from-sheets.py",
   "style": "three-kingdoms-ink-gold-pixel-raster",
   "size": "96x96",
-  "sourcePromptSummary": "4 张 4x4 生图母版，统一要求 16-bit pixel art、三国古风、深墨描边、朱红与鎏金点缀、纯 #00ff00 绿幕背景、无文字标签。",
+  "sourcePromptSummary": "6 张 4x4 生图母版，统一要求 16-bit pixel art、三国古风、深墨描边、朱红与鎏金点缀、纯色绿幕/洋红幕背景、无文字标签。",
   "sourceSheets": [
     "ui-icons-sheet-1.png",
     "ui-icons-sheet-2.png",
     "ui-icons-sheet-3.png",
-    "ui-icons-sheet-4.png"
+    "ui-icons-sheet-4.png",
+    "ui-icons-sheet-5.png",
+    "ui-icons-sheet-6.png"
   ],
   "icons": {
     "gold": {
@@ -329,6 +331,166 @@
       "label": "锤子",
       "category": "action",
       "file": "hammer.png"
+    },
+    "trophy": {
+      "label": "奖杯",
+      "category": "state",
+      "file": "trophy.png"
+    },
+    "map": {
+      "label": "地图",
+      "category": "navigation",
+      "file": "map.png"
+    },
+    "idle": {
+      "label": "挂机",
+      "category": "action",
+      "file": "idle.png"
+    },
+    "stats": {
+      "label": "统计",
+      "category": "system",
+      "file": "stats.png"
+    },
+    "fertilizer": {
+      "label": "肥料",
+      "category": "item",
+      "file": "fertilizer.png"
+    },
+    "seed": {
+      "label": "种子",
+      "category": "item",
+      "file": "seed.png"
+    },
+    "crop": {
+      "label": "作物",
+      "category": "item",
+      "file": "crop.png"
+    },
+    "soil": {
+      "label": "田地",
+      "category": "system",
+      "file": "soil.png"
+    },
+    "water": {
+      "label": "浇水",
+      "category": "action",
+      "file": "water.png"
+    },
+    "pest": {
+      "label": "虫害",
+      "category": "state",
+      "file": "pest.png"
+    },
+    "harvest": {
+      "label": "收获",
+      "category": "action",
+      "file": "harvest.png"
+    },
+    "compost": {
+      "label": "堆肥",
+      "category": "system",
+      "file": "compost.png"
+    },
+    "synth": {
+      "label": "合成",
+      "category": "action",
+      "file": "synth.png"
+    },
+    "cook": {
+      "label": "料理",
+      "category": "action",
+      "file": "cook.png"
+    },
+    "meal": {
+      "label": "餐食",
+      "category": "item",
+      "file": "meal.png"
+    },
+    "shop": {
+      "label": "商铺",
+      "category": "system",
+      "file": "shop.png"
+    },
+    "buff-attack": {
+      "label": "虎威",
+      "category": "buff",
+      "file": "buff-attack.png"
+    },
+    "buff-defense": {
+      "label": "龟甲",
+      "category": "buff",
+      "file": "buff-defense.png"
+    },
+    "buff-hp": {
+      "label": "生机",
+      "category": "buff",
+      "file": "buff-hp.png"
+    },
+    "buff-speed": {
+      "label": "神速",
+      "category": "buff",
+      "file": "buff-speed.png"
+    },
+    "buff-crit": {
+      "label": "破军",
+      "category": "buff",
+      "file": "buff-crit.png"
+    },
+    "buff-heal": {
+      "label": "妙手",
+      "category": "buff",
+      "file": "buff-heal.png"
+    },
+    "buff-lifesteal": {
+      "label": "嗜血",
+      "category": "buff",
+      "file": "buff-lifesteal.png"
+    },
+    "buff-thorns": {
+      "label": "荆棘",
+      "category": "buff",
+      "file": "buff-thorns.png"
+    },
+    "buff-double": {
+      "label": "连击",
+      "category": "buff",
+      "file": "buff-double.png"
+    },
+    "buff-energy": {
+      "label": "气海",
+      "category": "buff",
+      "file": "buff-energy.png"
+    },
+    "enemy-dagger": {
+      "label": "匕首敌兵",
+      "category": "combat",
+      "file": "enemy-dagger.png"
+    },
+    "enemy-archer": {
+      "label": "弓手",
+      "category": "combat",
+      "file": "enemy-archer.png"
+    },
+    "enemy-shield": {
+      "label": "盾卫",
+      "category": "combat",
+      "file": "enemy-shield.png"
+    },
+    "enemy-magic": {
+      "label": "术士",
+      "category": "combat",
+      "file": "enemy-magic.png"
+    },
+    "enemy-assassin": {
+      "label": "刺客",
+      "category": "combat",
+      "file": "enemy-assassin.png"
+    },
+    "enemy-drum": {
+      "label": "战鼓",
+      "category": "combat",
+      "file": "enemy-drum.png"
     }
   }
 }
