@@ -1,0 +1,130 @@
+{
+  "generatedBy": "OpenAI image generation skill + local chroma-key extraction",
+  "style": "three-kingdoms-town-pixel-isometric",
+  "view": "3/4 俯视角",
+  "usage": "城防玩法防御建筑、城墙与陷阱的 Canvas 精灵资源",
+  "sourcePromptSummary": "三国城镇像素风、红瓦木构、灰石基座、金色装饰、厚描边、透明底城防建筑精灵表。",
+  "sourceFiles": {
+    "rawSheet": "../raw/td-buildings.png",
+    "transparentSheet": "../sheets/td-buildings.png"
+  },
+  "assets": {
+    "td_arrow_tower": {
+      "label": "箭塔",
+      "category": "attack",
+      "file": "td_arrow_tower.png",
+      "pixelSize": { "w": 297, "h": 314 },
+      "gridSize": { "w": 2, "h": 2 },
+      "renderHeight": 110,
+      "visualDescription": "红瓦双层木制箭塔，灰石城墙基座，侧边带箭矢架与绿旗，用于表现基础对空对地远程防御建筑。"
+    },
+    "td_crossbow": {
+      "label": "弩车台",
+      "category": "attack",
+      "file": "td_crossbow.png",
+      "pixelSize": { "w": 318, "h": 298 },
+      "gridSize": { "w": 2, "h": 2 },
+      "renderHeight": 102,
+      "visualDescription": "石阶木台上架设大型弩机，带红瓦遮棚和城防旗帜，用于表现穿甲型弩车防御建筑。"
+    },
+    "td_catapult": {
+      "label": "投石车台",
+      "category": "attack",
+      "file": "td_catapult.png",
+      "pixelSize": { "w": 302, "h": 286 },
+      "gridSize": { "w": 2, "h": 2 },
+      "renderHeight": 100,
+      "visualDescription": "石基平台上放置木质投石车，辅以红瓦地台和军旗，用于表现范围伤害攻城器械防御建筑。"
+    },
+    "td_beacon": {
+      "label": "烽火台",
+      "category": "support",
+      "file": "td_beacon.png",
+      "pixelSize": { "w": 244, "h": 318 },
+      "gridSize": { "w": 2, "h": 2 },
+      "renderHeight": 110,
+      "visualDescription": "高耸木石瞭望塔，红瓦屋顶、金色塔尖和红色军旗，用于表现侦测、预警与增益支援建筑。"
+    },
+    "td_oil_tower": {
+      "label": "火油塔",
+      "category": "attack",
+      "file": "td_oil_tower.png",
+      "pixelSize": { "w": 253, "h": 289 },
+      "gridSize": { "w": 2, "h": 2 },
+      "renderHeight": 104,
+      "visualDescription": "木石塔台顶部放置燃烧铜锅，周围有铁链和红旗，用于表现近距离火油灼烧防御建筑。"
+    },
+    "td_repeater": {
+      "label": "连弩塔",
+      "category": "attack",
+      "file": "td_repeater.png",
+      "pixelSize": { "w": 285, "h": 288 },
+      "gridSize": { "w": 2, "h": 2 },
+      "renderHeight": 104,
+      "visualDescription": "木石塔台上布置多组连弩箭匣和红旗，用于表现高射速、多段攻击的高级防御建筑。"
+    },
+    "td_wood_fence": {
+      "label": "木栅栏",
+      "category": "wall",
+      "file": "td_wood_fence.png",
+      "pixelSize": { "w": 261, "h": 272 },
+      "gridSize": { "w": 1, "h": 1 },
+      "renderHeight": 62,
+      "visualDescription": "粗木桩和麻绳组成的尖刺栅栏，底部带小石座，用于表现基础阻挡型城防墙体。"
+    },
+    "td_stone_wall": {
+      "label": "城墙",
+      "category": "wall",
+      "file": "td_stone_wall.png",
+      "pixelSize": { "w": 265, "h": 257 },
+      "gridSize": { "w": 1, "h": 1 },
+      "renderHeight": 58,
+      "visualDescription": "灰石砖墙带城垛和绿色军旗，用于表现中级耐久型城防墙体。"
+    },
+    "td_iron_wall": {
+      "label": "铁壁",
+      "category": "wall",
+      "file": "td_iron_wall.png",
+      "pixelSize": { "w": 273, "h": 254 },
+      "gridSize": { "w": 1, "h": 1 },
+      "renderHeight": 58,
+      "visualDescription": "深灰金属强化城墙，带铆钉、铁甲板和红色军旗，用于表现高级高耐久城防墙体。"
+    },
+    "td_spike": {
+      "label": "拒马",
+      "category": "trap",
+      "file": "td_spike.png",
+      "pixelSize": { "w": 285, "h": 240 },
+      "gridSize": { "w": 1, "h": 1 },
+      "renderHeight": 54,
+      "visualDescription": "交叉木梁和金属尖刺组成的拒马障碍，用于表现减速、拦骑兵的地面陷阱。"
+    },
+    "td_pitfall": {
+      "label": "陷坑",
+      "category": "trap",
+      "file": "td_pitfall.png",
+      "pixelSize": { "w": 307, "h": 199 },
+      "gridSize": { "w": 1, "h": 1 },
+      "renderHeight": 44,
+      "visualDescription": "方形石框陷坑，坑内竖立木刺，用于表现一次性伤害或阻拦地面敌人的陷阱。"
+    },
+    "td_oil_pool": {
+      "label": "火油池",
+      "category": "trap",
+      "file": "td_oil_pool.png",
+      "pixelSize": { "w": 309, "h": 202 },
+      "gridSize": { "w": 1, "h": 1 },
+      "renderHeight": 44,
+      "visualDescription": "方形石槽内盛放燃烧火油，带金属角饰，用于表现持续灼烧区域陷阱。"
+    },
+    "td_trip_rope": {
+      "label": "绊马索",
+      "category": "trap",
+      "file": "td_trip_rope.png",
+      "pixelSize": { "w": 268, "h": 209 },
+      "gridSize": { "w": 1, "h": 1 },
+      "renderHeight": 54,
+      "visualDescription": "两根木桩之间拉起带铃铛的绳索，用于表现绊倒或眩晕骑兵的触发型陷阱。"
+    }
+  }
+}

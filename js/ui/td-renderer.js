@@ -43,11 +43,41 @@ var TDRenderer = {
   },
 
   // ============================================================
+  //  精灵渲染 — 城防建筑 PNG 贴图
+  // ============================================================
+
+  TOWER_SPRITE_PATH: 'assets/td-buildings/',
+
+  TOWER_SPRITES: {
+    td_arrow_tower: { file: 'td_arrow_tower.png', renderHeight: 110, bottomOffset: 6 },
+    td_crossbow:    { file: 'td_crossbow.png',    renderHeight: 102, bottomOffset: 6 },
+    td_catapult:    { file: 'td_catapult.png',     renderHeight: 100, bottomOffset: 6 },
+    td_beacon:      { file: 'td_beacon.png',       renderHeight: 110, bottomOffset: 6 },
+    td_oil_tower:   { file: 'td_oil_tower.png',    renderHeight: 104, bottomOffset: 6 },
+    td_repeater:    { file: 'td_repeater.png',     renderHeight: 104, bottomOffset: 6 },
+    td_wood_fence:  { file: 'td_wood_fence.png',   renderHeight: 62,  bottomOffset: 4 },
+    td_stone_wall:  { file: 'td_stone_wall.png',   renderHeight: 58,  bottomOffset: 4 },
+    td_iron_wall:   { file: 'td_iron_wall.png',    renderHeight: 58,  bottomOffset: 4 },
+    td_spike:       { file: 'td_spike.png',        renderHeight: 54,  bottomOffset: 2 },
+    td_pitfall:     { file: 'td_pitfall.png',      renderHeight: 44,  bottomOffset: 2 },
+    td_oil_pool:    { file: 'td_oil_pool.png',     renderHeight: 44,  bottomOffset: 2 },
+    td_trip_rope:   { file: 'td_trip_rope.png',    renderHeight: 54,  bottomOffset: 2 }
+  },
+
+  _TOWER_SPRITE_ALIASES: {
+    td_palisade: 'td_wood_fence',
+    td_caltrops: 'td_spike'
+  },
+
+  _towerSpriteImages: {},
+  _towerSpriteLoading: {},
+
+  // ============================================================
   //  建筑渲染
   // ============================================================
 
   /**
-   * 绘制防御建筑
+   * 绘制防御建筑 — 优先 PNG 精灵，回退 Canvas 几何图形
    * @param {CanvasRenderingContext2D} ctx
    * @param {string} typeId - 建筑类型 ID
    * @param {number} x - 中心 x 像素坐标
@@ -60,38 +90,102 @@ var TDRenderer = {
     var lvl = level || 1;
     var opt = options || {};
 
-    switch (typeId) {
-      case 'td_arrow_tower':  this._drawArrowTower(ctx, x, y, lvl);  break;
-      case 'td_crossbow':     this._drawCrossbow(ctx, x, y, lvl);    break;
-      case 'td_catapult':     this._drawCatapult(ctx, x, y, lvl);    break;
-      case 'td_beacon':       this._drawBeacon(ctx, x, y, lvl);      break;
-      case 'td_oil_tower':    this._drawOilTower(ctx, x, y, lvl);    break;
-      case 'td_repeater':     this._drawRepeater(ctx, x, y, lvl);    break;
-      case 'td_wood_fence':
-      case 'td_palisade':     this._drawWoodFence(ctx, x, y, lvl);   break;
-      case 'td_stone_wall':   this._drawStoneWall(ctx, x, y, lvl);   break;
-      case 'td_iron_wall':    this._drawIronWall(ctx, x, y, lvl);    break;
-      case 'td_spike':
-      case 'td_caltrops':     this._drawSpike(ctx, x, y, lvl);       break;
-      case 'td_pitfall':      this._drawPitfall(ctx, x, y, lvl);     break;
-      case 'td_oil_pool':     this._drawOilPool(ctx, x, y, lvl);     break;
-      case 'td_trip_rope':    this._drawTripRope(ctx, x, y, lvl);    break;
-      // 兼容旧数据中的其他塔类型 — 用通用占位
-      default:                this._drawGenericTower(ctx, x, y, lvl, typeId); break;
+    // 优先使用 PNG 精灵渲染
+    var spriteDrawn = this._drawTowerSprite(ctx, typeId, x, y);
+
+    if (!spriteDrawn) {
+      // 回退到 Canvas 几何绘制
+      switch (typeId) {
+        case 'td_arrow_tower':  this._drawArrowTower(ctx, x, y, lvl);  break;
+        case 'td_crossbow':     this._drawCrossbow(ctx, x, y, lvl);    break;
+        case 'td_catapult':     this._drawCatapult(ctx, x, y, lvl);    break;
+        case 'td_beacon':       this._drawBeacon(ctx, x, y, lvl);      break;
+        case 'td_oil_tower':    this._drawOilTower(ctx, x, y, lvl);    break;
+        case 'td_repeater':     this._drawRepeater(ctx, x, y, lvl);    break;
+        case 'td_wall':         this._drawWall(ctx, x, y, lvl, opt);   break;
+        case 'td_gate':         this._drawGate(ctx, x, y, lvl, opt);   break;
+        case 'td_wood_fence':
+        case 'td_palisade':     this._drawWoodFence(ctx, x, y, lvl);   break;
+        case 'td_stone_wall':   this._drawStoneWall(ctx, x, y, lvl);   break;
+        case 'td_iron_wall':    this._drawIronWall(ctx, x, y, lvl);    break;
+        case 'td_spike':
+        case 'td_caltrops':     this._drawSpike(ctx, x, y, lvl);       break;
+        case 'td_pitfall':      this._drawPitfall(ctx, x, y, lvl);     break;
+        case 'td_oil_pool':     this._drawOilPool(ctx, x, y, lvl);     break;
+        case 'td_trip_rope':    this._drawTripRope(ctx, x, y, lvl);    break;
+        default:                this._drawGenericTower(ctx, x, y, lvl, typeId); break;
+      }
     }
 
-    // 等级装饰 — 金色圆点
-    if (lvl > 1) {
+    // 等级装饰 — 金色圆点（城墙/城门已自行渲染等级标识，跳过）
+    if (lvl > 1 && typeId !== 'td_wall' && typeId !== 'td_gate') {
       this._drawLevelDots(ctx, x, y + 20, lvl);
     }
 
+    // 选中框 — 按建筑实际占格尺寸
     if (opt.selected) {
+      var size = TDGetTowerSize(typeId);
+      var tileSize = TD_CONSTANTS.TILE_SIZE;
+      var selW = size.w * tileSize - 4;
+      var selH = size.h * tileSize - 4;
       ctx.strokeStyle = '#f5c518';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x - 22, y - 22, 44, 44);
+      ctx.strokeRect(x - selW / 2, y - selH / 2, selW, selH);
     }
 
     ctx.restore();
+  },
+
+  // ---------- 精灵查询与加载 ----------
+
+  _getTowerSpriteConfig: function (typeId) {
+    if (this.TOWER_SPRITES[typeId]) return this.TOWER_SPRITES[typeId];
+    var alias = this._TOWER_SPRITE_ALIASES[typeId];
+    if (alias && this.TOWER_SPRITES[alias]) return this.TOWER_SPRITES[alias];
+    return null;
+  },
+
+  _getTowerSpriteImage: function (typeId) {
+    var cfg = this._getTowerSpriteConfig(typeId);
+    if (!cfg) return null;
+    var key = cfg.file;
+    if (this._towerSpriteImages[key]) return this._towerSpriteImages[key];
+    if (this._towerSpriteLoading[key]) return null;
+    // 懒加载 — 首次请求时创建 Image
+    this._towerSpriteLoading[key] = true;
+    var self = this;
+    var img = new Image();
+    img.onload = function () {
+      self._towerSpriteImages[key] = img;
+      delete self._towerSpriteLoading[key];
+    };
+    img.onerror = function () {
+      delete self._towerSpriteLoading[key];
+    };
+    img.src = this.TOWER_SPRITE_PATH + cfg.file;
+    return null;
+  },
+
+  /**
+   * 尝试用 PNG 精灵绘制建筑，成功返回 true
+   */
+  _drawTowerSprite: function (ctx, typeId, x, y) {
+    var cfg = this._getTowerSpriteConfig(typeId);
+    if (!cfg) return false;
+    var img = this._getTowerSpriteImage(typeId);
+    if (!img) return false;
+
+    var size = TDGetTowerSize(typeId);
+    var tileSize = TD_CONSTANTS.TILE_SIZE;
+    var gridH = size.h * tileSize;
+
+    var rh = cfg.renderHeight;
+    var rw = rh * (img.naturalWidth / img.naturalHeight);
+
+    // 锚点：格子区域底部中心，向上偏移 bottomOffset
+    var bottomY = y + gridH / 2 - cfg.bottomOffset;
+    ctx.drawImage(img, x - rw / 2, bottomY - rh, rw, rh);
+    return true;
   },
 
   // ---------- 箭塔 ----------
@@ -324,6 +418,269 @@ var TDRenderer = {
       ctx.arc(rx, ry, 2, 0, Math.PI * 2);
       ctx.fill();
     }
+  },
+
+  // ============================================================
+  //  统一城墙渲染（td_wall，Lv1-10，5 档视觉）
+  // ============================================================
+
+  _drawWall: function (ctx, x, y, lvl, opt) {
+    opt = opt || {};
+    var neighbors = opt.neighbors || { up: false, down: false, left: false, right: false };
+
+    // 根据等级选择视觉档位
+    if (lvl <= 2) {
+      this._drawWallWood(ctx, x, y, lvl, neighbors);
+    } else if (lvl <= 4) {
+      this._drawWallStone(ctx, x, y, lvl, neighbors);
+    } else if (lvl <= 6) {
+      this._drawWallIron(ctx, x, y, lvl, neighbors);
+    } else if (lvl <= 8) {
+      this._drawWallGold(ctx, x, y, lvl, neighbors);
+    } else {
+      this._drawWallLegend(ctx, x, y, lvl, neighbors);
+    }
+
+    // HP 条（战斗中受损时显示）
+    if (opt.hpRatio !== undefined && opt.hpRatio < 1) {
+      this._drawWallHpBar(ctx, x, y, opt.hpRatio);
+    }
+
+    // 等级数字标识
+    if (lvl > 1) {
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(lvl, x, y + 20);
+    }
+  },
+
+  // 木栅栏档位（lv1-2）
+  _drawWallWood: function (ctx, x, y, lvl, nb) {
+    var hw = 20, hh = 14;
+    ctx.fillStyle = this.COLORS.WOOD_LIGHT;
+    ctx.fillRect(x - hw, y - hh + 4, hw * 2, hh * 2 - 4);
+    // 竖直木桩
+    ctx.strokeStyle = this.COLORS.WOOD;
+    ctx.lineWidth = 3;
+    var posts = 3 + (lvl >= 2 ? 1 : 0);
+    var gap = (hw * 2 - 4) / (posts - 1);
+    for (var i = 0; i < posts; i++) {
+      var px = x - hw + 2 + i * gap;
+      ctx.beginPath();
+      ctx.moveTo(px, y - hh + 2);
+      ctx.lineTo(px, y + hh);
+      ctx.stroke();
+    }
+    // 横向连接
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - hw, y - 2); ctx.lineTo(x + hw, y - 2);
+    ctx.moveTo(x - hw, y + 8); ctx.lineTo(x + hw, y + 8);
+    ctx.stroke();
+    // 连接延伸
+    this._drawWallConnectors(ctx, x, y, hw, hh, nb, this.COLORS.WOOD_LIGHT);
+  },
+
+  // 石城墙档位（lv3-4）
+  _drawWallStone: function (ctx, x, y, lvl, nb) {
+    var hw = 22, hh = 14;
+    ctx.fillStyle = this.COLORS.STONE;
+    ctx.fillRect(x - hw, y - hh + 2, hw * 2, hh * 2);
+    // 城垛
+    var count = 4 + (lvl >= 4 ? 2 : 0);
+    var mw = (hw * 2 - 4) / count;
+    ctx.fillStyle = this.COLORS.STONE_DARK;
+    for (var i = 0; i < count; i += 2) {
+      ctx.fillRect(x - hw + 2 + i * mw, y - hh - 2, mw - 1, 6);
+    }
+    // 砖缝
+    ctx.strokeStyle = '#99a5b4';
+    ctx.lineWidth = 0.5;
+    for (var r = 0; r < 3; r++) {
+      var ry = y - 6 + r * 8;
+      ctx.beginPath();
+      ctx.moveTo(x - hw, ry); ctx.lineTo(x + hw, ry);
+      ctx.stroke();
+    }
+    this._drawWallConnectors(ctx, x, y, hw, hh, nb, this.COLORS.STONE);
+  },
+
+  // 铁壁档位（lv5-6）
+  _drawWallIron: function (ctx, x, y, lvl, nb) {
+    var hw = 22, hh = 15;
+    ctx.fillStyle = this.COLORS.IRON;
+    ctx.fillRect(x - hw, y - hh + 2, hw * 2, hh * 2);
+    // 金属线条
+    ctx.strokeStyle = this.COLORS.IRON_LIGHT;
+    ctx.lineWidth = 0.8;
+    for (var i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x - hw, y - 8 + i * 10);
+      ctx.lineTo(x + hw, y - 8 + i * 10);
+      ctx.stroke();
+    }
+    // 铆钉
+    var rivets = 4 + (lvl >= 6 ? 4 : 0);
+    ctx.fillStyle = '#888';
+    for (var r = 0; r < rivets; r++) {
+      var rx = x - 14 + (r % 4) * 9;
+      var ry = y - 6 + Math.floor(r / 4) * 12;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    this._drawWallConnectors(ctx, x, y, hw, hh, nb, this.COLORS.IRON);
+  },
+
+  // 金城墙档位（lv7-8）
+  _drawWallGold: function (ctx, x, y, lvl, nb) {
+    var hw = 22, hh = 15;
+    // 渐变底色
+    var grad = ctx.createLinearGradient(x - hw, y - hh, x + hw, y + hh);
+    grad.addColorStop(0, '#8B6914');
+    grad.addColorStop(0.5, this.COLORS.GOLD);
+    grad.addColorStop(1, '#8B6914');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - hw, y - hh + 2, hw * 2, hh * 2);
+    // 城垛
+    ctx.fillStyle = '#B8860B';
+    for (var i = 0; i < 6; i += 2) {
+      ctx.fillRect(x - hw + 2 + i * 7, y - hh - 2, 6, 6);
+    }
+    // 龙纹浮雕线条
+    ctx.strokeStyle = 'rgba(255,215,0,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - 12, y); ctx.quadraticCurveTo(x, y - 8, x + 12, y);
+    ctx.stroke();
+    if (lvl >= 8) {
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y + 6); ctx.quadraticCurveTo(x, y - 2, x + 10, y + 6);
+      ctx.stroke();
+    }
+    // 装饰点
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.arc(x - 14, y - 8, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 14, y - 8, 2, 0, Math.PI * 2); ctx.fill();
+    this._drawWallConnectors(ctx, x, y, hw, hh, nb, '#B8860B');
+  },
+
+  // 传奇城墙档位（lv9-10）
+  _drawWallLegend: function (ctx, x, y, lvl, nb) {
+    var hw = 22, hh = 15;
+    // 深红底
+    var grad = ctx.createLinearGradient(x - hw, y - hh, x + hw, y + hh);
+    grad.addColorStop(0, '#4A0000');
+    grad.addColorStop(0.3, '#8B0000');
+    grad.addColorStop(0.7, '#C41E3A');
+    grad.addColorStop(1, '#4A0000');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - hw, y - hh + 2, hw * 2, hh * 2);
+    // 发光边缘
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - hw, y - hh + 2, hw * 2, hh * 2);
+    // 城垛（金色）
+    ctx.fillStyle = '#FFD700';
+    for (var i = 0; i < 6; i += 2) {
+      ctx.fillRect(x - hw + 2 + i * 7, y - hh - 2, 6, 6);
+    }
+    // 火焰纹路（动态闪烁通过透明度变化模拟）
+    var flicker = 0.5 + 0.5 * Math.sin(Date.now() / 200);
+    ctx.strokeStyle = 'rgba(255,107,53,' + (0.4 + flicker * 0.4) + ')';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x - 16, y + 4);
+    ctx.quadraticCurveTo(x - 8, y - 6, x, y + 2);
+    ctx.quadraticCurveTo(x + 8, y - 6, x + 16, y + 4);
+    ctx.stroke();
+    if (lvl >= 10) {
+      ctx.strokeStyle = 'rgba(255,215,0,' + (0.3 + flicker * 0.3) + ')';
+      ctx.beginPath();
+      ctx.moveTo(x - 14, y + 8);
+      ctx.quadraticCurveTo(x, y - 4, x + 14, y + 8);
+      ctx.stroke();
+    }
+    this._drawWallConnectors(ctx, x, y, hw, hh, nb, '#8B0000');
+  },
+
+  // 城门渲染
+  _drawGate: function (ctx, x, y, lvl, opt) {
+    opt = opt || {};
+    var isClosed = opt.isBattle || false;
+    var hw = 22, hh = 15;
+
+    // 门框颜色根据等级档位
+    var frameColor = this.COLORS.WOOD;
+    if (lvl >= 3) frameColor = this.COLORS.STONE_DARK;
+    if (lvl >= 5) frameColor = this.COLORS.IRON;
+    if (lvl >= 7) frameColor = '#8B6914';
+    if (lvl >= 9) frameColor = '#8B0000';
+
+    // 门框
+    ctx.fillStyle = frameColor;
+    ctx.fillRect(x - hw, y - hh + 2, hw * 2, hh * 2);
+
+    if (isClosed) {
+      // 关闭状态 — 门板（深色填充+铆钉）
+      ctx.fillStyle = '#5C4033';
+      ctx.fillRect(x - 14, y - hh + 4, 28, hh * 2 - 4);
+      // 门钉
+      ctx.fillStyle = '#888';
+      ctx.beginPath(); ctx.arc(x - 6, y - 4, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 6, y - 4, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x - 6, y + 6, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 6, y + 6, 2, 0, Math.PI * 2); ctx.fill();
+      // 门环
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, y + 2, 4, 0, Math.PI); ctx.stroke();
+    } else {
+      // 开启状态 — 中间空洞
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(x - 12, y - hh + 6, 24, hh * 2 - 8);
+      // "门" 字标识
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('门', x, y + 4);
+    }
+
+    // HP 条
+    if (opt.hpRatio !== undefined && opt.hpRatio < 1) {
+      this._drawWallHpBar(ctx, x, y, opt.hpRatio);
+    }
+
+    // 等级标识
+    if (lvl > 1) {
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(lvl, x, y + 20);
+    }
+  },
+
+  // 墙段连接器 — 向相邻方向延伸颜色块
+  _drawWallConnectors: function (ctx, x, y, hw, hh, nb, color) {
+    if (!nb) return;
+    ctx.fillStyle = color;
+    var ext = 4; // 延伸像素
+    if (nb.left)  ctx.fillRect(x - hw - ext, y - hh + 4, ext, hh * 2 - 4);
+    if (nb.right) ctx.fillRect(x + hw, y - hh + 4, ext, hh * 2 - 4);
+    if (nb.up)    ctx.fillRect(x - hw + 2, y - hh - ext + 2, hw * 2 - 4, ext);
+    if (nb.down)  ctx.fillRect(x - hw + 2, y + hh, hw * 2 - 4, ext);
+  },
+
+  // 墙段血条
+  _drawWallHpBar: function (ctx, x, y, ratio) {
+    var barW = 30, barH = 3;
+    var bx = x - barW / 2, by = y - 18;
+    ctx.fillStyle = this.COLORS.HP_BG;
+    ctx.fillRect(bx, by, barW, barH);
+    var hpColor = ratio > 0.5 ? this.COLORS.HP_GREEN : (ratio > 0.25 ? this.COLORS.HP_ORANGE : this.COLORS.HP_RED);
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(bx, by, barW * ratio, barH);
   },
 
   // ---------- 拒马 ----------

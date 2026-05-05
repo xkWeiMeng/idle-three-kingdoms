@@ -23,6 +23,7 @@ var TowerDefenseManager = {
     return {
       unlocked: false,
       towers: [],
+      walls: [],    // 统一城墙数据 [{ uid, type: 'td_wall'|'td_gate', level, gridX, gridY }]
       wave: { current: 1, highest: 0, townHallHp: 0, townHallMaxHp: 0 },
       assignedHeroes: [],
       heroDeployments: [],
@@ -43,6 +44,7 @@ var TowerDefenseManager = {
       this._state = {
         unlocked: !!data.unlocked,
         towers: data.towers || [],
+        walls: data.walls || [],
         wave: data.wave || { current: 1, highest: 0, townHallHp: 0, townHallMaxHp: 0 },
         assignedHeroes: data.assignedHeroes || [],
         heroDeployments: data.heroDeployments || [],
@@ -57,6 +59,9 @@ var TowerDefenseManager = {
     } else {
       this._state = this._defaultState();
     }
+
+    // 存档迁移：旧墙类型从 towers[] 迁移到 walls[]
+    this._migrateOldWalls();
 
     // 存档迁移：dailyChallenges → stamina
     if (data && data.dailyChallenges && !data.stamina) {
@@ -187,6 +192,401 @@ var TowerDefenseManager = {
 
   isInDefenseMode: function () {
     return this._inDefenseMode;
+  },
+
+  // ========== 城墙系统 CRUD ==========
+
+  // 存档迁移：旧墙类型从 towers[] 迁移到 walls[]
+  _migrateOldWalls: function () {
+    if (!this._state.towers || this._state.towers.length === 0) return;
+    var migratedCount = 0;
+    var remaining = [];
+    for (var i = 0; i < this._state.towers.length; i++) {
+      var t = this._state.towers[i];
+      var migration = (typeof TDLegacyWallMigration !== 'undefined') ? TDLegacyWallMigration[t.type] : null;
+      if (migration) {
+        this._state.walls.push({
+          uid: t.uid || Utils.uid(),
+          type: migration.newType,
+          level: Math.max(migration.newLevel, t.level || 1),
+          gridX: t.gridX,
+          gridY: t.gridY
+        });
+        migratedCount++;
+      } else if (t.type === 'td_wall' || t.type === 'td_gate') {
+        // 已是新类型但错误放在 towers[] 中
+        this._state.walls.push(t);
+        migratedCount++;
+      } else {
+        remaining.push(t);
+      }
+    }
+    if (migratedCount > 0) {
+      this._state.towers = remaining;
+    }
+  },
+
+  // 城墙数量上限（按城主府等级，独立于防御塔）
+  getMaxWalls: function () {
+    var townHallLevel = 0;
+    if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
+      townHallLevel = TownManager.getBuildingLevel('town_hall');
+    }
+    if (typeof TDWallCapacity !== 'undefined' && TDWallCapacity[townHallLevel]) {
+      return TDWallCapacity[townHallLevel];
+    }
+    return 20;
+  },
+
+  getWallCount: function () {
+    return this._state.walls ? this._state.walls.length : 0;
+  },
+
+  // 墙段最高可升级等级（由 city_wall 建筑等级控制）
+  getMaxWallLevel: function () {
+    var cityWallLevel = 0;
+    if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
+      cityWallLevel = TownManager.getBuildingLevel('city_wall');
+    }
+    if (typeof TDWallLevelCap !== 'undefined' && TDWallLevelCap[cityWallLevel] !== undefined) {
+      return TDWallLevelCap[cityWallLevel];
+    }
+    return 1;
+  },
+
+  // 获取墙段数据
+  getWallStats: function (uid) {
+    var wall = this._findWall(uid);
+    if (!wall) return null;
+    var upgrade = (typeof TDWallUpgradeTable !== 'undefined') ? TDWallUpgradeTable[wall.level] : null;
+    if (!upgrade) return null;
+    var hp = upgrade.hp;
+    // 城门 HP × 0.8
+    if (wall.type === 'td_gate') {
+      hp = Math.floor(hp * 0.8);
+    }
+    return {
+      uid: wall.uid,
+      type: wall.type,
+      level: wall.level,
+      gridX: wall.gridX,
+      gridY: wall.gridY,
+      hp: hp,
+      maxHp: hp,
+      tier: upgrade.tier,
+      tierName: upgrade.tierName,
+      isGate: wall.type === 'td_gate'
+    };
+  },
+
+  // 检查是否可放置墙段
+  canBuildWall: function (gridX, gridY, typeId) {
+    typeId = typeId || 'td_wall';
+    if (!this._state.unlocked) return { ok: false, reason: '城防系统未解锁' };
+
+    // 容量检查
+    if (this.getWallCount() >= this.getMaxWalls()) {
+      return { ok: false, reason: '墙段已达上限 (' + this.getMaxWalls() + ')' };
+    }
+
+    // 网格占用检查
+    var grid = this._getCollisionGrid();
+    if (grid && grid[gridY] && grid[gridY][gridX] !== 0) {
+      return { ok: false, reason: '该位置已被占用' };
+    }
+
+    // 检查是否与塔/其他墙重叠
+    for (var i = 0; i < this._state.towers.length; i++) {
+      var t = this._state.towers[i];
+      var tSize = TDGetTowerSize(t.type);
+      if (gridX >= t.gridX && gridX < t.gridX + tSize.w &&
+          gridY >= t.gridY && gridY < t.gridY + tSize.h) {
+        return { ok: false, reason: '该位置已被防御塔占用' };
+      }
+    }
+    for (var j = 0; j < this._state.walls.length; j++) {
+      var w = this._state.walls[j];
+      if (w.gridX === gridX && w.gridY === gridY) {
+        return { ok: false, reason: '该位置已有墙段' };
+      }
+    }
+
+    // 资源检查
+    var wallData = (typeof TDWallUpgradeTable !== 'undefined') ? TDWallUpgradeTable[1] : null;
+    if (!wallData) return { ok: false, reason: '墙体数据不存在' };
+    if (typeof ResourceManager !== 'undefined' && !ResourceManager.canAffordMultiple(wallData.cost)) {
+      return { ok: false, reason: '资源不足' };
+    }
+
+    // 封路检测（城门在编辑模式不阻挡路径，所以跳过）
+    if (typeId !== 'td_gate') {
+      var blocked = this._checkWallBlocksPath(gridX, gridY);
+      if (blocked) return { ok: false, reason: '不能完全封锁敌人路径' };
+    }
+
+    return { ok: true };
+  },
+
+  // 放置墙段
+  buildWall: function (gridX, gridY, typeId) {
+    typeId = typeId || 'td_wall';
+    if (this._battle && this._battle.paused) {
+      return { ok: false, reason: '暂停中无法操作' };
+    }
+    var check = this.canBuildWall(gridX, gridY, typeId);
+    if (!check.ok) return check;
+
+    // 扣资源
+    var wallData = TDWallUpgradeTable[1];
+    if (typeof ResourceManager !== 'undefined') {
+      ResourceManager.spendMultiple(wallData.cost, 'tower_defense', 'build_wall', typeId);
+    }
+
+    var wall = {
+      uid: Utils.uid(),
+      type: typeId,
+      level: 1,
+      gridX: gridX,
+      gridY: gridY
+    };
+    this._state.walls.push(wall);
+
+    EventBus.emit('td:wall_built', { wall: wall });
+    return { ok: true, wall: wall };
+  },
+
+  // 批量放置墙段
+  buildWallBatch: function (positions, typeId) {
+    typeId = typeId || 'td_wall';
+    var results = [];
+    for (var i = 0; i < positions.length; i++) {
+      var pos = positions[i];
+      var result = this.buildWall(pos.gridX, pos.gridY, typeId);
+      results.push(result);
+      if (!result.ok) break;
+    }
+    return results;
+  },
+
+  // 放置城门（buildWall 的便捷别名）
+  buildGate: function (gridX, gridY) {
+    return this.buildWall(gridX, gridY, 'td_gate');
+  },
+
+  // 检查是否可升级墙段
+  canUpgradeWall: function (uid) {
+    var wall = this._findWall(uid);
+    if (!wall) return { ok: false, reason: '墙段不存在' };
+
+    var maxLevel = this.getMaxWallLevel();
+    if (wall.level >= maxLevel) {
+      return { ok: false, reason: '需升级城墙建筑（当前最高 Lv.' + maxLevel + '）' };
+    }
+    if (wall.level >= 10) {
+      return { ok: false, reason: '已满级' };
+    }
+
+    var nextLevel = wall.level + 1;
+    var upgradeData = (typeof TDWallUpgradeTable !== 'undefined') ? TDWallUpgradeTable[nextLevel] : null;
+    if (!upgradeData) return { ok: false, reason: '无法计算升级费用' };
+
+    if (typeof ResourceManager !== 'undefined' && !ResourceManager.canAffordMultiple(upgradeData.cost)) {
+      return { ok: false, reason: '资源不足' };
+    }
+
+    return { ok: true, cost: upgradeData.cost, nextLevel: nextLevel };
+  },
+
+  // 升级墙段（即时，无需建筑工人）
+  upgradeWall: function (uid) {
+    var check = this.canUpgradeWall(uid);
+    if (!check.ok) return check;
+
+    var wall = this._findWall(uid);
+    var upgradeData = TDWallUpgradeTable[check.nextLevel];
+
+    if (typeof ResourceManager !== 'undefined') {
+      ResourceManager.spendMultiple(upgradeData.cost, 'tower_defense', 'upgrade_wall', wall.type);
+    }
+
+    wall.level = check.nextLevel;
+    EventBus.emit('td:wall_upgraded', { uid: uid, type: wall.type, newLevel: wall.level });
+    return { ok: true, newLevel: wall.level };
+  },
+
+  // 批量升级墙段
+  upgradeWallBatch: function (uids) {
+    var results = [];
+    for (var i = 0; i < uids.length; i++) {
+      results.push(this.upgradeWall(uids[i]));
+    }
+    return results;
+  },
+
+  // 拆除墙段（返还 50% 资源）
+  removeWall: function (uid) {
+    if (this._battle && this._battle.paused) {
+      return { ok: false, reason: '暂停中无法操作' };
+    }
+    var wall = this._findWall(uid);
+    if (!wall) return { ok: false, reason: '墙段不存在' };
+
+    // 计算总投入
+    var totalCost = {};
+    for (var lv = 1; lv <= wall.level; lv++) {
+      var lvData = TDWallUpgradeTable[lv];
+      if (!lvData) continue;
+      for (var res in lvData.cost) {
+        if (lvData.cost.hasOwnProperty(res)) {
+          totalCost[res] = (totalCost[res] || 0) + lvData.cost[res];
+        }
+      }
+    }
+
+    // 返还 50%
+    var refund = {};
+    for (var r in totalCost) {
+      if (totalCost.hasOwnProperty(r)) {
+        refund[r] = Math.floor(totalCost[r] * 0.5);
+      }
+    }
+    if (typeof ResourceManager !== 'undefined') {
+      for (var rt in refund) {
+        if (refund.hasOwnProperty(rt) && refund[rt] > 0) {
+          ResourceManager.add(rt, refund[rt], 'tower_defense', 'remove_wall', wall.type);
+        }
+      }
+    }
+
+    // 移除
+    this._state.walls = this._state.walls.filter(function (w) { return w.uid !== uid; });
+    EventBus.emit('td:wall_removed', { uid: uid, refund: refund });
+
+    if (this._battle && this._battle.active) {
+      this._recalcPaths();
+    }
+
+    return { ok: true, refund: refund };
+  },
+
+  // 移动墙段（免费）
+  moveWall: function (uid, newGridX, newGridY) {
+    if (this._battle && this._battle.active) {
+      return { ok: false, reason: '战斗中无法移动墙段' };
+    }
+    var wall = this._findWall(uid);
+    if (!wall) return { ok: false, reason: '墙段不存在' };
+
+    // 暂时移除该墙段做检测
+    var oldX = wall.gridX;
+    var oldY = wall.gridY;
+    wall.gridX = -999;
+    wall.gridY = -999;
+
+    // 检查新位置可用性
+    var grid = this._getCollisionGrid();
+    if (grid && grid[newGridY] && grid[newGridY][newGridX] !== 0) {
+      wall.gridX = oldX;
+      wall.gridY = oldY;
+      return { ok: false, reason: '目标位置已被占用' };
+    }
+    // 检查塔占用
+    for (var i = 0; i < this._state.towers.length; i++) {
+      var t = this._state.towers[i];
+      var tSize = TDGetTowerSize(t.type);
+      if (newGridX >= t.gridX && newGridX < t.gridX + tSize.w &&
+          newGridY >= t.gridY && newGridY < t.gridY + tSize.h) {
+        wall.gridX = oldX;
+        wall.gridY = oldY;
+        return { ok: false, reason: '目标位置已被防御塔占用' };
+      }
+    }
+    // 检查其他墙占用
+    for (var j = 0; j < this._state.walls.length; j++) {
+      var w = this._state.walls[j];
+      if (w.uid !== uid && w.gridX === newGridX && w.gridY === newGridY) {
+        wall.gridX = oldX;
+        wall.gridY = oldY;
+        return { ok: false, reason: '目标位置已有墙段' };
+      }
+    }
+
+    // 封路检测（城门跳过）
+    if (wall.type !== 'td_gate') {
+      wall.gridX = newGridX;
+      wall.gridY = newGridY;
+      var blocked = this._checkWallBlocksPath(newGridX, newGridY);
+      if (blocked) {
+        wall.gridX = oldX;
+        wall.gridY = oldY;
+        return { ok: false, reason: '不能完全封锁敌人路径' };
+      }
+    } else {
+      wall.gridX = newGridX;
+      wall.gridY = newGridY;
+    }
+
+    EventBus.emit('td:wall_moved', { uid: uid, from: { gridX: oldX, gridY: oldY }, to: { gridX: newGridX, gridY: newGridY } });
+    return { ok: true };
+  },
+
+  // 获取墙段的升级费用
+  getWallUpgradeCost: function (uid) {
+    var wall = this._findWall(uid);
+    if (!wall || wall.level >= 10) return null;
+    var nextLevel = wall.level + 1;
+    return (typeof TDWallUpgradeTable !== 'undefined') ? TDWallUpgradeTable[nextLevel].cost : null;
+  },
+
+  // 获取相邻墙段信息（用于连接渲染）
+  getWallNeighbors: function (gridX, gridY) {
+    var neighbors = { up: false, down: false, left: false, right: false };
+    for (var i = 0; i < this._state.walls.length; i++) {
+      var w = this._state.walls[i];
+      if (w.gridX === gridX && w.gridY === gridY - 1) neighbors.up = true;
+      if (w.gridX === gridX && w.gridY === gridY + 1) neighbors.down = true;
+      if (w.gridX === gridX - 1 && w.gridY === gridY) neighbors.left = true;
+      if (w.gridX === gridX + 1 && w.gridY === gridY) neighbors.right = true;
+    }
+    return neighbors;
+  },
+
+  // 检查新墙段是否会封锁路径
+  _checkWallBlocksPath: function (gridX, gridY) {
+    var target = this._getTownHallGridPos();
+    var spawnPoints = this._getSpawnPoints();
+    if (!target || spawnPoints.length === 0) return false;
+
+    var testGrid = this._getFullCollisionGrid();
+    if (!testGrid) return false;
+
+    // 标记新墙位置
+    if (gridY >= 0 && gridY < testGrid.length && gridX >= 0 && gridX < testGrid[0].length) {
+      testGrid[gridY][gridX] = 1;
+    }
+    // 检查所有出生点
+    for (var i = 0; i < spawnPoints.length; i++) {
+      var sp = spawnPoints[i];
+      if (Pathfinding.findPath(testGrid, sp, target) === null) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  _findWall: function (uid) {
+    for (var i = 0; i < this._state.walls.length; i++) {
+      if (this._state.walls[i].uid === uid) return this._state.walls[i];
+    }
+    return null;
+  },
+
+  _findWallAtGrid: function (gridX, gridY) {
+    for (var i = 0; i < this._state.walls.length; i++) {
+      var w = this._state.walls[i];
+      if (w.gridX === gridX && w.gridY === gridY) return w;
+    }
+    return null;
   },
 
   // ========== T5: 塔 CRUD ==========
@@ -1456,6 +1856,9 @@ var TowerDefenseManager = {
       return;
     }
 
+    // 铁壁 buff 激活时墙段无敌
+    if (this._battle.ironWallActive) return;
+
     // DPS = ATK × (1 - DEF/(DEF+100)), walls have DEF=0
     var wallDef = 0;
     var dmg = enemy.atk * (1 - wallDef / (wallDef + 100)) * dt;
@@ -1472,7 +1875,8 @@ var TowerDefenseManager = {
     wall.hp -= dmg;
     if (wall.hp <= 0) {
       wall.hp = 0;
-      // Remove wall tower from state
+      // 不从 _state.walls 中移除（战后自动修复）
+      // 只从旧 towers[] 中移除（兼容旧存档）
       this._state.towers = this._state.towers.filter(function (t) { return t.uid !== wall.uid; });
       delete this._towerRuntime[wall.uid];
       enemy.status = 'moving';
@@ -2322,6 +2726,9 @@ var TowerDefenseManager = {
     this._battle.active = false;
     this._battle.phase = 'idle';
     this._stopBattleLoop();
+
+    // 战后自动修复所有墙段
+    this._repairAllWalls();
   },
 
   _onWaveFailed: function () {
@@ -2338,6 +2745,9 @@ var TowerDefenseManager = {
     this._battle.spawnQueue = [];
 
     EventBus.emit('td:wave_failed', { wave: waveNum, townHallHpLost: this._state.wave.townHallMaxHp });
+
+    // 战后自动修复所有墙段
+    this._repairAllWalls();
   },
 
   _calcRewards: function (waveNum, isManual) {
@@ -2670,20 +3080,50 @@ var TowerDefenseManager = {
     return null;
   },
 
+  // 战后自动修复所有墙段（恢复满 HP）
+  _repairAllWalls: function () {
+    if (!this._battle || !this._battle.wallInstances) return;
+    for (var i = 0; i < this._battle.wallInstances.length; i++) {
+      this._battle.wallInstances[i].hp = this._battle.wallInstances[i].maxHp;
+    }
+  },
+
   _initWallInstances: function () {
     this._battle.wallInstances = [];
-    for (var i = 0; i < this._state.towers.length; i++) {
-      var tower = this._state.towers[i];
+
+    // 从统一 walls[] 数组读取
+    if (this._state.walls && this._state.walls.length > 0) {
+      for (var i = 0; i < this._state.walls.length; i++) {
+        var wall = this._state.walls[i];
+        var stats = this.getWallStats(wall.uid);
+        if (!stats) continue;
+        this._battle.wallInstances.push({
+          uid: wall.uid,
+          gridX: wall.gridX,
+          gridY: wall.gridY,
+          hp: stats.hp,
+          maxHp: stats.hp,
+          type: wall.type,
+          isGate: wall.type === 'td_gate'
+        });
+      }
+    }
+
+    // 兼容旧存档：检查 towers[] 中是否还有残余墙类型
+    for (var j = 0; j < this._state.towers.length; j++) {
+      var tower = this._state.towers[j];
       var towerData = TDTowerData[tower.type];
       if (!towerData || towerData.category !== 'wall') continue;
 
-      var stats = this.getTowerStats(tower.uid);
+      var tStats = this.getTowerStats(tower.uid);
       this._battle.wallInstances.push({
         uid: tower.uid,
         gridX: tower.gridX,
         gridY: tower.gridY,
-        hp: stats.hp,
-        maxHp: stats.hp
+        hp: tStats.hp,
+        maxHp: tStats.hp,
+        type: tower.type,
+        isGate: false
       });
     }
   },
@@ -2739,6 +3179,19 @@ var TowerDefenseManager = {
               grid[cy][cx] = 1;
             }
           }
+        }
+      }
+    }
+
+    // Add walls[] as obstacles (城墙阻挡地面移动)
+    if (this._state.walls) {
+      for (var wi = 0; wi < this._state.walls.length; wi++) {
+        var w = this._state.walls[wi];
+        // 城门在战斗中也阻挡（关闭状态），编辑模式不阻挡
+        var isBattle = this._battle && this._battle.active;
+        if (w.type === 'td_gate' && !isBattle) continue;
+        if (w.gridY >= 0 && w.gridY < grid.length && w.gridX >= 0 && w.gridX < grid[0].length) {
+          grid[w.gridY][w.gridX] = 1;
         }
       }
     }

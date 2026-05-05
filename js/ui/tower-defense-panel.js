@@ -24,11 +24,19 @@ var TowerDefensePanel = {
   _toolbar: null,            // 底部工具栏 DOM
   _refreshTimer: null,
 
+  // --- 城墙编辑模式状态 ---
+  _wallEditMode: false,      // 是否处于城墙编辑模式
+  _wallEditTool: 'place',    // 当前工具: 'place' | 'upgrade' | 'remove' | 'move' | 'gate'
+  _wallDragging: false,      // 是否正在拖拽放置
+  _wallDragPath: [],         // 拖拽路径 [{gx,gy}, ...]
+  _wallMovingUid: null,      // 正在移动的墙段 uid
+
   // 塔类型 emoji 映射
   _towerEmoji: {
     td_arrow_tower: UIIcons.icon('attack'), td_crossbow: UIIcons.icon('battle'), td_catapult: UIIcons.icon('stone'),
     td_beacon: UIIcons.icon('flame'), td_oil_tower: UIIcons.icon('flame'), td_repeater: UIIcons.icon('attack'),
     td_wood_fence: UIIcons.icon('wood'), td_stone_wall: UIIcons.icon('defense'), td_iron_wall: UIIcons.icon('defense'),
+    td_wall: UIIcons.icon('defense'), td_gate: UIIcons.icon('build'),
     td_spike: UIIcons.icon('battle'), td_pitfall: UIIcons.icon('battle'), td_oil_pool: UIIcons.icon('flame'), td_trip_rope: UIIcons.icon('battle')
   },
 
@@ -334,6 +342,12 @@ var TowerDefensePanel = {
     this._selectedTowerType = null;
     this._selectedTowerUid = null;
     this._placementMode = false;
+    // 清理城墙编辑状态
+    this._wallEditMode = false;
+    this._wallEditTool = 'place';
+    this._wallDragging = false;
+    this._wallDragPath = [];
+    this._wallMovingUid = null;
 
     // 停止 TD 渲染循环
     this._stopTDRenderLoop();
@@ -536,17 +550,58 @@ var TowerDefensePanel = {
   },
 
   _drawTowers: function (ctx) {
-    var towers = TowerDefenseManager.getState().towers;
+    var state = TowerDefenseManager.getState();
+    var towers = state.towers;
+    var walls = state.walls || [];
     var TILE = TD_CONSTANTS.TILE_SIZE;
+    var battle = TowerDefenseManager._battle;
+    var isBattle = !!(battle && battle.active);
 
+    // 先绘制城墙（在底层）
+    for (var wi = 0; wi < walls.length; wi++) {
+      var w = walls[wi];
+      var centerX = w.gridX * TILE + TILE / 2;
+      var centerY = w.gridY * TILE + TILE / 2;
+
+      // 选中高亮
+      if (this._selectedTowerUid === w.uid) {
+        ctx.strokeStyle = '#f5c518';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(w.gridX * TILE + 1, w.gridY * TILE + 1, TILE - 2, TILE - 2);
+      }
+
+      // 获取相邻墙段信息
+      var neighbors = TowerDefenseManager.getWallNeighbors(w.gridX, w.gridY);
+
+      // 获取战斗中 HP 比例
+      var hpRatio = 1;
+      if (isBattle && battle.wallInstances) {
+        for (var k = 0; k < battle.wallInstances.length; k++) {
+          if (battle.wallInstances[k].uid === w.uid) {
+            hpRatio = battle.wallInstances[k].maxHp > 0 ? battle.wallInstances[k].hp / battle.wallInstances[k].maxHp : 0;
+            break;
+          }
+        }
+      }
+
+      if (typeof TDRenderer !== 'undefined') {
+        TDRenderer.drawTower(ctx, w.type, centerX, centerY, w.level, {
+          neighbors: neighbors,
+          hpRatio: hpRatio < 1 ? hpRatio : undefined,
+          isBattle: isBattle
+        });
+      }
+    }
+
+    // 再绘制防御塔
     for (var i = 0; i < towers.length; i++) {
       var t = towers[i];
       var data = TDTowerData[t.type];
       if (!data) continue;
 
       var tSize = TDGetTowerSize(t.type);
-      var centerX = t.gridX * TILE + tSize.w * TILE / 2;
-      var centerY = t.gridY * TILE + tSize.h * TILE / 2;
+      var tcX = t.gridX * TILE + tSize.w * TILE / 2;
+      var tcY = t.gridY * TILE + tSize.h * TILE / 2;
 
       // 选中高亮
       if (this._selectedTowerUid === t.uid) {
@@ -557,7 +612,7 @@ var TowerDefensePanel = {
 
       // 使用 TDRenderer 绘制
       if (typeof TDRenderer !== 'undefined') {
-        TDRenderer.drawTower(ctx, t.type, centerX, centerY, t.level, {});
+        TDRenderer.drawTower(ctx, t.type, tcX, tcY, t.level, {});
       } else {
         // Fallback: 简单矩形
         ctx.fillStyle = 'rgba(22,33,62,0.7)';
@@ -730,6 +785,7 @@ var TowerDefensePanel = {
   // ========== T13: Canvas 点击处理 ==========
 
   _canvasClickHandler: null,
+  _canvasDragHandlers: null,
 
   _bindCanvasClick: function () {
     if (this._canvasClickHandler) return;
@@ -740,16 +796,66 @@ var TowerDefensePanel = {
     var canvas = TownWorld._canvas;
     if (canvas) {
       canvas.addEventListener('click', this._canvasClickHandler);
+      // 拖拽支持（城墙编辑模式）
+      this._canvasDragHandlers = {
+        mousedown: function (e) { self._onCanvasDragStart(e); },
+        mousemove: function (e) { self._onCanvasDragMove(e); },
+        mouseup: function (e) { self._onCanvasDragEnd(e); },
+        touchstart: function (e) { if (e.touches.length === 1) self._onCanvasDragStart(e.touches[0]); },
+        touchmove: function (e) { if (e.touches.length === 1) { e.preventDefault(); self._onCanvasDragMove(e.touches[0]); } },
+        touchend: function (e) { self._onCanvasDragEnd(e); }
+      };
+      canvas.addEventListener('mousedown', this._canvasDragHandlers.mousedown);
+      canvas.addEventListener('mousemove', this._canvasDragHandlers.mousemove);
+      canvas.addEventListener('mouseup', this._canvasDragHandlers.mouseup);
+      canvas.addEventListener('touchstart', this._canvasDragHandlers.touchstart, { passive: false });
+      canvas.addEventListener('touchmove', this._canvasDragHandlers.touchmove, { passive: false });
+      canvas.addEventListener('touchend', this._canvasDragHandlers.touchend);
     }
   },
 
   _unbindCanvasClick: function () {
-    if (!this._canvasClickHandler) return;
     var canvas = TownWorld._canvas;
     if (canvas) {
-      canvas.removeEventListener('click', this._canvasClickHandler);
+      if (this._canvasClickHandler) {
+        canvas.removeEventListener('click', this._canvasClickHandler);
+      }
+      if (this._canvasDragHandlers) {
+        canvas.removeEventListener('mousedown', this._canvasDragHandlers.mousedown);
+        canvas.removeEventListener('mousemove', this._canvasDragHandlers.mousemove);
+        canvas.removeEventListener('mouseup', this._canvasDragHandlers.mouseup);
+        canvas.removeEventListener('touchstart', this._canvasDragHandlers.touchstart);
+        canvas.removeEventListener('touchmove', this._canvasDragHandlers.touchmove);
+        canvas.removeEventListener('touchend', this._canvasDragHandlers.touchend);
+        this._canvasDragHandlers = null;
+      }
     }
     this._canvasClickHandler = null;
+  },
+
+  _getGridFromEvent: function (e) {
+    var rect = TownWorld._canvas.getBoundingClientRect();
+    var sx = e.clientX - rect.left;
+    var sy = e.clientY - rect.top;
+    var world = TownWorld._screenToWorld(sx, sy);
+    return TownWorld._worldToGrid(world.x, world.y);
+  },
+
+  _onCanvasDragStart: function (e) {
+    if (!this._wallEditMode) return;
+    var grid = this._getGridFromEvent(e);
+    this._onWallEditDragStart(grid.gx, grid.gy);
+  },
+
+  _onCanvasDragMove: function (e) {
+    if (!this._wallEditMode || !this._wallDragging) return;
+    var grid = this._getGridFromEvent(e);
+    this._onWallEditDragMove(grid.gx, grid.gy);
+  },
+
+  _onCanvasDragEnd: function () {
+    if (!this._wallEditMode) return;
+    this._onWallEditDragEnd();
   },
 
   _onCanvasClick: function (e) {
@@ -769,17 +875,33 @@ var TowerDefensePanel = {
       return;
     }
 
+    // 城墙编辑模式
+    if (this._wallEditMode) {
+      this._onWallEditClick(gx, gy);
+      return;
+    }
+
     // 放置模式：点击空格放置塔
     if (this._placementMode && this._selectedTowerType) {
       var result = TowerDefenseManager.buildTower(this._selectedTowerType, gx, gy);
       if (result.ok) {
         EventBus.emit('toast:show', { type: 'success', message: TDTowerData[this._selectedTowerType].name + ' 已建造！' });
         this._updateToolbar();
-        // 保持放置模式让用户继续放
       } else {
         EventBus.emit('toast:show', { type: 'warning', message: result.reason });
       }
       return;
+    }
+
+    // 非放置模式：检查是否点击了城墙
+    var walls = TowerDefenseManager.getState().walls || [];
+    for (var wi = 0; wi < walls.length; wi++) {
+      var w = walls[wi];
+      if (w.gridX === gx && w.gridY === gy) {
+        this._selectedTowerUid = w.uid;
+        this._showWallInfo(w.uid);
+        return;
+      }
     }
 
     // 非放置模式：检查是否点击了已建塔（含多格塔）
@@ -825,6 +947,27 @@ var TowerDefensePanel = {
 
   _updateStatusBar: function () {
     if (!this._statusBar || !this._inDefenseMode) return;
+
+    // 城墙编辑模式 — 显示城墙信息
+    if (this._wallEditMode) {
+      var wallCount = TowerDefenseManager.getWallCount();
+      var maxWalls = TowerDefenseManager.getMaxWalls();
+      var gold = 0;
+      if (typeof ResourceManager !== 'undefined' && ResourceManager.get) {
+        gold = ResourceManager.get('gold');
+      }
+      var toolNames = { place: '放置', gate: '城门', upgrade: '升级', remove: '拆除', move: '移动' };
+      this._statusBar.innerHTML =
+        '<div style="display:flex;align-items:center;gap:6px;">' +
+          '<span onclick="TowerDefensePanel._exitWallEditMode()" style="cursor:pointer;font-size:16px;">←</span>' +
+          '<span>' + UIIcons.icon('defense') + ' 城墙编辑 — ' + (toolNames[this._wallEditTool] || '') + '</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<span>' + UIIcons.icon('defense') + wallCount + '/' + maxWalls + '</span>' +
+          '<span>💰 ' + Utils.formatNumber(gold) + '</span>' +
+        '</div>';
+      return;
+    }
 
     var state = TowerDefenseManager.getState();
     var battle = TowerDefenseManager._battle;
@@ -904,6 +1047,12 @@ var TowerDefensePanel = {
   _updateToolbar: function () {
     if (!this._toolbar || !this._inDefenseMode) return;
 
+    // 城墙编辑模式 — 使用专属工具栏
+    if (this._wallEditMode) {
+      this._toolbar.innerHTML = this._renderWallToolbar();
+      return;
+    }
+
     var state = TowerDefenseManager.getState();
     var battle = TowerDefenseManager._battle;
     var isActive = battle && battle.active;
@@ -914,6 +1063,9 @@ var TowerDefensePanel = {
     html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;gap:8px;">';
     html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showTechPanel()">🏗 建筑</button>';
     html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._showHeroPanel()">⚔ 武将</button>';
+    if (!isActive) {
+      html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;background:#2a3a2a;border-color:#4a6a4a;" onclick="TowerDefensePanel._enterWallEditMode()">' + UIIcons.icon('defense') + ' 城墙</button>';
+    }
 
     if (!isActive) {
       if (currentStage) {
@@ -993,6 +1145,8 @@ var TowerDefensePanel = {
     for (var i = 0; i < towerIds.length; i++) {
       var id = towerIds[i];
       var data = TDTowerData[id];
+      // 跳过城墙/城门类型（有专属编辑器）和旧版墙体
+      if (id === 'td_wall' || id === 'td_gate' || id === 'td_wood_fence' || id === 'td_stone_wall' || id === 'td_iron_wall') continue;
       // 检查城主府等级解锁
       var thLevel = 0;
       if (typeof TownManager !== 'undefined' && TownManager.getBuildingLevel) {
@@ -1261,6 +1415,341 @@ var TowerDefensePanel = {
       }
     }
     return parts.join(' ') || '—';
+  },
+
+  // ========== 城墙编辑系统 (T5-T8) ==========
+
+  _enterWallEditMode: function () {
+    if (TowerDefenseManager._battle && TowerDefenseManager._battle.active) {
+      EventBus.emit('toast:show', { type: 'warning', message: '战斗中无法编辑城墙' });
+      return;
+    }
+    this._wallEditMode = true;
+    this._wallEditTool = 'place';
+    this._placementMode = false;
+    this._selectedTowerType = null;
+    this._selectedTowerUid = null;
+    this._updateToolbar();
+    this._updateStatusBar();
+    EventBus.emit('toast:show', { type: 'info', message: '进入城墙编辑模式 — 点击放置城墙' });
+  },
+
+  _exitWallEditMode: function () {
+    this._wallEditMode = false;
+    this._wallEditTool = 'place';
+    this._wallDragging = false;
+    this._wallDragPath = [];
+    this._wallMovingUid = null;
+    this._selectedTowerUid = null;
+    this._updateToolbar();
+    this._updateStatusBar();
+  },
+
+  _setWallTool: function (tool) {
+    this._wallEditTool = tool;
+    this._wallDragging = false;
+    this._wallDragPath = [];
+    this._wallMovingUid = null;
+    this._selectedTowerUid = null;
+    this._updateToolbar();
+    var names = { place: '放置城墙', upgrade: '升级城墙', remove: '拆除城墙', move: '移动城墙', gate: '放置城门' };
+    EventBus.emit('toast:show', { type: 'info', message: '当前工具: ' + (names[tool] || tool) });
+  },
+
+  // 城墙编辑模式下的 Canvas 点击处理
+  _onWallEditClick: function (gx, gy) {
+    var tool = this._wallEditTool;
+
+    if (tool === 'place') {
+      var result = TowerDefenseManager.buildWall(gx, gy);
+      if (result.ok) {
+        EventBus.emit('toast:show', { type: 'success', message: '城墙已放置' });
+      } else {
+        EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+      }
+      this._updateStatusBar();
+      return;
+    }
+
+    if (tool === 'gate') {
+      var result2 = TowerDefenseManager.buildGate(gx, gy);
+      if (result2.ok) {
+        EventBus.emit('toast:show', { type: 'success', message: '城门已放置' });
+      } else {
+        EventBus.emit('toast:show', { type: 'warning', message: result2.reason });
+      }
+      this._updateStatusBar();
+      return;
+    }
+
+    if (tool === 'upgrade') {
+      var wall = TowerDefenseManager._findWallAtGrid(gx, gy);
+      if (wall) {
+        this._showWallInfo(wall.uid);
+      } else {
+        EventBus.emit('toast:show', { type: 'info', message: '请点击已有的城墙' });
+      }
+      return;
+    }
+
+    if (tool === 'remove') {
+      var wall2 = TowerDefenseManager._findWallAtGrid(gx, gy);
+      if (wall2) {
+        this._confirmRemoveWall(wall2.uid);
+      } else {
+        EventBus.emit('toast:show', { type: 'info', message: '请点击要拆除的城墙' });
+      }
+      return;
+    }
+
+    if (tool === 'move') {
+      if (this._wallMovingUid) {
+        // 第二次点击 — 移动到目标位置
+        var moveResult = TowerDefenseManager.moveWall(this._wallMovingUid, gx, gy);
+        if (moveResult.ok) {
+          EventBus.emit('toast:show', { type: 'success', message: '城墙已移动' });
+        } else {
+          EventBus.emit('toast:show', { type: 'warning', message: moveResult.reason });
+        }
+        this._wallMovingUid = null;
+      } else {
+        // 第一次点击 — 选中要移动的墙
+        var wall3 = TowerDefenseManager._findWallAtGrid(gx, gy);
+        if (wall3) {
+          this._wallMovingUid = wall3.uid;
+          this._selectedTowerUid = wall3.uid;
+          EventBus.emit('toast:show', { type: 'info', message: '已选中，点击目标位置移动' });
+        } else {
+          EventBus.emit('toast:show', { type: 'info', message: '请先点击要移动的城墙' });
+        }
+      }
+      return;
+    }
+  },
+
+  // 城墙拖拽放置
+  _onWallEditDragStart: function (gx, gy) {
+    if (this._wallEditTool === 'place' || this._wallEditTool === 'upgrade') {
+      this._wallDragging = true;
+      this._wallDragPath = [{ gx: gx, gy: gy }];
+      if (this._wallEditTool === 'place') {
+        TowerDefenseManager.buildWall(gx, gy);
+      } else {
+        var w = TowerDefenseManager._findWallAtGrid(gx, gy);
+        if (w) TowerDefenseManager.upgradeWall(w.uid);
+      }
+    }
+  },
+
+  _onWallEditDragMove: function (gx, gy) {
+    if (!this._wallDragging) return;
+    var path = this._wallDragPath;
+    var last = path[path.length - 1];
+    if (last && last.gx === gx && last.gy === gy) return;
+    path.push({ gx: gx, gy: gy });
+    if (this._wallEditTool === 'place') {
+      TowerDefenseManager.buildWall(gx, gy);
+    } else if (this._wallEditTool === 'upgrade') {
+      var w = TowerDefenseManager._findWallAtGrid(gx, gy);
+      if (w) TowerDefenseManager.upgradeWall(w.uid);
+    }
+  },
+
+  _onWallEditDragEnd: function () {
+    if (!this._wallDragging) return;
+    this._wallDragging = false;
+    var count = this._wallDragPath.length;
+    this._wallDragPath = [];
+    if (count > 1) {
+      EventBus.emit('toast:show', { type: 'success', message: '批量放置 ' + count + ' 段城墙' });
+    }
+    this._updateStatusBar();
+  },
+
+  // 城墙信息面板（点击已有墙 → 升级/拆除）
+  _showWallInfo: function (wallUid) {
+    var wall = TowerDefenseManager._findWall(wallUid);
+    if (!wall) return;
+
+    var upgradeTable = typeof TDWallUpgradeTable !== 'undefined' ? TDWallUpgradeTable : null;
+    var currentData = upgradeTable ? upgradeTable[wall.level] : null;
+    var nextData = upgradeTable && wall.level < 10 ? upgradeTable[wall.level + 1] : null;
+    var maxLevel = TowerDefenseManager.getMaxWallLevel();
+    var isGate = wall.type === 'td_gate';
+    var typeName = isGate ? '城门' : '城墙';
+    var tierNames = { wood: '木栅栏', stone: '石城墙', iron: '铁壁', gold: '金城墙', legend: '传奇城墙' };
+    var tier = currentData ? (tierNames[currentData.tier] || typeName) : typeName;
+
+    var html = '<div style="text-align:center;padding:8px;">';
+    html += '<div style="font-size:28px;margin:4px 0;">' + (isGate ? UIIcons.icon('build') : UIIcons.icon('defense')) + '</div>';
+    html += '<h3 style="color:var(--color-gold);margin:4px 0;">' + tier + ' Lv.' + wall.level + '</h3>';
+
+    // HP 信息
+    if (currentData) {
+      var hp = isGate ? Math.floor(currentData.hp * 0.8) : currentData.hp;
+      html += '<div style="font-size:13px;color:var(--color-text);margin:8px 0;">❤ HP: ' + Utils.formatNumber(hp) + '</div>';
+    }
+
+    html += '<hr style="border-color:#4a3728;margin:12px 0;">';
+
+    // 升级按钮
+    if (wall.level < 10 && wall.level < maxLevel) {
+      var cost = TowerDefenseManager.getWallUpgradeCost(wall.uid);
+      var canAfford = typeof ResourceManager !== 'undefined' ? ResourceManager.canAffordMultiple(cost) : true;
+      var costStr = this._formatCost(cost);
+      var nextHp = nextData ? (isGate ? Math.floor(nextData.hp * 0.8) : nextData.hp) : '?';
+      html += '<div style="font-size:12px;color:var(--color-text-dim);margin:4px 0;">升级到 Lv.' + (wall.level + 1) + '：HP ' + Utils.formatNumber(nextHp) + '</div>';
+      html += '<button class="btn" style="width:100%;margin:4px 0;font-size:13px;' + (canAfford ? '' : 'opacity:0.5;pointer-events:none;') + '" onclick="TowerDefensePanel._upgradeWall(\'' + wallUid + '\')">⬆ 升级　费用: ' + costStr + '</button>';
+    } else if (wall.level >= maxLevel && wall.level < 10) {
+      html += '<div style="font-size:12px;color:var(--color-danger);margin:4px 0;">需要升级城墙建筑解锁更高等级</div>';
+      html += '<button class="btn" style="width:100%;margin:4px 0;font-size:13px;opacity:0.5;" disabled>⬆ 等级上限 Lv.' + maxLevel + '</button>';
+    } else {
+      html += '<button class="btn" style="width:100%;margin:4px 0;font-size:13px;opacity:0.5;" disabled>⬆ 已满级</button>';
+    }
+
+    // 拆除按钮（返还 50%）
+    var removeCost = currentData ? {} : {};
+    if (currentData && currentData.cost) {
+      removeCost = {};
+      for (var res in currentData.cost) {
+        if (currentData.cost.hasOwnProperty(res)) {
+          removeCost[res] = Math.floor(currentData.cost[res] * 0.5);
+        }
+      }
+    }
+    var removeStr = this._formatCost(removeCost);
+    html += '<button class="btn" style="width:100%;margin:4px 0;font-size:13px;background:#3a2020;border-color:#7a3030;" onclick="TowerDefensePanel._confirmRemoveWall(\'' + wallUid + '\')">🔻 拆除　返还: ' + removeStr + ' (50%)</button>';
+
+    html += '</div>';
+
+    OverlayPanel.show({
+      title: (isGate ? UIIcons.icon('build') : UIIcons.icon('defense')) + ' ' + tier,
+      content: html,
+      panelId: 'td-wall-info',
+      height: 'half'
+    });
+  },
+
+  _upgradeWall: function (uid) {
+    var result = TowerDefenseManager.upgradeWall(uid);
+    if (result.ok) {
+      EventBus.emit('toast:show', { type: 'success', message: '城墙升级成功！' });
+      OverlayPanel.close();
+      this._updateStatusBar();
+    } else {
+      EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+    }
+  },
+
+  _batchUpgradeWalls: function () {
+    // 找出所有最低等级的墙段
+    var walls = TowerDefenseManager.getState().walls || [];
+    if (walls.length === 0) {
+      EventBus.emit('toast:show', { type: 'warning', message: '没有城墙可升级' });
+      return;
+    }
+    var maxLevel = TowerDefenseManager.getMaxWallLevel();
+    var minLv = 999;
+    for (var i = 0; i < walls.length; i++) {
+      if (walls[i].level < minLv) minLv = walls[i].level;
+    }
+    if (minLv >= maxLevel) {
+      EventBus.emit('toast:show', { type: 'warning', message: '所有城墙已达当前等级上限' });
+      return;
+    }
+    var uids = [];
+    for (var j = 0; j < walls.length; j++) {
+      if (walls[j].level === minLv) uids.push(walls[j].uid);
+    }
+    var results = TowerDefenseManager.upgradeWallBatch(uids);
+    var success = 0;
+    for (var k = 0; k < results.length; k++) {
+      if (results[k].ok) success++;
+    }
+    if (success > 0) {
+      EventBus.emit('toast:show', { type: 'success', message: '批量升级 ' + success + ' 段城墙至 Lv.' + (minLv + 1) + '！' });
+    } else {
+      EventBus.emit('toast:show', { type: 'warning', message: '资源不足或已达等级上限' });
+    }
+    this._updateStatusBar();
+  },
+
+  _confirmRemoveWall: function (uid) {
+    var self = this;
+    Modal.show({
+      title: '确认拆除',
+      content: '确定要拆除此城墙吗？将返还 50% 资源。',
+      confirmText: '拆除',
+      cancelText: '取消',
+      onConfirm: function () {
+        var result = TowerDefenseManager.removeWall(uid);
+        if (result.ok) {
+          EventBus.emit('toast:show', { type: 'success', message: '已拆除，返还资源' });
+          OverlayPanel.close();
+          self._selectedTowerUid = null;
+          self._updateStatusBar();
+        } else {
+          EventBus.emit('toast:show', { type: 'warning', message: result.reason });
+        }
+      }
+    });
+  },
+
+  // 城墙编辑模式工具栏渲染
+  _renderWallToolbar: function () {
+    var state = TowerDefenseManager.getState();
+    var wallCount = TowerDefenseManager.getWallCount();
+    var maxWalls = TowerDefenseManager.getMaxWalls();
+    var maxLevel = TowerDefenseManager.getMaxWallLevel();
+    var walls = (TowerDefenseManager.getState().walls || []);
+    var avgLevel = 0;
+    if (walls.length > 0) {
+      var sum = 0;
+      for (var wsi = 0; wsi < walls.length; wsi++) sum += walls[wsi].level || 1;
+      avgLevel = sum / walls.length;
+    }
+    var buildCost = (typeof TDWallUpgradeTable !== 'undefined' && TDWallUpgradeTable[1]) ? TDWallUpgradeTable[1].cost : null;
+    var costStr = buildCost ? this._formatCost(buildCost) : '';
+
+    var html = '';
+
+    // 信息栏
+    html += '<div style="display:flex;justify-content:space-between;padding:6px 12px;font-size:12px;color:#ccc;border-bottom:1px solid rgba(255,255,255,0.1);">';
+    html += '<span>' + UIIcons.icon('defense') + ' 城墙: ' + wallCount + '/' + maxWalls + '</span>';
+    html += '<span>最高等级: Lv.' + maxLevel + '</span>';
+    if (walls.length > 0) {
+      html += '<span>平均: Lv.' + avgLevel.toFixed(1) + '</span>';
+    }
+    html += '</div>';
+
+    // 工具栏按钮
+    html += '<div style="display:flex;padding:8px 12px;gap:6px;">';
+    var tools = [
+      { id: 'place', icon: UIIcons.icon('defense'), label: '放置', desc: '新Lv.1 ' + costStr },
+      { id: 'gate', icon: UIIcons.icon('build'), label: '城门', desc: '特殊墙段' },
+      { id: 'upgrade', icon: '⬆', label: '升级', desc: '点击/拖拽' },
+      { id: 'remove', icon: '🔻', label: '拆除', desc: '返还50%' },
+      { id: 'move', icon: '↔', label: '移动', desc: '免费' }
+    ];
+
+    for (var i = 0; i < tools.length; i++) {
+      var t = tools[i];
+      var active = this._wallEditTool === t.id;
+      html += '<div style="display:flex;flex-direction:column;align-items:center;flex:1;cursor:pointer;opacity:' + (active ? '1' : '0.6') + ';" onclick="TowerDefensePanel._setWallTool(\'' + t.id + '\')">';
+      html += '<div style="width:40px;height:40px;border-radius:6px;border:2px solid ' + (active ? '#f5c518' : '#4a3728') + ';background:' + (active ? 'rgba(245,197,24,0.15)' : 'rgba(22,33,62,0.8)') + ';display:flex;align-items:center;justify-content:center;font-size:18px;">' + t.icon + '</div>';
+      html += '<span style="font-size:10px;color:' + (active ? '#f5c518' : '#999') + ';margin-top:2px;">' + t.label + '</span>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+
+    // 批量升级按钮
+    html += '<div style="display:flex;padding:4px 12px 8px;gap:6px;">';
+    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;" onclick="TowerDefensePanel._batchUpgradeWalls()">⬆ 批量升级最低等级</button>';
+    html += '<button class="btn" style="flex:1;font-size:12px;padding:6px 0;background:#3a2020;border-color:#7a3030;" onclick="TowerDefensePanel._exitWallEditMode()">✓ 完成编辑</button>';
+    html += '</div>';
+
+    return html;
   },
 
   // ========== T16: 科技面板 ==========

@@ -68,7 +68,33 @@ var TDTowerData = {
   },
 
   // ── 防御型建筑（城墙） ──
+  // 新版统一墙体：td_wall（1~10级）和 td_gate（城门）
+  // 旧类型 td_wood_fence/td_stone_wall/td_iron_wall 已废弃，保留仅供旧存档兼容
 
+  td_wall: {
+    id: 'td_wall', name: '城墙', category: 'wall',
+    size: { w: 1, h: 1 },
+    atk: 0, range: 0, attackSpeed: 0, hp: 200,
+    targets: ['ground', 'underground'],
+    special: null,
+    cost: { gold: 50, wood: 20 },
+    requiredTownHall: 3,
+    maxLevel: 10
+  },
+
+  td_gate: {
+    id: 'td_gate', name: '城门', category: 'wall',
+    size: { w: 1, h: 1 },
+    atk: 0, range: 0, attackSpeed: 0, hp: 160,
+    targets: ['ground', 'underground'],
+    special: 'gate',
+    cost: { gold: 80, wood: 30 },
+    requiredTownHall: 3,
+    maxLevel: 10,
+    hpRatio: 0.8
+  },
+
+  // @deprecated — 旧存档兼容，新代码应使用 td_wall
   td_wood_fence: {
     id: 'td_wood_fence', name: '木栅栏', category: 'wall',
     size: { w: 1, h: 1 },
@@ -78,8 +104,9 @@ var TDTowerData = {
     cost: { gold: 50, wood: 20 },
     requiredTownHall: 3
   },
+  // @deprecated
   td_stone_wall: {
-    id: 'td_stone_wall', name: '城墙', category: 'wall',
+    id: 'td_stone_wall', name: '城墙（旧）', category: 'wall',
     size: { w: 1, h: 1 },
     atk: 0, range: 0, attackSpeed: 0, hp: 500,
     targets: ['ground', 'underground'],
@@ -87,8 +114,9 @@ var TDTowerData = {
     cost: { gold: 200, stone: 50 },
     requiredTownHall: 4
   },
+  // @deprecated
   td_iron_wall: {
-    id: 'td_iron_wall', name: '铁壁', category: 'wall',
+    id: 'td_iron_wall', name: '铁壁（旧）', category: 'wall',
     size: { w: 1, h: 1 },
     atk: 0, range: 0, attackSpeed: 0, hp: 1200,
     targets: ['ground', 'underground'],
@@ -152,6 +180,15 @@ var TDLegacyTowerMap = {
   'td_missile_tower':   'td_catapult',
   'td_radar':           'td_beacon',
   'td_laser':           'td_repeater'
+};
+
+// ── 旧墙类型 → 新统一墙类型迁移映射 ──
+// 迁移时用 TDLegacyWallMigration[oldType] 获取新等级
+var TDLegacyWallMigration = {
+  'td_wood_fence':  { newType: 'td_wall', newLevel: 1 },
+  'td_stone_wall':  { newType: 'td_wall', newLevel: 3 },
+  'td_iron_wall':   { newType: 'td_wall', newLevel: 5 },
+  'td_palisade':    { newType: 'td_wall', newLevel: 1 }
 };
 
 // ============================================================
@@ -330,10 +367,10 @@ var TDWaveTable = (function () {
 //  城主府等级解锁表（替代旧科技时代系统）
 // ============================================================
 var TDTownHallUnlockTable = {
-  3: ['td_arrow_tower', 'td_wood_fence', 'td_spike'],
-  4: ['td_crossbow', 'td_beacon', 'td_stone_wall', 'td_pitfall', 'td_trip_rope'],
+  3: ['td_arrow_tower', 'td_wall', 'td_gate', 'td_spike'],
+  4: ['td_crossbow', 'td_beacon', 'td_pitfall', 'td_trip_rope'],
   5: ['td_catapult', 'td_oil_tower', 'td_oil_pool'],
-  6: ['td_repeater', 'td_iron_wall']
+  6: ['td_repeater']
 };
 
 // ── 旧存档兼容：保留 TDTechTree 作为 shim，防止引用崩溃 ──
@@ -482,6 +519,44 @@ var TDChapterData = [
 // town_hall Lv3 解锁城防，每升一级多3个塔位
 var TDTowerCapacity = {
   3: 8, 4: 11, 5: 14, 6: 17, 7: 20, 8: 23, 9: 26, 10: 30
+};
+
+// ============================================================
+//  城墙升级表（Lv1-10）— 统一墙体 td_wall / td_gate
+// ============================================================
+// hp: 该级 HP，cost: 建造（lv1）或升级至该级的费用，tier: 视觉档位名称
+var TDWallUpgradeTable = [
+  null,
+  { hp: 200,  cost: { gold: 50,   wood: 20 },                  tier: 'wood',     tierName: '木栅栏' },
+  { hp: 300,  cost: { gold: 80,   wood: 30 },                  tier: 'wood',     tierName: '加固木栅栏' },
+  { hp: 500,  cost: { gold: 200,  stone: 50 },                 tier: 'stone',    tierName: '石城墙' },
+  { hp: 700,  cost: { gold: 350,  stone: 80 },                 tier: 'stone',    tierName: '加固石城墙' },
+  { hp: 1200, cost: { gold: 400,  stone: 100, iron: 50 },      tier: 'iron',     tierName: '铁壁' },
+  { hp: 1600, cost: { gold: 600,  stone: 150, iron: 80 },      tier: 'iron',     tierName: '加固铁壁' },
+  { hp: 2200, cost: { gold: 800,  stone: 200, iron: 100 },     tier: 'gold',     tierName: '金城墙' },
+  { hp: 3000, cost: { gold: 1200, stone: 300, iron: 150 },     tier: 'gold',     tierName: '龙纹金墙' },
+  { hp: 4000, cost: { gold: 1500, stone: 400, iron: 200 },     tier: 'legend',   tierName: '传奇城墙' },
+  { hp: 5500, cost: { gold: 2000, stone: 500, iron: 300 },     tier: 'legend',   tierName: '鎏金传奇城墙' }
+];
+
+// ============================================================
+//  城墙数量上限（按城主府等级）— 独立于防御塔容量
+// ============================================================
+var TDWallCapacity = {
+  3: 20, 4: 35, 5: 50, 6: 70, 7: 90, 8: 110, 9: 130, 10: 150
+};
+
+// ============================================================
+//  城墙等级上限（由 city_wall 建筑等级控制）
+// ============================================================
+// city_wall 建筑等级 → 墙段可升级的最高等级
+var TDWallLevelCap = {
+  0: 1,   // 未建造 city_wall 时只能放 lv1
+  1: 2, 2: 2, 3: 2, 4: 2, 5: 2,
+  6: 4, 7: 4, 8: 4, 9: 4, 10: 4,
+  11: 6, 12: 6, 13: 6, 14: 6, 15: 6,
+  16: 8, 17: 8, 18: 8, 19: 8, 20: 8,
+  21: 10, 22: 10, 23: 10, 24: 10, 25: 10
 };
 
 // ============================================================
