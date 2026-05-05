@@ -157,7 +157,8 @@ var AbyssManager = {
         isAlive: true,
         isAlly: true,
         position: i,
-        deathImmunityUsed: false
+        deathImmunityUsed: false,
+        element: hero.element || null
       });
     }
 
@@ -199,12 +200,16 @@ var AbyssManager = {
       baseAtk: boss.atk,
       baseDef: boss.def,
       baseSpd: boss.spd,
+      maxAtk: boss.atk,
+      maxDef: boss.def,
       skill: boss.skill ? Utils.deepClone(boss.skill) : null,
       skillCd: 0,
       buffs: [],
       isAlive: true,
       isAlly: false,
-      position: 0
+      position: 0,
+      element: boss.element || null,
+      mechanics: boss.mechanics ? Utils.deepClone(boss.mechanics) : null
     }];
     run.round = 0;
     run.phase = 'fighting';
@@ -225,6 +230,17 @@ var AbyssManager = {
   _executeRound: function () {
     var run = this._state.currentRun;
     run.round++;
+
+    // Process buffs at start of round (DoT ticks, duration countdown)
+    this._tickBuffs(run);
+
+    // Process boss mechanics before actions
+    for (var mi = 0; mi < run.enemies.length; mi++) {
+      var mechEnemy = run.enemies[mi];
+      if (mechEnemy.isAlive && mechEnemy.mechanics) {
+        this._processBossMechanics(mechEnemy, run.round, run);
+      }
+    }
 
     // Collect alive units, sort by SPD
     var allUnits = [];
@@ -303,10 +319,10 @@ var AbyssManager = {
     if (!target) return;
 
     var dmg = this._calcDamage(unit, target, 1.0);
-    target.currentHp -= dmg.damage;
+    this._applyDamage(target, dmg.damage);
 
     // Death immunity check (set bonus)
-    if (target.currentHp <= 0 && target.isAlly && !target.deathImmunityUsed) {
+    if (!target.isAlive && target.isAlly && !target.deathImmunityUsed) {
       var hero = HeroManager.getHeroByUid(target.uid);
       if (hero) {
         var bonuses = getHeroSetBonuses(hero.equipment);
@@ -314,6 +330,7 @@ var AbyssManager = {
           var eff = bonuses[b].bonus.effects;
           if (eff.deathImmunityChance && Math.random() < eff.deathImmunityChance) {
             target.currentHp = 1;
+            target.isAlive = true;
             target.deathImmunityUsed = true;
             run.log.push('[第' + run.round + '回合] ✨ ' + target.name + ' 天命不灭！免疫致命伤害！');
             return;
@@ -322,14 +339,11 @@ var AbyssManager = {
       }
     }
 
-    if (target.currentHp <= 0) {
-      target.currentHp = 0;
-      target.isAlive = false;
-    }
-
     var critText = dmg.isCrit ? ' 💥暴击！' : '';
+    var elemText = BattleManager._getElementText(unit.element, target.element, dmg.elementMult);
+    if (elemText) elemText = ' ' + elemText;
     run.log.push('[第' + run.round + '回合] ' + unit.name + ' → ' + target.name +
-      ' ' + dmg.damage + '伤害' + critText);
+      ' ' + dmg.damage + '伤害' + critText + elemText);
     if (run.log.length > 50) run.log.shift();
   },
 
@@ -349,10 +363,46 @@ var AbyssManager = {
     if (type === 'buff') {
       var effect = skill.effect;
       if (effect) {
-        unit.buffs.push({ stat: effect.stat, ratio: effect.ratio, duration: effect.duration });
+        if (effect.type === 'taunt') {
+          unit.buffs.push({ type: 'taunt', duration: effect.duration || 2 });
+        } else if (effect.type === 'shield') {
+          var shieldAmount = Math.floor(unit.atk * (effect.shieldMult || 1.5));
+          var shieldTargets = (skill.target === 'all') ? this._getAlive(friendlies) : [unit];
+          for (var sti = 0; sti < shieldTargets.length; sti++) {
+            shieldTargets[sti].buffs.push({ type: 'shield', amount: shieldAmount, duration: effect.duration || 3 });
+          }
+        } else {
+          unit.buffs.push({ stat: effect.stat, ratio: effect.ratio, duration: effect.duration });
+        }
         this._recalcStats(unit);
         run.log.push('[第' + run.round + '回合] ' + unit.name + ' 使用 ' + skillName);
       }
+      return;
+    }
+
+    if (type === 'cleanse') {
+      var cleanseTargets = this._getAlive(friendlies);
+      for (var ci = 0; ci < cleanseTargets.length; ci++) {
+        var ct = cleanseTargets[ci];
+        var removedCount = 0;
+        var kept = [];
+        for (var cb = 0; cb < ct.buffs.length; cb++) {
+          var cbuff = ct.buffs[cb];
+          var cbType = cbuff.type || 'stat';
+          if (cbType === 'dot' || (cbType === 'stat' && cbuff.ratio < 0)) {
+            removedCount++;
+          } else {
+            kept.push(cbuff);
+          }
+        }
+        ct.buffs = kept;
+        if (removedCount > 0) {
+          this._recalcStats(ct);
+          run.log.push('[第' + run.round + '回合] ' + unit.name + ' 使用 ' + skillName +
+            ' → ' + ct.name + ' 净化了 ' + removedCount + ' 个负面效果');
+        }
+      }
+      if (run.log.length > 50) run.log.shift();
       return;
     }
 
@@ -374,11 +424,12 @@ var AbyssManager = {
     for (var i = 0; i < targets.length; i++) {
       var tgt = targets[i];
       var dmg = this._calcDamage(unit, tgt, multiplier);
-      tgt.currentHp -= dmg.damage;
-      if (tgt.currentHp <= 0) { tgt.currentHp = 0; tgt.isAlive = false; }
+      this._applyDamage(tgt, dmg.damage);
 
+      var aElemText = BattleManager._getElementText(unit.element, tgt.element, dmg.elementMult);
+      if (aElemText) aElemText = ' ' + aElemText;
       run.log.push('[第' + run.round + '回合] ' + unit.name + ' [' + skillName + '] → ' +
-        tgt.name + ' ' + dmg.damage + '伤害' + (dmg.isCrit ? ' 💥' : ''));
+        tgt.name + ' ' + dmg.damage + '伤害' + (dmg.isCrit ? ' 💥' : '') + aElemText);
     }
     if (run.log.length > 50) run.log.shift();
   },
@@ -386,17 +437,34 @@ var AbyssManager = {
   _calcDamage: function (attacker, defender, multiplier) {
     var rand = 0.9 + Math.random() * 0.2;
     var base = Math.floor(attacker.atk * multiplier * rand);
+
+    // 元素克制倍率（在 DEF 减免之前）
+    var elementMult = BattleManager._getElementMultiplier(attacker.element, defender.element);
+
+    // Boss 属性护盾覆盖常规元素倍率
+    if (defender._elementShield) {
+      if (attacker.element === defender._elementShield.immuneElement) {
+        elementMult = 0;
+      } else if (attacker.element === defender._elementShield.weakElement) {
+        elementMult = 2.0;
+      }
+    }
+
+    base = Math.floor(base * elementMult);
+
     var reduction = defender.def / (defender.def + 100);
     var damage = Math.max(1, Math.floor(base * (1 - reduction)));
     var isCrit = Math.random() < 0.05;
     if (isCrit) damage = Math.floor(damage * 1.5);
-    return { damage: damage, isCrit: isCrit };
+    return { damage: damage, isCrit: isCrit, elementMult: elementMult };
   },
 
   _recalcStats: function (unit) {
     var atkMod = 1, defMod = 1, spdMod = 1;
     for (var i = 0; i < unit.buffs.length; i++) {
       var b = unit.buffs[i];
+      var buffType = b.type || 'stat';
+      if (buffType !== 'stat') continue;
       if (b.stat === 'atk') atkMod += b.ratio;
       if (b.stat === 'def') defMod += b.ratio;
       if (b.stat === 'spd') spdMod += b.ratio;
@@ -404,6 +472,32 @@ var AbyssManager = {
     unit.atk = Math.max(1, Math.floor(unit.baseAtk * atkMod));
     unit.def = Math.max(1, Math.floor(unit.baseDef * defMod));
     unit.spd = Math.max(1, Math.floor(unit.baseSpd * spdMod));
+  },
+
+  /** Shield absorption for abyss combat */
+  _applyDamage: function (target, damage) {
+    var remaining = damage;
+    var shields = [];
+    for (var si = 0; si < target.buffs.length; si++) {
+      if ((target.buffs[si].type || 'stat') === 'shield') {
+        shields.push(target.buffs[si]);
+      }
+    }
+    for (var s = 0; s < shields.length; s++) {
+      if (remaining <= 0) break;
+      var absorbed = Math.min(shields[s].amount, remaining);
+      shields[s].amount -= absorbed;
+      remaining -= absorbed;
+      if (shields[s].amount <= 0) {
+        shields[s].duration = 0;
+      }
+    }
+    target.currentHp -= remaining;
+    if (target.currentHp <= 0) {
+      target.currentHp = 0;
+      target.isAlive = false;
+    }
+    return { shieldAbsorbed: damage - remaining, hpDamage: remaining };
   },
 
   _checkFloorEnd: function (run) {
@@ -627,7 +721,8 @@ var AbyssManager = {
         isAlive: true,
         isAlly: true,
         position: i,
-        deathImmunityUsed: false
+        deathImmunityUsed: false,
+        element: hero.element || null
       });
     }
 
@@ -658,8 +753,6 @@ var AbyssManager = {
       var roundCount = 0;
       while (run.phase === 'fighting' && roundCount < MAX_ROUNDS) {
         this._executeRound();
-        // Tick buff durations after each round
-        this._tickBuffs(run);
         roundCount++;
       }
       // If run completed or defeated, stop
@@ -670,21 +763,187 @@ var AbyssManager = {
     return true;
   },
 
+  // ---------- Boss 机制处理（深渊） ----------
+
+  _processBossMechanics: function (boss, round, run) {
+    if (!boss.mechanics || boss.mechanics.length === 0) return;
+    var self = this;
+    boss.mechanics.forEach(function (mech) {
+      switch (mech.mechanic) {
+        case 'enrage':        self._handleMechEnrage(boss, round, mech, run); break;
+        case 'periodic_aoe':  self._handleMechPeriodicAoE(boss, round, mech, run); break;
+        case 'high_armor':    self._handleMechHighArmor(boss, mech, run); break;
+        case 'element_shield': self._handleMechElementShield(boss, mech, run); break;
+        case 'dot_apply':     self._handleMechDotApply(boss, round, mech, run); break;
+        case 'summon':        self._handleMechSummon(boss, round, mech, run); break;
+        case 'execute':       self._handleMechExecute(boss, round, mech, run); break;
+      }
+    });
+  },
+
+  _handleMechEnrage: function (boss, round, mech, run) {
+    if (round === mech.triggerRound) {
+      boss.atk = Math.floor(boss.atk * (1 + mech.atkBoost));
+      run.log.push('⏰ ' + boss.name + ' 进入狂暴状态！攻击力提升' + Math.round(mech.atkBoost * 100) + '%');
+      mech._enraged = true;
+    }
+    if (mech._enraged && mech.escalation && round > mech.triggerRound && (round - mech.triggerRound) % mech.escalation.interval === 0) {
+      boss.atk = Math.floor(boss.atk * (1 + mech.escalation.boost));
+      run.log.push('⏰ ' + boss.name + ' 狂暴加剧！攻击力再提升' + Math.round(mech.escalation.boost * 100) + '%');
+    }
+    if (run.log.length > 50) run.log.shift();
+  },
+
+  _handleMechPeriodicAoE: function (boss, round, mech, run) {
+    if (round > 0 && round % mech.interval === 0) {
+      run.log.push('💥 ' + boss.name + ' 释放范围轰击！');
+      var self = this;
+      run.allies.forEach(function (unit) {
+        if (!unit.isAlive) return;
+        var dmg = Math.floor((mech.hpPercent || 0.25) * unit.maxHp);
+        self._applyDamage(unit, dmg);
+        run.log.push('  ' + unit.name + ' 受到 ' + dmg + ' 点轰击伤害');
+        if (!unit.isAlive) {
+          run.log.push('  💀 ' + unit.name + ' 阵亡');
+        }
+      });
+      if (run.log.length > 50) run.log.shift();
+    }
+  },
+
+  _handleMechHighArmor: function (boss, mech, run) {
+    if (!mech._applied) {
+      boss.def += mech.bonusDef;
+      boss.baseDef = (boss.baseDef || boss.def);
+      run.log.push('🛡️ ' + boss.name + ' 拥有超高护甲！防御力+' + mech.bonusDef);
+      mech._applied = true;
+      if (run.log.length > 50) run.log.shift();
+    }
+  },
+
+  _handleMechElementShield: function (boss, mech, run) {
+    if (!mech._applied) {
+      boss._elementShield = { immuneElement: mech.immuneElement, weakElement: mech.weakElement };
+      var info = (typeof CONSTANTS !== 'undefined' && CONSTANTS.ELEMENT_INFO) ? CONSTANTS.ELEMENT_INFO : {};
+      var immuneName = (info[mech.immuneElement] && info[mech.immuneElement].name) ? info[mech.immuneElement].name : mech.immuneElement;
+      var weakName = (info[mech.weakElement] && info[mech.weakElement].name) ? info[mech.weakElement].name : mech.weakElement;
+      run.log.push('🔮 ' + boss.name + ' 展开属性护盾！免疫' + immuneName + '属性，弱点为' + weakName + '属性');
+      mech._applied = true;
+      if (run.log.length > 50) run.log.shift();
+    }
+  },
+
+  _handleMechDotApply: function (boss, round, mech, run) {
+    if (round > 0 && round % mech.interval === 0) {
+      var aliveAllies = run.allies.filter(function (u) { return u.isAlive; });
+      if (aliveAllies.length === 0) return;
+      var target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
+      var dot = { type: 'dot', subtype: mech.dot.subtype, hpPercentDrain: mech.dot.hpPercentDrain, duration: mech.dot.duration, source: boss.name };
+      target.buffs.push(dot);
+      var subtypeText = mech.dot.subtype === 'poison' ? '🟢中毒' : '🔥灼烧';
+      run.log.push('☠️ ' + boss.name + ' 对 ' + target.name + ' 施加了' + subtypeText + '效果（' + mech.dot.duration + '回合）');
+      if (run.log.length > 50) run.log.shift();
+    }
+  },
+
+  _handleMechSummon: function (boss, round, mech, run) {
+    if (mech._summoned) {
+      if (mech._adds && mech.bossHealPerAdd) {
+        var aliveAdds = mech._adds.filter(function (a) { return a.isAlive; }).length;
+        if (aliveAdds > 0 && boss.isAlive) {
+          var healAmt = Math.floor(boss.maxHp * mech.bossHealPerAdd * aliveAdds);
+          boss.currentHp = Math.min(boss.maxHp, boss.currentHp + healAmt);
+          run.log.push('🩹 增援为 ' + boss.name + ' 恢复 ' + healAmt + ' 生命值');
+          if (run.log.length > 50) run.log.shift();
+        }
+      }
+      return;
+    }
+    var hpRatio = boss.currentHp / boss.maxHp;
+    if (hpRatio <= mech.hpThreshold) {
+      mech._summoned = true;
+      run.log.push('📢 ' + boss.name + ' 召唤增援！');
+      mech._adds = [];
+      var self = this;
+      mech.adds.forEach(function (addDef) {
+        var add = {
+          uid: 'abyss_add_' + Utils.uid(),
+          name: addDef.name,
+          atk: Math.floor((boss.maxAtk || boss.baseAtk || boss.atk) * addDef.atk),
+          def: Math.floor((boss.maxDef || boss.baseDef || boss.def) * addDef.def),
+          currentHp: Math.floor(boss.maxHp * addDef.hp),
+          maxHp: Math.floor(boss.maxHp * addDef.hp),
+          baseAtk: Math.floor((boss.maxAtk || boss.baseAtk || boss.atk) * addDef.atk),
+          baseDef: Math.floor((boss.maxDef || boss.baseDef || boss.def) * addDef.def),
+          baseSpd: addDef.spd || 15,
+          spd: addDef.spd || 15,
+          isAlive: true,
+          isAlly: false,
+          buffs: [],
+          element: boss.element || null,
+          isAdd: true,
+          position: run.enemies.length,
+          skillCd: 0,
+          skill: null
+        };
+        run.enemies.push(add);
+        mech._adds.push(add);
+        run.log.push('  🆕 ' + add.name + ' 出现！(HP:' + add.currentHp + ')');
+      });
+      if (run.log.length > 50) run.log.shift();
+    }
+  },
+
+  _handleMechExecute: function (boss, round, mech, run) {
+    if (!mech._lastExecuteRound) mech._lastExecuteRound = 0;
+    if (round - mech._lastExecuteRound < mech.cooldown) return;
+
+    var targets = run.allies.filter(function (u) {
+      return u.isAlive && (u.currentHp / u.maxHp) < mech.hpThreshold;
+    });
+    if (targets.length > 0) {
+      var target = targets[0];
+      mech._lastExecuteRound = round;
+      target.currentHp = 0;
+      target.isAlive = false;
+      run.log.push('⚡ ' + boss.name + ' 发动斩杀！' + target.name + ' 被处决（生命值低于' + Math.round(mech.hpThreshold * 100) + '%）');
+      if (run.log.length > 50) run.log.shift();
+    }
+  },
+
   /** Tick buff durations (decrement and expire) */
   _tickBuffs: function (run) {
     var allUnits = run.allies.concat(run.enemies);
     for (var u = 0; u < allUnits.length; u++) {
       var unit = allUnits[u];
       if (!unit.isAlive || !unit.buffs || unit.buffs.length === 0) continue;
+
+      // DoT ticks BEFORE duration countdown (RULE-DOT-1)
+      for (var d = 0; d < unit.buffs.length; d++) {
+        var buff = unit.buffs[d];
+        var buffType = buff.type || 'stat';
+        if (buffType === 'dot' && unit.isAlive) {
+          var dotDmg = Math.floor(unit.maxHp * buff.hpPercentDrain);
+          unit.currentHp = Math.max(1, unit.currentHp - dotDmg);
+          var subtypeText = buff.subtype === 'poison' ? '🟢中毒' : '🔥灼烧';
+          run.log.push(unit.name + ' 受到' + subtypeText + '伤害 ' + dotDmg);
+          if (run.log.length > 50) run.log.shift();
+        }
+      }
+
+      // Decrement durations + remove expired/broken shields
       for (var b = unit.buffs.length - 1; b >= 0; b--) {
+        var bt = unit.buffs[b].type || 'stat';
+        if (bt === 'shield' && unit.buffs[b].amount <= 0) {
+          unit.buffs.splice(b, 1);
+          continue;
+        }
         unit.buffs[b].duration--;
         if (unit.buffs[b].duration <= 0) {
           unit.buffs.splice(b, 1);
         }
       }
-      if (unit.buffs.length === 0 || unit.buffs.length !== unit.buffs.length) {
-        this._recalcStats(unit);
-      }
+      this._recalcStats(unit);
     }
   },
 
@@ -707,7 +966,18 @@ var AbyssManager = {
   _pickAlive: function (units) {
     var alive = [];
     for (var i = 0; i < units.length; i++) { if (units[i].isAlive) alive.push(units[i]); }
-    return alive.length > 0 ? alive[Utils.randInt(0, alive.length - 1)] : null;
+    if (alive.length === 0) return null;
+
+    // RULE-TAUNT-1: Check for taunt
+    for (var t = 0; t < alive.length; t++) {
+      if (alive[t].buffs && alive[t].buffs.some(function (b) {
+        return (b.type || 'stat') === 'taunt' && b.duration > 0;
+      })) {
+        return alive[t];
+      }
+    }
+
+    return alive[Utils.randInt(0, alive.length - 1)];
   },
 
   _getAlive: function (units) {

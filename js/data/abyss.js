@@ -22,7 +22,7 @@ var AbyssData = {
       {
         floor: 1,
         boss: {
-          id: 'abyss_huaxiong', name: '华雄',
+          id: 'abyss_huaxiong', name: '华雄', element: 'metal',
           atk: 120, def: 60, hp: 2500, spd: 25,
           skill: { name: '斩将刀', type: 'damage', target: 'single', multiplier: 2.5, cooldown: 3 }
         },
@@ -32,7 +32,7 @@ var AbyssData = {
       {
         floor: 2,
         boss: {
-          id: 'abyss_zhangliao_a', name: '张辽',
+          id: 'abyss_zhangliao_a', name: '张辽', element: 'metal',
           atk: 100, def: 80, hp: 3000, spd: 30,
           skill: { name: '威震逍遥津', type: 'damage', target: 'all', multiplier: 1.2, cooldown: 4 }
         },
@@ -42,10 +42,13 @@ var AbyssData = {
       {
         floor: 3,
         boss: {
-          id: 'abyss_xuchu', name: '许褚',
+          id: 'abyss_xuchu', name: '许褚', element: 'metal',
           atk: 140, def: 90, hp: 3500, spd: 18,
           skill: { name: '虎痴裸衣', type: 'buff', target: 'self',
-            effect: { stat: 'atk', ratio: 0.50, duration: 3 }, cooldown: 5 }
+            effect: { stat: 'atk', ratio: 0.50, duration: 3 }, cooldown: 5 },
+          mechanics: [
+            { mechanic: 'enrage', triggerRound: 18, atkBoost: 0.45, escalation: { interval: 5, boost: 0.12 } }
+          ]
         },
         rewards: { gold: 4000, exp: 2000 },
         equipDrop: { 4: 0.20, 5: 0.08 }
@@ -53,9 +56,13 @@ var AbyssData = {
       {
         floor: 4,
         boss: {
-          id: 'abyss_dianwei_a', name: '典韦',
+          id: 'abyss_dianwei_a', name: '典韦', element: 'metal',
           atk: 130, def: 70, hp: 4000, spd: 22,
-          skill: { name: '双戟乱舞', type: 'damage', target: 'random3', multiplier: 1.5, cooldown: 4 }
+          skill: { name: '双戟乱舞', type: 'damage', target: 'random3', multiplier: 1.5, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'enrage', triggerRound: 15, atkBoost: 0.50, escalation: { interval: 4, boost: 0.15 } },
+            { mechanic: 'periodic_aoe', interval: 5, hpPercent: 0.20 }
+          ]
         },
         rewards: { gold: 5000, exp: 2500, iron: 150 },
         equipDrop: { 4: 0.25, 5: 0.10 }
@@ -63,9 +70,14 @@ var AbyssData = {
       {
         floor: 5,
         boss: {
-          id: 'abyss_lvbu', name: '吕布',
+          id: 'abyss_lvbu', name: '吕布', element: 'metal',
           atk: 180, def: 100, hp: 8000, spd: 35,
-          skill: { name: '天下无双', type: 'damage', target: 'all', multiplier: 2.0, cooldown: 4 }
+          skill: { name: '天下无双', type: 'damage', target: 'all', multiplier: 2.0, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'enrage', triggerRound: 12, atkBoost: 0.60, escalation: { interval: 4, boost: 0.20 } },
+            { mechanic: 'periodic_aoe', interval: 4, hpPercent: 0.25 },
+            { mechanic: 'execute', hpThreshold: 0.25, cooldown: 3 }
+          ]
         },
         rewards: { gold: 8000, exp: 5000, iron: 300, jade: 10 },
         mythicDrop: { chance: 0.05, pool: ['equip_mythic_tyrant_armor'] },
@@ -96,7 +108,7 @@ var AbyssData = {
       {
         floor: 1,
         boss: {
-          id: 'abyss_ganning', name: '甘宁',
+          id: 'abyss_ganning', name: '甘宁', element: 'water',
           atk: 110, def: 55, hp: 2800, spd: 28,
           skill: { name: '百骑劫营', type: 'damage', target: 'all', multiplier: 1.3, cooldown: 3 }
         },
@@ -106,7 +118,7 @@ var AbyssData = {
       {
         floor: 2,
         boss: {
-          id: 'abyss_taishici_a', name: '太史慈',
+          id: 'abyss_taishici_a', name: '太史慈', element: 'water',
           atk: 115, def: 65, hp: 3200, spd: 26,
           skill: { name: '神射', type: 'damage', target: 'single', multiplier: 3.0, cooldown: 4 }
         },
@@ -116,9 +128,12 @@ var AbyssData = {
       {
         floor: 3,
         boss: {
-          id: 'abyss_huanggai', name: '黄盖',
+          id: 'abyss_huanggai', name: '黄盖', element: 'fire',
           atk: 90, def: 100, hp: 4000, spd: 20,
-          skill: { name: '苦肉计', type: 'damage', target: 'all', multiplier: 2.0, cooldown: 5 }
+          skill: { name: '苦肉计', type: 'damage', target: 'all', multiplier: 2.0, cooldown: 5 },
+          mechanics: [
+            { mechanic: 'element_shield', immuneElement: 'fire', weakElement: 'water' }
+          ]
         },
         rewards: { gold: 4000, exp: 2000 },
         equipDrop: { 4: 0.20, 5: 0.08 }
@@ -126,9 +141,13 @@ var AbyssData = {
       {
         floor: 4,
         boss: {
-          id: 'abyss_luxun', name: '陆逊',
+          id: 'abyss_luxun', name: '陆逊', element: 'fire',
           atk: 105, def: 75, hp: 3800, spd: 32,
-          skill: { name: '火烧连营', type: 'damage', target: 'all', multiplier: 1.8, cooldown: 4 }
+          skill: { name: '火烧连营', type: 'damage', target: 'all', multiplier: 1.8, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'element_shield', immuneElement: 'fire', weakElement: 'water' },
+            { mechanic: 'dot_apply', interval: 4, dot: { subtype: 'burn', hpPercentDrain: 0.10, duration: 3 } }
+          ]
         },
         rewards: { gold: 5000, exp: 2500, iron: 150 },
         equipDrop: { 4: 0.25, 5: 0.10 }
@@ -136,9 +155,14 @@ var AbyssData = {
       {
         floor: 5,
         boss: {
-          id: 'abyss_zhouyu', name: '周瑜',
+          id: 'abyss_zhouyu', name: '周瑜', element: 'fire',
           atk: 160, def: 85, hp: 7500, spd: 38,
-          skill: { name: '火攻', type: 'damage', target: 'all', multiplier: 2.5, cooldown: 4 }
+          skill: { name: '火攻', type: 'damage', target: 'all', multiplier: 2.5, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'element_shield', immuneElement: 'fire', weakElement: 'water' },
+            { mechanic: 'dot_apply', interval: 3, dot: { subtype: 'burn', hpPercentDrain: 0.12, duration: 4 } },
+            { mechanic: 'periodic_aoe', interval: 4, hpPercent: 0.20 }
+          ]
         },
         rewards: { gold: 8000, exp: 5000, iron: 300, jade: 10 },
         mythicDrop: { chance: 0.05, pool: ['equip_mythic_dragon_sword'] },
@@ -169,7 +193,7 @@ var AbyssData = {
       {
         floor: 1,
         boss: {
-          id: 'abyss_xiaohoudun', name: '夏侯惇',
+          id: 'abyss_xiaohoudun', name: '夏侯惇', element: 'metal',
           atk: 125, def: 70, hp: 3200, spd: 24,
           skill: { name: '拔矢啖睛', type: 'buff', target: 'self',
             effect: { stat: 'atk', ratio: 0.30, duration: 99 }, cooldown: 99 }
@@ -180,7 +204,7 @@ var AbyssData = {
       {
         floor: 2,
         boss: {
-          id: 'abyss_xiaohouyuan', name: '夏侯渊',
+          id: 'abyss_xiaohouyuan', name: '夏侯渊', element: 'metal',
           atk: 135, def: 55, hp: 2800, spd: 35,
           skill: { name: '疾风突袭', type: 'damage', target: 'single', multiplier: 2.5, cooldown: 3 }
         },
@@ -190,9 +214,12 @@ var AbyssData = {
       {
         floor: 3,
         boss: {
-          id: 'abyss_xunyu', name: '荀彧',
+          id: 'abyss_xunyu', name: '荀彧', element: 'water',
           atk: 80, def: 60, hp: 3500, spd: 30,
-          skill: { name: '王佐之才', type: 'heal', target: 'self', multiplier: 0.5, cooldown: 3 }
+          skill: { name: '王佐之才', type: 'heal', target: 'self', multiplier: 0.5, cooldown: 3 },
+          mechanics: [
+            { mechanic: 'high_armor', bonusDef: 250 }
+          ]
         },
         rewards: { gold: 4000, exp: 2000 },
         equipDrop: { 4: 0.20, 5: 0.08 }
@@ -200,10 +227,17 @@ var AbyssData = {
       {
         floor: 4,
         boss: {
-          id: 'abyss_simayi', name: '司马懿',
+          id: 'abyss_simayi', name: '司马懿', element: 'water',
           atk: 100, def: 95, hp: 5000, spd: 28,
           skill: { name: '隐忍', type: 'buff', target: 'self',
-            effect: { stat: 'atk', ratio: 0.50, duration: 99 }, cooldown: 99 }
+            effect: { stat: 'atk', ratio: 0.50, duration: 99 }, cooldown: 99 },
+          mechanics: [
+            { mechanic: 'high_armor', bonusDef: 300 },
+            { mechanic: 'summon', hpThreshold: 0.6, adds: [
+              { name: '袁军士兵', atk: 0.25, def: 0.25, hp: 0.15, spd: 12 },
+              { name: '袁军士兵', atk: 0.25, def: 0.25, hp: 0.15, spd: 12 }
+            ], bossHealPerAdd: 0.02 }
+          ]
         },
         rewards: { gold: 5000, exp: 2500, iron: 150 },
         equipDrop: { 4: 0.25, 5: 0.10 }
@@ -211,9 +245,18 @@ var AbyssData = {
       {
         floor: 5,
         boss: {
-          id: 'abyss_caocao', name: '曹操',
+          id: 'abyss_caocao', name: '曹操', element: 'metal',
           atk: 170, def: 110, hp: 10000, spd: 30,
-          skill: { name: '挟天子令诸侯', type: 'damage', target: 'all', multiplier: 2.0, cooldown: 4 }
+          skill: { name: '挟天子令诸侯', type: 'damage', target: 'all', multiplier: 2.0, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'high_armor', bonusDef: 350 },
+            { mechanic: 'summon', hpThreshold: 0.5, adds: [
+              { name: '袁军精锐', atk: 0.30, def: 0.30, hp: 0.20, spd: 14 },
+              { name: '袁军精锐', atk: 0.30, def: 0.30, hp: 0.20, spd: 14 },
+              { name: '袁军精锐', atk: 0.30, def: 0.30, hp: 0.20, spd: 14 }
+            ], bossHealPerAdd: 0.015 },
+            { mechanic: 'enrage', triggerRound: 20, atkBoost: 0.50, escalation: { interval: 5, boost: 0.15 } }
+          ]
         },
         rewards: { gold: 8000, exp: 5000, iron: 300, jade: 10 },
         mythicDrop: { chance: 0.05, pool: ['equip_mythic_emperor_horse'] },
@@ -244,7 +287,7 @@ var AbyssData = {
       {
         floor: 1,
         boss: {
-          id: 'abyss_wenpin', name: '文聘',
+          id: 'abyss_wenpin', name: '文聘', element: 'metal',
           atk: 130, def: 80, hp: 3500, spd: 26,
           skill: { name: '拦江射箭', type: 'damage', target: 'random3', multiplier: 1.6, cooldown: 3 }
         },
@@ -254,7 +297,7 @@ var AbyssData = {
       {
         floor: 2,
         boss: {
-          id: 'abyss_caoren_a', name: '曹仁',
+          id: 'abyss_caoren_a', name: '曹仁', element: 'metal',
           atk: 110, def: 110, hp: 4500, spd: 22,
           skill: { name: '铁壁防线', type: 'buff', target: 'self',
             effect: { stat: 'def', ratio: 0.60, duration: 3 }, cooldown: 4 }
@@ -265,9 +308,13 @@ var AbyssData = {
       {
         floor: 3,
         boss: {
-          id: 'abyss_zhanghe_a', name: '张郃',
+          id: 'abyss_zhanghe_a', name: '张郃', element: 'metal',
           atk: 140, def: 75, hp: 4000, spd: 30,
-          skill: { name: '巧变连击', type: 'damage', target: 'random3', multiplier: 1.8, cooldown: 4 }
+          skill: { name: '巧变连击', type: 'damage', target: 'random3', multiplier: 1.8, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'enrage', triggerRound: 18, atkBoost: 0.50, escalation: { interval: 5, boost: 0.15 } },
+            { mechanic: 'high_armor', bonusDef: 300 }
+          ]
         },
         rewards: { gold: 5000, exp: 2500 },
         equipDrop: { 4: 0.30, 5: 0.10 }
@@ -275,9 +322,14 @@ var AbyssData = {
       {
         floor: 4,
         boss: {
-          id: 'abyss_xiahouen', name: '夏侯恩',
+          id: 'abyss_xiahouen', name: '夏侯恩', element: 'metal',
           atk: 150, def: 65, hp: 3800, spd: 34,
-          skill: { name: '青釭剑', type: 'damage', target: 'single', multiplier: 3.2, cooldown: 4 }
+          skill: { name: '青釭剑', type: 'damage', target: 'single', multiplier: 3.2, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'enrage', triggerRound: 15, atkBoost: 0.55, escalation: { interval: 4, boost: 0.18 } },
+            { mechanic: 'periodic_aoe', interval: 3, hpPercent: 0.20 },
+            { mechanic: 'dot_apply', interval: 4, dot: { subtype: 'poison', hpPercentDrain: 0.10, duration: 4 } }
+          ]
         },
         rewards: { gold: 6000, exp: 3000, iron: 200 },
         equipDrop: { 4: 0.25, 5: 0.12 }
@@ -285,9 +337,19 @@ var AbyssData = {
       {
         floor: 5,
         boss: {
-          id: 'abyss_caocao_changban', name: '曹操·长坂',
+          id: 'abyss_caocao_changban', name: '曹操·长坂', element: 'metal',
           atk: 190, def: 120, hp: 12000, spd: 32,
-          skill: { name: '百万雄师', type: 'damage', target: 'all', multiplier: 2.2, cooldown: 4 }
+          skill: { name: '百万雄师', type: 'damage', target: 'all', multiplier: 2.2, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'enrage', triggerRound: 12, atkBoost: 0.60, escalation: { interval: 3, boost: 0.20 } },
+            { mechanic: 'periodic_aoe', interval: 3, hpPercent: 0.25 },
+            { mechanic: 'execute', hpThreshold: 0.30, cooldown: 3 },
+            { mechanic: 'summon', hpThreshold: 0.4, adds: [
+              { name: '精锐骑兵', atk: 0.35, def: 0.35, hp: 0.25, spd: 18 },
+              { name: '精锐骑兵', atk: 0.35, def: 0.35, hp: 0.25, spd: 18 },
+              { name: '精锐骑兵', atk: 0.35, def: 0.35, hp: 0.25, spd: 18 }
+            ], bossHealPerAdd: 0.02 }
+          ]
         },
         rewards: { gold: 10000, exp: 6000, iron: 400, jade: 15 },
         mythicDrop: { chance: 0.06, pool: ['equip_mythic_azure_blade'] },
@@ -318,7 +380,7 @@ var AbyssData = {
       {
         floor: 1,
         boss: {
-          id: 'abyss_guohuai', name: '郭淮',
+          id: 'abyss_guohuai', name: '郭淮', element: 'metal',
           atk: 135, def: 90, hp: 4200, spd: 28,
           skill: { name: '坚壁清野', type: 'debuff', target: 'all',
             effect: { stat: 'atk', ratio: 0.20, duration: 2 }, cooldown: 4 }
@@ -329,7 +391,7 @@ var AbyssData = {
       {
         floor: 2,
         boss: {
-          id: 'abyss_zhanghe_wuzhang', name: '张郃·五丈',
+          id: 'abyss_zhanghe_wuzhang', name: '张郃·五丈', element: 'metal',
           atk: 155, def: 85, hp: 4800, spd: 32,
           skill: { name: '巧变千军', type: 'damage', target: 'all', multiplier: 1.6, cooldown: 3 }
         },
@@ -339,10 +401,13 @@ var AbyssData = {
       {
         floor: 3,
         boss: {
-          id: 'abyss_simayi_wuzhang', name: '司马懿·五丈',
+          id: 'abyss_simayi_wuzhang', name: '司马懿·五丈', element: 'water',
           atk: 120, def: 120, hp: 6000, spd: 26,
           skill: { name: '深谋远虑', type: 'buff', target: 'self',
-            effect: { stat: 'def', ratio: 0.80, duration: 99 }, cooldown: 99 }
+            effect: { stat: 'def', ratio: 0.80, duration: 99 }, cooldown: 99 },
+          mechanics: [
+            { mechanic: 'dot_apply', interval: 4, dot: { subtype: 'poison', hpPercentDrain: 0.08, duration: 4 } }
+          ]
         },
         rewards: { gold: 6000, exp: 3000 },
         equipDrop: { 4: 0.25, 5: 0.12 }
@@ -350,9 +415,13 @@ var AbyssData = {
       {
         floor: 4,
         boss: {
-          id: 'abyss_deng_ai', name: '邓艾',
+          id: 'abyss_deng_ai', name: '邓艾', element: 'metal',
           atk: 170, def: 80, hp: 5500, spd: 36,
-          skill: { name: '偷渡阴平', type: 'damage', target: 'single', multiplier: 3.5, cooldown: 4 }
+          skill: { name: '偷渡阴平', type: 'damage', target: 'single', multiplier: 3.5, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'dot_apply', interval: 3, dot: { subtype: 'poison', hpPercentDrain: 0.10, duration: 4 } },
+            { mechanic: 'execute', hpThreshold: 0.30, cooldown: 3 }
+          ]
         },
         rewards: { gold: 8000, exp: 4000, iron: 300 },
         equipDrop: { 4: 0.30, 5: 0.15 }
@@ -360,9 +429,14 @@ var AbyssData = {
       {
         floor: 5,
         boss: {
-          id: 'abyss_zhugeliang', name: '诸葛亮·星落',
+          id: 'abyss_zhugeliang', name: '诸葛亮·星落', element: 'fire',
           atk: 200, def: 130, hp: 15000, spd: 35,
-          skill: { name: '出师未捷·终章', type: 'damage', target: 'all', multiplier: 2.5, cooldown: 4 }
+          skill: { name: '出师未捷·终章', type: 'damage', target: 'all', multiplier: 2.5, cooldown: 4 },
+          mechanics: [
+            { mechanic: 'dot_apply', interval: 3, dot: { subtype: 'poison', hpPercentDrain: 0.12, duration: 5 } },
+            { mechanic: 'execute', hpThreshold: 0.35, cooldown: 3 },
+            { mechanic: 'enrage', triggerRound: 18, atkBoost: 0.50, escalation: { interval: 5, boost: 0.15 } }
+          ]
         },
         rewards: { gold: 15000, exp: 8000, iron: 500, jade: 20 },
         mythicDrop: { chance: 0.08, pool: ['equip_mythic_feather_fan'] },

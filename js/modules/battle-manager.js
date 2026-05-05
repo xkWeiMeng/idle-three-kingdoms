@@ -9,6 +9,8 @@
  *
  * 伤害公式：
  *   BaseDamage = floor(ATK × Multiplier × RandomFactor[0.9,1.1))
+ *   ElementMul = _getElementMultiplier(attacker.element, defender.element)
+ *   BaseDamage = floor(BaseDamage × ElementMul)
  *   Reduction  = DEF / (DEF + 100)
  *   Final      = max(1, floor(BaseDamage × (1 - Reduction)))
  *   暴击 5%，1.5× 倍率
@@ -284,6 +286,8 @@ const BattleManager = {
         affixThorns: combatAffixData.thorns,
         affixDodge: combatAffixData.dodge,
         affixHealPerRound: combatAffixData.healPerRound,
+        // 元素属性
+        element: hero.element || null,
         // 终极技能
         ultimate: ultData,
         energy: 0,
@@ -311,12 +315,16 @@ const BattleManager = {
         baseAtk: eAtk,
         baseDef: e.def,
         baseSpd: e.spd,
+        maxAtk: eAtk,
+        maxDef: e.def,
         skill: e.skill ? Utils.deepClone(e.skill) : null,
         skillCd: 0,
         buffs: [],
         isAlive: true,
         isAlly: false,
-        position: j
+        position: j,
+        element: e.element || null,
+        mechanics: e.mechanics ? Utils.deepClone(e.mechanics) : null
       });
     }
 
@@ -346,6 +354,15 @@ const BattleManager = {
     state.round++;
     // 初始化回合内击杀计数器 (CAP-ERH-03)
     state._roundKillCount = 0;
+
+    // 0. 处理 Boss 特殊机制（在 buff 和行动之前）
+    var self = this;
+    for (var mi = 0; mi < state.enemies.length; mi++) {
+      var mechEnemy = state.enemies[mi];
+      if (mechEnemy.isAlive && mechEnemy.mechanics) {
+        this._processBossMechanics(mechEnemy, state.round, state.allies);
+      }
+    }
 
     // 1. 处理 buff/debuff（递减持续时间，移除过期）
     this._processBuffs(state.allies);
@@ -495,7 +512,7 @@ const BattleManager = {
       result.isDouble = true;
     }
 
-    target.currentHp -= result.damage;
+    var dmgResult = this._applyDamage(target, result.damage);
 
     // 吸血词缀
     if (unit.affixLifesteal && unit.isAlive) {
@@ -515,19 +532,15 @@ const BattleManager = {
     }
 
     // Set bonus: death immunity
-    if (target.currentHp <= 0 && target.isAlly && target.setDeathImmunity && !target.deathImmunityUsed) {
+    if (!target.isAlive && target.isAlly && target.setDeathImmunity && !target.deathImmunityUsed) {
       if (Math.random() < target.setDeathImmunity) {
         target.currentHp = 1;
+        target.isAlive = true;
         target.deathImmunityUsed = true;
         this._addLog(state, '  ✨ ' + target.name + ' 天命不灭！免疫致命伤害！');
         BattleAnimations.playAttack(unit.uid, target.uid, result.damage, result.isCrit);
         return;
       }
-    }
-
-    if (target.currentHp <= 0) {
-      target.currentHp = 0;
-      target.isAlive = false;
     }
 
     // Trigger attack animation
@@ -539,10 +552,12 @@ const BattleManager = {
 
     var critText = result.isCrit ? '💥暴击！' : '';
     var doubleText = result.isDouble ? '⚡双倍！' : '';
+    var elemText = this._getElementText(unit.element, target.element, result.elementMult);
+    if (elemText) elemText = ' ' + elemText;
     this._addLog(state,
       '[第' + state.round + '回合] ' +
       unit.name + ' 攻击 → ' + target.name +
-      ' 受到 ' + result.damage + ' 点伤害' + critText + doubleText
+      ' 受到 ' + result.damage + ' 点伤害' + critText + doubleText + elemText
     );
 
     if (!target.isAlive) {
@@ -571,6 +586,9 @@ const BattleManager = {
       case 'debuff':
         this._skillDebuff(unit, skillName, skill.effect, targetType, hostiles, state);
         break;
+      case 'cleanse':
+        this._skillCleanse(unit, skillName, targetType, friendlies, state);
+        break;
       default:
         this._skillDamage(unit, skillName, multiplier, targetType, hostiles, state);
     }
@@ -590,11 +608,7 @@ const BattleManager = {
     for (var i = 0; i < targets.length; i++) {
       var target = targets[i];
       var result = this._calculateDamage(unit, target, effectiveMultiplier);
-      target.currentHp -= result.damage;
-      if (target.currentHp <= 0) {
-        target.currentHp = 0;
-        target.isAlive = false;
-      }
+      this._applyDamage(target, result.damage);
 
       // 能量积攒
       if (unit.ultimate) this._gainEnergy(unit, unit.ultimate.energyGainOnHit || 8);
@@ -605,10 +619,12 @@ const BattleManager = {
         { name: skillName, type: 'damage' }, result.damage);
 
       var critText = result.isCrit ? '💥暴击！' : '';
+      var elemText = this._getElementText(unit.element, target.element, result.elementMult);
+      if (elemText) elemText = ' ' + elemText;
       this._addLog(state,
         '[第' + state.round + '回合] ' +
         unit.name + ' 使用 ' + skillName + ' → ' + target.name +
-        ' 受到 ' + result.damage + ' 点伤害' + critText
+        ' 受到 ' + result.damage + ' 点伤害' + critText + elemText
       );
 
       if (!target.isAlive) {
@@ -663,22 +679,39 @@ const BattleManager = {
       targets = t ? [t] : [];
     }
 
+    // For shield buffs, compute amount from caster's atk
+    var buffEffect = effect;
+    if (effect.type === 'shield' && effect.shieldMult) {
+      buffEffect = {
+        type: 'shield',
+        amount: Math.floor(unit.atk * effect.shieldMult),
+        duration: effect.duration || 3
+      };
+    }
+
     for (var i = 0; i < targets.length; i++) {
-      this._applyBuff(targets[i], effect, skillName);
+      this._applyBuff(targets[i], buffEffect, skillName);
       BattleAnimations.playSkill(unit.uid, targets[i].uid,
         { name: skillName, type: 'buff' }, 0);
     }
 
-    var statNames = { atk: '攻击', def: '防御', spd: '速度', hp: '生命' };
-    var sign = effect.ratio > 0 ? '+' : '';
-    var pct = Math.round(Math.abs(effect.ratio) * 100);
-    var desc = (statNames[effect.stat] || effect.stat) + sign + pct + '%';
+    var desc;
+    if (effect.type === 'taunt') {
+      desc = '嘲讽 持续' + (effect.duration || 2) + '回合';
+    } else if (effect.type === 'shield') {
+      desc = '护盾' + (buffEffect.amount || 0) + ' 持续' + (buffEffect.duration || 3) + '回合';
+    } else {
+      var statNames = { atk: '攻击', def: '防御', spd: '速度', hp: '生命' };
+      var sign = effect.ratio > 0 ? '+' : '';
+      var pct = Math.round(Math.abs(effect.ratio) * 100);
+      desc = (statNames[effect.stat] || effect.stat) + sign + pct + '% 持续' + effect.duration + '回合';
+    }
 
+    var targetName = targetType === 'all' ? '全体队友' :
+      (targetType === 'self' ? unit.name : (targets[0] ? targets[0].name : ''));
     this._addLog(state,
       '[第' + state.round + '回合] ' +
-      unit.name + ' 使用 ' + skillName + ' → ' +
-      (targetType === 'all' ? '全体队友' : targets[0].name) +
-      ' ' + desc + ' 持续' + effect.duration + '回合'
+      unit.name + ' 使用 ' + skillName + ' → ' + targetName + ' ' + desc
     );
   },
 
@@ -710,17 +743,63 @@ const BattleManager = {
     );
   },
 
+  // ---------- 元素克制 ----------
+
+  _getElementMultiplier: function (attackerElement, defenderElement) {
+    if (!attackerElement || !defenderElement) return 1.0;
+    if (attackerElement === defenderElement) return CONSTANTS.ELEMENT_MULTIPLIERS.SAME;
+
+    var overcome = CONSTANTS.ELEMENT_RELATIONS.OVERCOME;
+    var generate = CONSTANTS.ELEMENT_RELATIONS.GENERATE;
+
+    // 相克: attacker's element overcomes defender's element
+    if (overcome[attackerElement] === defenderElement) return CONSTANTS.ELEMENT_MULTIPLIERS.OVERCOME;
+    // 被克: defender's element overcomes attacker's element
+    if (overcome[defenderElement] === attackerElement) return CONSTANTS.ELEMENT_MULTIPLIERS.OVERCOME_BY;
+    // 相生: attacker's element generates defender's element
+    if (generate[attackerElement] === defenderElement) return CONSTANTS.ELEMENT_MULTIPLIERS.GENERATE;
+    // 被生: defender's element generates attacker's element
+    if (generate[defenderElement] === attackerElement) return CONSTANTS.ELEMENT_MULTIPLIERS.GENERATE_BY;
+
+    return CONSTANTS.ELEMENT_MULTIPLIERS.NEUTRAL;
+  },
+
+  _getElementText: function (attackerElement, defenderElement, mult) {
+    if (mult === 1.0 || !attackerElement || !defenderElement) return '';
+    var info = CONSTANTS.ELEMENT_INFO || {};
+    var atkIcon = (info[attackerElement] && info[attackerElement].icon) || '';
+    var defIcon = (info[defenderElement] && info[defenderElement].icon) || '';
+    if (mult > 1.0) return atkIcon + '克' + defIcon;
+    if (mult < 1.0) return atkIcon + '→' + defIcon;
+    return '';
+  },
+
   // ---------- 伤害计算 ----------
 
   _calculateDamage: function (attacker, defender, multiplier) {
     // 闪避检查（词缀 dodge）
     var dodgeChance = (defender.affixDodge || 0) / 100;
     if (dodgeChance > 0 && Math.random() < dodgeChance) {
-      return { damage: 0, isCrit: false, isDodge: true };
+      return { damage: 0, isCrit: false, isDodge: true, elementMult: 1.0 };
     }
 
     var randomFactor = 0.9 + Math.random() * 0.2;
     var baseDamage = Math.floor(attacker.atk * multiplier * randomFactor);
+
+    // 元素克制倍率（在 DEF 减免之前）
+    var elementMult = this._getElementMultiplier(attacker.element, defender.element);
+
+    // Boss 属性护盾覆盖常规元素倍率
+    if (defender._elementShield) {
+      if (attacker.element === defender._elementShield.immuneElement) {
+        elementMult = 0;
+      } else if (attacker.element === defender._elementShield.weakElement) {
+        elementMult = 2.0;
+      }
+    }
+
+    baseDamage = Math.floor(baseDamage * elementMult);
+
     var reduction = defender.def / (defender.def + 100);
     var damage = Math.max(1, Math.floor(baseDamage * (1 - reduction)));
 
@@ -731,7 +810,7 @@ const BattleManager = {
       damage = Math.floor(damage * critMult);
     }
 
-    return { damage: damage, isCrit: isCrit, isDodge: false };
+    return { damage: damage, isCrit: isCrit, isDodge: false, elementMult: elementMult };
   },
 
   // ---------- 连杀检测 (CAP-ERH-03) ----------
@@ -806,10 +885,9 @@ const BattleManager = {
           if (!targets[t].isAlive) continue;
           var dmg = this._calculateDamage(unit, targets[t], ult.multiplier);
           if (ult.forceCrit) { dmg.damage = Math.floor(dmg.damage * 1.5); dmg.isCrit = true; }
-          targets[t].currentHp -= dmg.damage;
+          this._applyDamage(targets[t], dmg.damage);
           BattleAnimations.playUltimate(unit.uid, targets[t].uid, ult, dmg.damage);
-          if (targets[t].currentHp <= 0) {
-            targets[t].currentHp = 0; targets[t].isAlive = false;
+          if (!targets[t].isAlive) {
             BattleAnimations.playDeath(targets[t].uid);
             this._onEnemyKilled(state);
           }
@@ -823,10 +901,9 @@ const BattleManager = {
         if (lowest) {
           var dmgL = this._calculateDamage(unit, lowest, ult.multiplier);
           if (ult.forceCrit) { dmgL.damage = Math.floor(dmgL.damage * 1.5); dmgL.isCrit = true; }
-          lowest.currentHp -= dmgL.damage;
+          this._applyDamage(lowest, dmgL.damage);
           BattleAnimations.playUltimate(unit.uid, lowest.uid, ult, dmgL.damage);
-          if (lowest.currentHp <= 0) {
-            lowest.currentHp = 0; lowest.isAlive = false;
+          if (!lowest.isAlive) {
             BattleAnimations.playDeath(lowest.uid);
             this._onEnemyKilled(state);
           }
@@ -864,10 +941,9 @@ const BattleManager = {
         var mTarget = this._pickRandomAlive(targets);
         if (!mTarget) break;
         var mDmg = this._calculateDamage(unit, mTarget, ult.multiplier);
-        mTarget.currentHp -= mDmg.damage;
+        this._applyDamage(mTarget, mDmg.damage);
         BattleAnimations.playUltimate(unit.uid, mTarget.uid, ult, mDmg.damage);
-        if (mTarget.currentHp <= 0) {
-          mTarget.currentHp = 0; mTarget.isAlive = false;
+        if (!mTarget.isAlive) {
           BattleAnimations.playDeath(mTarget.uid);
           this._onEnemyKilled(state);
         }
@@ -880,7 +956,13 @@ const BattleManager = {
         var healAmt = Math.floor(allies[ha].maxHp * ult.healPercent);
         allies[ha].currentHp = Math.min(allies[ha].maxHp, allies[ha].currentHp + healAmt);
         if (ult.type === 'heal_cleanse') {
-          allies[ha].buffs = allies[ha].buffs.filter(function (b) { return b.ratio >= 0; });
+          allies[ha].buffs = allies[ha].buffs.filter(function (b) {
+            var bType = b.type || 'stat';
+            // Remove DoTs and negative stat debuffs, keep everything else (RULE-CLEANSE-1/2/3)
+            if (bType === 'dot') return false;
+            if (bType === 'stat' && b.ratio < 0) return false;
+            return true;
+          });
           this._recalcStats(allies[ha]);
         }
         this._addLog(state, '    → ' + allies[ha].name + ' 回复 ' + healAmt + ' HP');
@@ -897,7 +979,10 @@ const BattleManager = {
       for (var sa = 0; sa < allies.length; sa++) {
         if (!allies[sa].isAlive) continue;
         var shieldAmt = Math.floor(allies[sa].maxHp * ult.shieldPercent);
-        allies[sa].currentHp = Math.min(allies[sa].maxHp + shieldAmt, allies[sa].currentHp + shieldAmt);
+        // Add as proper shield buff instead of HP boost
+        this._applyBuff(allies[sa], {
+          type: 'shield', amount: shieldAmt, duration: 3
+        }, ult.name);
         this._addLog(state, '    → ' + allies[sa].name + ' 获得 ' + shieldAmt + ' 护盾');
       }
 
@@ -941,8 +1026,95 @@ const BattleManager = {
       duration: effect.duration,
       source: sourceName || ''
     };
+    // Preserve type if provided (for new buff types)
+    if (effect.type) buff.type = effect.type;
+    if (effect.type === 'dot') {
+      buff.hpPercentDrain = effect.hpPercentDrain;
+      buff.subtype = effect.subtype;
+      delete buff.stat;
+      delete buff.ratio;
+    } else if (effect.type === 'shield') {
+      buff.amount = effect.amount;
+      delete buff.stat;
+      delete buff.ratio;
+    } else if (effect.type === 'taunt') {
+      // RULE-TAUNT-3: Only one taunt per team — remove existing taunts
+      var teamUnits = this._state.battleState ?
+        (target.isAlly ? this._state.battleState.allies : this._state.battleState.enemies) : [];
+      for (var ti = 0; ti < teamUnits.length; ti++) {
+        teamUnits[ti].buffs = teamUnits[ti].buffs.filter(function (b) {
+          return (b.type || 'stat') !== 'taunt';
+        });
+      }
+      delete buff.stat;
+      delete buff.ratio;
+    }
     target.buffs.push(buff);
     this._recalcStats(target);
+  },
+
+  /** Shield absorption: damage goes through shields first (RULE-SHIELD-1/2/3) */
+  _applyDamage: function (target, damage) {
+    var remaining = damage;
+    var shields = [];
+    for (var si = 0; si < target.buffs.length; si++) {
+      if ((target.buffs[si].type || 'stat') === 'shield') {
+        shields.push(target.buffs[si]);
+      }
+    }
+    for (var s = 0; s < shields.length; s++) {
+      if (remaining <= 0) break;
+      var absorbed = Math.min(shields[s].amount, remaining);
+      shields[s].amount -= absorbed;
+      remaining -= absorbed;
+      if (shields[s].amount <= 0) {
+        shields[s].duration = 0; // Mark for removal
+      }
+    }
+    target.currentHp -= remaining;
+    if (target.currentHp <= 0) {
+      target.currentHp = 0;
+      target.isAlive = false;
+    }
+    return { shieldAbsorbed: damage - remaining, hpDamage: remaining };
+  },
+
+  /** Cleanse: remove DoTs and negative stat debuffs (RULE-CLEANSE-1/2/3/4) */
+  _skillCleanse: function (unit, skillName, targetType, friendlies, state) {
+    var targets;
+    if (targetType === 'ally_lowest_hp') {
+      var lowest = this._pickLowestHpAlive(friendlies);
+      targets = lowest ? [lowest] : [];
+    } else if (targetType === 'self') {
+      targets = unit.isAlive ? [unit] : [];
+    } else {
+      targets = this._getAliveUnits(friendlies);
+    }
+
+    for (var i = 0; i < targets.length; i++) {
+      var target = targets[i];
+      var removedCount = 0;
+      var kept = [];
+      for (var b = 0; b < target.buffs.length; b++) {
+        var buff = target.buffs[b];
+        var bType = buff.type || 'stat';
+        var isDebuff = (bType === 'dot') || (bType === 'stat' && buff.ratio < 0);
+        if (isDebuff) {
+          removedCount++;
+        } else {
+          kept.push(buff);
+        }
+      }
+      target.buffs = kept;
+      if (removedCount > 0) {
+        this._recalcStats(target);
+        this._addLog(state, '[第' + state.round + '回合] ' +
+          unit.name + ' 使用 ' + skillName + ' → ' + target.name +
+          ' 净化了 ' + removedCount + ' 个负面效果');
+      }
+      BattleAnimations.playSkill(unit.uid, target.uid,
+        { name: skillName, type: 'cleanse' }, 0);
+    }
   },
 
   _processBuffs: function (units) {
@@ -950,8 +1122,27 @@ const BattleManager = {
       var unit = units[i];
       if (!unit.isAlive || unit.buffs.length === 0) continue;
 
-      // 递减持续时间
+      // DoT ticks BEFORE duration countdown (RULE-DOT-1)
+      for (var d = 0; d < unit.buffs.length; d++) {
+        var buff = unit.buffs[d];
+        var buffType = buff.type || 'stat';
+        if (buffType === 'dot' && unit.isAlive) {
+          var dotDmg = Math.floor(unit.maxHp * buff.hpPercentDrain);
+          unit.currentHp = Math.max(1, unit.currentHp - dotDmg); // RULE-DOT-4: Cannot kill
+          var subtypeText = buff.subtype === 'poison' ? '🟢中毒' : '🔥灼烧';
+          // _processBuffs has no state ref; log via EventBus
+          EventBus.emit('battle:log', unit.name + ' 受到' + subtypeText + '伤害 ' + dotDmg);
+        }
+      }
+
+      // 递减持续时间 + remove expired/broken shields
       for (var b = unit.buffs.length - 1; b >= 0; b--) {
+        var bt = unit.buffs[b].type || 'stat';
+        // Shield with 0 amount is broken (RULE-SHIELD-2)
+        if (bt === 'shield' && unit.buffs[b].amount <= 0) {
+          unit.buffs.splice(b, 1);
+          continue;
+        }
         unit.buffs[b].duration--;
         if (unit.buffs[b].duration <= 0) {
           unit.buffs.splice(b, 1);
@@ -969,6 +1160,9 @@ const BattleManager = {
 
     for (var i = 0; i < unit.buffs.length; i++) {
       var b = unit.buffs[i];
+      var buffType = b.type || 'stat';
+      // Only stat-type buffs affect stats
+      if (buffType !== 'stat') continue;
       if (b.stat === 'atk') atkMod += b.ratio;
       if (b.stat === 'def') defMod += b.ratio;
       if (b.stat === 'spd') spdMod += b.ratio;
@@ -977,6 +1171,154 @@ const BattleManager = {
     unit.atk = Math.max(1, Math.floor(unit.baseAtk * atkMod));
     unit.def = Math.max(1, Math.floor(unit.baseDef * defMod));
     unit.spd = Math.max(1, Math.floor(unit.baseSpd * spdMod));
+  },
+
+  // ---------- Boss 机制处理 ----------
+
+  _processBossMechanics: function (boss, round, allies) {
+    if (!boss.mechanics || boss.mechanics.length === 0) return;
+    var self = this;
+    boss.mechanics.forEach(function (mech) {
+      switch (mech.mechanic) {
+        case 'enrage':        self._handleEnrage(boss, round, mech); break;
+        case 'periodic_aoe':  self._handlePeriodicAoE(boss, round, mech, allies); break;
+        case 'high_armor':    self._handleHighArmor(boss, mech); break;
+        case 'element_shield': self._handleElementShield(boss, mech); break;
+        case 'dot_apply':     self._handleDotApply(boss, round, mech, allies); break;
+        case 'summon':        self._handleSummon(boss, round, mech); break;
+        case 'execute':       self._handleExecute(boss, round, mech, allies); break;
+      }
+    });
+  },
+
+  _handleEnrage: function (boss, round, mech) {
+    var state = this._state.battleState;
+    if (round === mech.triggerRound) {
+      boss.atk = Math.floor(boss.atk * (1 + mech.atkBoost));
+      this._addLog(state, '⏰ ' + boss.name + ' 进入狂暴状态！攻击力提升' + Math.round(mech.atkBoost * 100) + '%');
+      mech._enraged = true;
+    }
+    if (mech._enraged && mech.escalation && round > mech.triggerRound && (round - mech.triggerRound) % mech.escalation.interval === 0) {
+      boss.atk = Math.floor(boss.atk * (1 + mech.escalation.boost));
+      this._addLog(state, '⏰ ' + boss.name + ' 狂暴加剧！攻击力再提升' + Math.round(mech.escalation.boost * 100) + '%');
+    }
+  },
+
+  _handlePeriodicAoE: function (boss, round, mech, allies) {
+    if (round > 0 && round % mech.interval === 0) {
+      var state = this._state.battleState;
+      this._addLog(state, '💥 ' + boss.name + ' 释放范围轰击！');
+      var self = this;
+      allies.forEach(function (unit) {
+        if (!unit.isAlive) return;
+        var dmg = Math.floor((mech.hpPercent || 0.25) * unit.maxHp);
+        self._applyDamage(unit, dmg);
+        self._addLog(state, '  ' + unit.name + ' 受到 ' + dmg + ' 点轰击伤害');
+        if (!unit.isAlive) {
+          self._addLog(state, '  💀 ' + unit.name + ' 阵亡');
+        }
+      });
+    }
+  },
+
+  _handleHighArmor: function (boss, mech) {
+    if (!mech._applied) {
+      var state = this._state.battleState;
+      boss.def += mech.bonusDef;
+      boss.baseDef = (boss.baseDef || boss.def);
+      this._addLog(state, '🛡️ ' + boss.name + ' 拥有超高护甲！防御力+' + mech.bonusDef);
+      mech._applied = true;
+    }
+  },
+
+  _handleElementShield: function (boss, mech) {
+    if (!mech._applied) {
+      var state = this._state.battleState;
+      boss._elementShield = { immuneElement: mech.immuneElement, weakElement: mech.weakElement };
+      var info = CONSTANTS.ELEMENT_INFO || {};
+      var immuneName = (info[mech.immuneElement] && info[mech.immuneElement].name) ? info[mech.immuneElement].name : mech.immuneElement;
+      var weakName = (info[mech.weakElement] && info[mech.weakElement].name) ? info[mech.weakElement].name : mech.weakElement;
+      this._addLog(state, '🔮 ' + boss.name + ' 展开属性护盾！免疫' + immuneName + '属性，弱点为' + weakName + '属性');
+      mech._applied = true;
+    }
+  },
+
+  _handleDotApply: function (boss, round, mech, allies) {
+    if (round > 0 && round % mech.interval === 0) {
+      var state = this._state.battleState;
+      var aliveAllies = allies.filter(function (u) { return u.isAlive; });
+      if (aliveAllies.length === 0) return;
+      var target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
+      var dot = { type: 'dot', subtype: mech.dot.subtype, hpPercentDrain: mech.dot.hpPercentDrain, duration: mech.dot.duration, source: boss.name };
+      target.buffs.push(dot);
+      var subtypeText = mech.dot.subtype === 'poison' ? '🟢中毒' : '🔥灼烧';
+      this._addLog(state, '☠️ ' + boss.name + ' 对 ' + target.name + ' 施加了' + subtypeText + '效果（' + mech.dot.duration + '回合）');
+    }
+  },
+
+  _handleSummon: function (boss, round, mech) {
+    var state = this._state.battleState;
+    if (mech._summoned) {
+      if (mech._adds && mech.bossHealPerAdd) {
+        var aliveAdds = mech._adds.filter(function (a) { return a.isAlive; }).length;
+        if (aliveAdds > 0 && boss.isAlive) {
+          var healAmt = Math.floor(boss.maxHp * mech.bossHealPerAdd * aliveAdds);
+          boss.currentHp = Math.min(boss.maxHp, boss.currentHp + healAmt);
+          this._addLog(state, '🩹 增援为 ' + boss.name + ' 恢复 ' + healAmt + ' 生命值');
+        }
+      }
+      return;
+    }
+    var hpRatio = boss.currentHp / boss.maxHp;
+    if (hpRatio <= mech.hpThreshold) {
+      mech._summoned = true;
+      this._addLog(state, '📢 ' + boss.name + ' 召唤增援！');
+      mech._adds = [];
+      var enemies = state.enemies;
+      var self = this;
+      mech.adds.forEach(function (addDef) {
+        var add = {
+          uid: 'add_' + Utils.uid(),
+          name: addDef.name,
+          atk: Math.floor((boss.maxAtk || boss.baseAtk || boss.atk) * addDef.atk),
+          def: Math.floor((boss.maxDef || boss.baseDef || boss.def) * addDef.def),
+          currentHp: Math.floor(boss.maxHp * addDef.hp),
+          maxHp: Math.floor(boss.maxHp * addDef.hp),
+          baseAtk: Math.floor((boss.maxAtk || boss.baseAtk || boss.atk) * addDef.atk),
+          baseDef: Math.floor((boss.maxDef || boss.baseDef || boss.def) * addDef.def),
+          baseSpd: addDef.spd || 15,
+          spd: addDef.spd || 15,
+          isAlive: true,
+          isAlly: false,
+          buffs: [],
+          element: boss.element || null,
+          isAdd: true,
+          position: enemies.length,
+          skillCd: 0,
+          skill: null
+        };
+        enemies.push(add);
+        mech._adds.push(add);
+        self._addLog(state, '  🆕 ' + add.name + ' 出现！(HP:' + add.currentHp + ')');
+      });
+    }
+  },
+
+  _handleExecute: function (boss, round, mech, allies) {
+    if (!mech._lastExecuteRound) mech._lastExecuteRound = 0;
+    if (round - mech._lastExecuteRound < mech.cooldown) return;
+
+    var targets = allies.filter(function (u) {
+      return u.isAlive && (u.currentHp / u.maxHp) < mech.hpThreshold;
+    });
+    if (targets.length > 0) {
+      var state = this._state.battleState;
+      var target = targets[0];
+      mech._lastExecuteRound = round;
+      target.currentHp = 0;
+      target.isAlive = false;
+      this._addLog(state, '⚡ ' + boss.name + ' 发动斩杀！' + target.name + ' 被处决（生命值低于' + Math.round(mech.hpThreshold * 100) + '%）');
+    }
   },
 
   // ---------- 胜负判定 ----------
@@ -1219,6 +1561,16 @@ const BattleManager = {
       if (units[i].isAlive) alive.push(units[i]);
     }
     if (alive.length === 0) return null;
+
+    // RULE-TAUNT-1: Check for taunt (single-target attacks must target taunter)
+    for (var t = 0; t < alive.length; t++) {
+      if (alive[t].buffs && alive[t].buffs.some(function (b) {
+        return (b.type || 'stat') === 'taunt' && b.duration > 0;
+      })) {
+        return alive[t];
+      }
+    }
+
     return alive[Utils.randInt(0, alive.length - 1)];
   },
 

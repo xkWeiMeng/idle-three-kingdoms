@@ -10,8 +10,10 @@
  *   name       技能名称
  *   icon       表情图标
  *   desc       描述文案
- *   type       'damage' | 'heal' | 'buff' | 'debuff'
+ *   type       'damage' | 'heal' | 'buff' | 'debuff' | 'cleanse'
  *   target     'single' | 'all' | 'self' | 'ally_lowest_hp'
+ *   buffType   (buff only) 'taunt' | 'shield' — overrides stat-based buff
+ *   shieldMult (shield only) shield amount = caster.atk × shieldMult
  *   baseMult   基础倍率（damage/heal 用）
  *   growthMult 每级增长倍率
  *   baseRatio  基础比率（buff/debuff 用）
@@ -508,11 +510,10 @@ var HeroSkillData = {
       baseCd: 4, cdLevels: [5, 9], maxLevel: 10
     },
     {
-      id: 'ht_s3', name: '妙手回春VIP', icon: '💊',
-      desc: '给最虚弱的队友VIP级治疗，恢复大量生命',
-      type: 'heal', target: 'ally_lowest_hp',
-      baseMult: 2.5, growthMult: 0.10,
-      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+      id: 'ht_s3', name: '药到病除', icon: '🧹',
+      desc: '净化全体友方的负面状态',
+      type: 'cleanse', target: 'all',
+      baseCd: 5, cdLevels: [6, 10], maxLevel: 10
     }
   ],
 
@@ -543,25 +544,25 @@ var HeroSkillData = {
 
   'shu_huangyueying': [
     {
-      id: 'hyy_s1', name: '木牛流马快递车', icon: '🤖',
-      desc: '释放自动驾驶快递车撞击全场，对全体敌人造成伤害',
-      type: 'damage', target: 'all',
-      baseMult: 1.2, growthMult: 0.06,
+      id: 'hyy_s1', name: '机关医疗箱', icon: '🏥',
+      desc: '发明自动医疗机关，治疗生命值最低的友方',
+      type: 'heal', target: 'ally_lowest_hp',
+      baseMult: 1.6, growthMult: 0.08,
       baseCd: 3, cdLevels: [4, 8], maxLevel: 10
     },
     {
-      id: 'hyy_s2', name: '诸葛连弩·改', icon: '🔧',
-      desc: '改装后的连弩扫射，对全体敌人造成伤害',
-      type: 'damage', target: 'all',
-      baseMult: 1.3, growthMult: 0.06,
+      id: 'hyy_s2', name: '木牛流马', icon: '🐂',
+      desc: '调配补给增强全队防御',
+      type: 'buff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2,
       baseCd: 4, cdLevels: [5, 9], maxLevel: 10
     },
     {
-      id: 'hyy_s3', name: '科技赋能全队', icon: '💡',
-      desc: '用黑科技装备提升全队战力，提升全体攻击力',
-      type: 'buff', target: 'all',
-      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
-      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+      id: 'hyy_s3', name: '连弩急救', icon: '💊',
+      desc: '以连弩技术为全体友方输送药剂',
+      type: 'heal', target: 'all',
+      baseMult: 0.8, growthMult: 0.05,
+      baseCd: 5, cdLevels: [6, 10], maxLevel: 10
     }
   ],
 
@@ -759,25 +760,25 @@ var HeroSkillData = {
 
   'wei_zhangchunhua': [
     {
-      id: 'zch_s1', name: '河东狮吼·董事会版', icon: '🗣️',
-      desc: '在董事会上咆哮震慑全场，对全体敌人造成伤害',
-      type: 'damage', target: 'all',
-      baseMult: 1.3, growthMult: 0.06,
+      id: 'zch_s1', name: '冰心玉壶', icon: '💎',
+      desc: '以冷静心志治疗全体友方',
+      type: 'heal', target: 'all',
+      baseMult: 1.0, growthMult: 0.06,
       baseCd: 3, cdLevels: [4, 8], maxLevel: 10
     },
     {
-      id: 'zch_s2', name: '虎妻管理学', icon: '👩‍💼',
-      desc: '严格管理提升全队纪律，提升全体队友防御力',
-      type: 'buff', target: 'all',
-      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2,
+      id: 'zch_s2', name: '暗影低语', icon: '🌙',
+      desc: '降低全体敌方攻击力',
+      type: 'debuff', target: 'all',
+      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
       baseCd: 4, cdLevels: [5, 9], maxLevel: 10
     },
     {
-      id: 'zch_s3', name: '灭族式清盘', icon: '💀',
-      desc: '彻底清除竞争对手，对全体敌人造成巨额伤害',
-      type: 'damage', target: 'all',
-      baseMult: 1.5, growthMult: 0.08,
-      baseCd: 5, cdLevels: [5, 9], maxLevel: 10
+      id: 'zch_s3', name: '慧眼识珠', icon: '👁️',
+      desc: '精准治疗生命值最低的友方',
+      type: 'heal', target: 'ally_lowest_hp',
+      baseMult: 2.0, growthMult: 0.10,
+      baseCd: 5, cdLevels: [6, 10], maxLevel: 10
     }
   ],
 
@@ -1061,10 +1062,10 @@ var HeroSkillData = {
       baseCd: 4, cdLevels: [5, 9], maxLevel: 10
     },
     {
-      id: 'cpu_s3', name: '元老级直播间', icon: '📡',
-      desc: '开启元老级直播间全场助威，提升全体攻击力',
+      id: 'cp_s3', name: '老将护阵', icon: '🏰',
+      desc: '以经验为全队施加护盾',
       type: 'buff', target: 'all',
-      baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2,
+      buffType: 'shield', shieldMult: 1.2, growthMult: 0.06,
       baseCd: 5, cdLevels: [5, 9], maxLevel: 10
     }
   ],
@@ -1150,11 +1151,11 @@ var HeroSkillData = {
       baseCd: 3, cdLevels: [4, 8], maxLevel: 10
     },
     {
-      id: 'bz_s2', name: '文件夹砸人', icon: '📁',
-      desc: '用厚厚的文件夹砸人，对单体造成伤害',
-      type: 'damage', target: 'single',
-      baseMult: 1.2, growthMult: 0.08,
-      baseCd: 4, cdLevels: [5, 9], maxLevel: 10
+      id: 'bz_s2', name: '安邦护盾', icon: '🔰',
+      desc: '为全体友方施加护盾',
+      type: 'buff', target: 'all',
+      buffType: 'shield', shieldMult: 1.5, growthMult: 0.08,
+      baseCd: 5, cdLevels: [6, 10], maxLevel: 10
     },
     {
       id: 'bz_s3', name: '行政效率提升', icon: '📈',
@@ -1174,10 +1175,9 @@ var HeroSkillData = {
       baseCd: 3, cdLevels: [4, 8], maxLevel: 10
     },
     {
-      id: 'zzj_s2', name: '经方特效药', icon: '💊',
-      desc: '开出特效药方精准治疗，恢复最低血量队友大量生命',
-      type: 'heal', target: 'ally_lowest_hp',
-      baseMult: 2, growthMult: 0.1,
+      id: 'zzj_s2', name: '伤寒论', icon: '📜',
+      desc: '以医术净化友方负面状态',
+      type: 'cleanse', target: 'all',
       baseCd: 4, cdLevels: [5, 9], maxLevel: 10
     },
     {
@@ -1405,12 +1405,12 @@ var HeroSkillData = {
   ],
   'wei_xuchu': [
     { id: 'xc_s1', name: '裸衣斗地主', icon: '🃏', desc: '裸奔吓人的暴力攻击', type: 'damage', target: 'single', baseMult: 1.7, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
-    { id: 'xc_s2', name: '蛋白粉冲剂', icon: '💪', desc: '猛灌蛋白粉提升自身攻击和防御', type: 'buff', target: 'self', baseRatio: 0.30, growthRatio: 0.03, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'xc_s2', name: '裸衣挑衅', icon: '💪', desc: '裸衣示威嘲讽敌方', type: 'buff', target: 'self', buffType: 'taunt', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
     { id: 'xc_s3', name: '虎痴无双', icon: '🐯', desc: '虎痴模式全力一击', type: 'damage', target: 'single', baseMult: 2.3, growthMult: 0.10, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
   ],
   'wei_caoren': [
     { id: 'cr_s1', name: '城防加固方案', icon: '🏰', desc: '加固防线提升全队防御', type: 'buff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'def', duration: 2, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
-    { id: 'cr_s2', name: '物业催缴', icon: '💰', desc: '催缴物业费对单体造成伤害', type: 'damage', target: 'single', baseMult: 1.5, growthMult: 0.08, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
+    { id: 'cr_s2', name: '铁壁守护', icon: '🛡️', desc: '嘲讽敌人，迫使攻击集中于己', type: 'buff', target: 'self', buffType: 'taunt', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
     { id: 'cr_s3', name: '铁壁坚守', icon: '🛡️', desc: '坚守到底大幅提升全队防御', type: 'buff', target: 'all', baseRatio: 0.20, growthRatio: 0.02, effectStat: 'def', duration: 3, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
   ],
   'wei_zhanghe': [
@@ -1476,7 +1476,7 @@ var HeroSkillData = {
   'qun_caiwenji': [
     { id: 'cwj_s1', name: '胡笳十八拍', icon: '🎻', desc: '演奏悲壮乐曲治愈全场', type: 'heal', target: 'all', baseMult: 1.1, growthMult: 0.06, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },
     { id: 'cwj_s2', name: '悲歌降敌', icon: '😢', desc: '悲伤的歌声降低全体敌人攻击', type: 'debuff', target: 'all', baseRatio: 0.15, growthRatio: 0.02, effectStat: 'atk', duration: 2, baseCd: 4, cdLevels: [5, 9], maxLevel: 10 },
-    { id: 'cwj_s3', name: '文姬归汉', icon: '🏡', desc: '归汉决心大幅恢复全队生命', type: 'heal', target: 'all', baseMult: 1.5, growthMult: 0.08, baseCd: 5, cdLevels: [5, 9], maxLevel: 10 }
+    { id: 'cwj_s3', name: '胡笳净心', icon: '🎵', desc: '悠扬笛声净化友方负面效果', type: 'cleanse', target: 'all', baseCd: 5, cdLevels: [6, 10], maxLevel: 10 }
   ],
   'qun_menghuo': [
     { id: 'mh_s1', name: '南蛮象冲', icon: '🐘', desc: '骑大象横冲直撞', type: 'damage', target: 'single', baseMult: 1.7, growthMult: 0.08, baseCd: 3, cdLevels: [4, 8], maxLevel: 10 },

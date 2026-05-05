@@ -4797,3 +4797,107 @@ html, body, #app {
 .recruit-ten-card.revealed {
   opacity: 1;
 }
+
+/* ===========================================
+   Element & Role Badges
+   =========================================== */
+.hero-element, .hero-role {
+  display: inline-block;
+  font-size: 0.65em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+  background: rgba(0,0,0,0.3);
+}
+.team-element-summary {
+  text-align: center;
+  padding: 4px 0;
+  margin-top: 6px;
+  font-size: 0.82em;
+  color: var(--color-text-dim);
+}
+.team-role-warning {
+  text-align: center;
+  padding: 6px 8px;
+  margin: 4px 0;
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 6px;
+  color: #e74c3c;
+  font-size: 0.85em;
+}
+.team-role-summary {
+  text-align: center;
+  padding: 4px 0;
+  font-size: 0.85em;
+  color: var(--color-text-dim);
+}
+.hero-role-filter {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+.role-filter-btn {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--color-secondary);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-dim);
+  font-size: 0.8em;
+  cursor: pointer;
+}
+.role-filter-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+/* Boss Mechanic UI */
+.boss-mechanics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin: 4px 0;
+}
+.mechanic-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 0.75em;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--color-text);
+}
+.strategy-tip {
+  text-align: center;
+  padding: 4px 8px;
+  margin: 4px 0;
+  font-size: 0.8em;
+  color: var(--color-gold);
+  background: rgba(245, 197, 24, 0.1);
+  border-radius: 6px;
+}
+.active-mechanics {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin: 2px 0;
+}
+.mechanic-active {
+  font-size: 0.75em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  animation: pulse-mechanic 1.5s infinite;
+}
+.mechanic-active.enraged {
+  background: rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+@keyframes pulse-mechanic {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}

@@ -328,6 +328,89 @@ Manager A  ──emit──▶  EventBus  ──on──▶  Manager B
 12. TowerDefenseManager.onTick(dt) ← 塔防波次推进
 ```
 
+## 五行属性系统
+
+### 五行枚举
+
+| 五行 | 常量路径 | 值 | 颜色 | 图标 | 关联阵营 |
+|------|----------|-----|------|------|----------|
+| 火 | `CONSTANTS.ELEMENT.FIRE` | `'fire'` | #ff4757 | 🔥 | 蜀 |
+| 金 | `CONSTANTS.ELEMENT.METAL` | `'metal'` | #ffa502 | ⚔️ | 魏 |
+| 水 | `CONSTANTS.ELEMENT.WATER` | `'water'` | #3742fa | 💧 | 吴 |
+| 木 | `CONSTANTS.ELEMENT.WOOD` | `'wood'` | #2ed573 | 🌳 | 群（生长型） |
+| 土 | `CONSTANTS.ELEMENT.EARTH` | `'earth'` | #8b4513 | 🏔️ | 群（防御型） |
+
+**规则**：
+- 每个武将**必须**拥有且仅拥有一个五行属性
+- 阵营-五行默认映射（`CONSTANTS.ELEMENT_FACTION_MAP`）：蜀→火、魏→金、吴→水、群→按个体分配（`null`）
+- 五行属性创建后不可变
+
+### 五行相克相生关系 (`ELEMENT_RELATIONS`)
+
+**相克环 (OVERCOME)**：火→金→木→土→水→火
+
+```
+    火
+   ↗   ↘
+  水     金
+  ↑       ↓
+  土 ← 木
+```
+
+A 克 B 时：A 对 B 造成额外伤害，B 对 A 伤害降低。
+
+**相生环 (GENERATE)**：木→火→土→金→水→木
+
+A 生 B 时：A 对 B 有小幅增益。
+
+### 五行伤害倍率 (`ELEMENT_MULTIPLIERS`)
+
+| 关系 | 常量 Key | 倍率 | 说明 |
+|------|----------|------|------|
+| 克制 | `OVERCOME` | ×1.25 | 攻击方克制防御方，+25% |
+| 被克 | `OVERCOME_BY` | ×0.80 | 攻击方被防御方克制，-20% |
+| 相生 | `GENERATE` | ×1.10 | 攻击方生防御方，+10% |
+| 被生 | `GENERATE_BY` | ×0.95 | 攻击方被防御方所生，-5% |
+| 同属性 | `SAME` | ×0.90 | 同五行互打，-10% |
+| 无关系 | `NEUTRAL` | ×1.00 | 无五行关系 |
+
+### 五行伤害计算场景
+
+**WHEN** 火属性武将攻击金属性武将
+**THEN** 最终伤害 = 基础伤害 × `ELEMENT_MULTIPLIERS.OVERCOME`（×1.25），因火克金
+
+**WHEN** 金属性武将攻击火属性武将
+**THEN** 最终伤害 = 基础伤害 × `ELEMENT_MULTIPLIERS.OVERCOME_BY`（×0.80），因金被火克
+
+**WHEN** 木属性武将攻击火属性武将
+**THEN** 最终伤害 = 基础伤害 × `ELEMENT_MULTIPLIERS.GENERATE`（×1.10），因木生火
+
+**WHEN** 火属性武将攻击木属性武将
+**THEN** 最终伤害 = 基础伤害 × `ELEMENT_MULTIPLIERS.GENERATE_BY`（×0.95），因火被木所生
+
+**WHEN** 火属性武将攻击火属性武将
+**THEN** 最终伤害 = 基础伤害 × `ELEMENT_MULTIPLIERS.SAME`（×0.90），因同属性
+
+**WHEN** 火属性武将攻击土属性武将
+**THEN** 最终伤害 = 基础伤害 × `ELEMENT_MULTIPLIERS.NEUTRAL`（×1.00），因无直接克制/相生关系
+
+## 英雄角色系统
+
+### 角色枚举
+
+| 角色 | 常量路径 | 值 | 图标 | 颜色 | 说明 |
+|------|----------|-----|------|------|------|
+| 输出 | `CONSTANTS.HERO_ROLE.DPS` | `'dps'` | ⚔️ | #ff4757 | 主要伤害输出 |
+| 治疗 | `CONSTANTS.HERO_ROLE.HEALER` | `'healer'` | 💚 | #4caf50 | 恢复队友生命 |
+| 坦克 | `CONSTANTS.HERO_ROLE.TANK` | `'tank'` | 🛡️ | #3742fa | 吸收伤害保护队友 |
+| 辅助 | `CONSTANTS.HERO_ROLE.SUPPORT` | `'support'` | ✨ | #ffa502 | 增益己方属性 |
+| 控制 | `CONSTANTS.HERO_ROLE.DEBUFFER` | `'debuffer'` | 💀 | #9b59b6 | 削弱敌方属性 |
+
+**规则**：
+- 每个武将**必须**拥有且仅拥有一个角色定位
+- 角色影响武将的基础属性分配权重和 AI 行为优先级
+- 角色信息（名称、图标、颜色）通过 `CONSTANTS.HERO_ROLE_INFO[role]` 获取
+
 ## 不变量
 
 1. **EventBus 是唯一跨模块通信方式** — Manager 之间不得直接调用修改方法，仅允许指定的只读查询

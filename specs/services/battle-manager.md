@@ -1,7 +1,7 @@
 ---
 status: Active
 created: 2026-04-05
-updated: 2026-04-05
+updated: 2026-05-05
 author: AI (spec-architect)
 system-spec: specs/system/core-contracts.md
 ---
@@ -55,9 +55,10 @@ BattleManager 是全局单例，战斗中状态（`battleState`）不持久化�
   "baseAtk": "number — 基础攻击（不受 buff 影响）",
   "baseDef": "number — 基础防御",
   "baseSpd": "number — 基础速度",
+  "element": "string|null — 武将属性（'fire'|'water'|'wood'|'earth'|'metal'|null）",
   "skill": "object|null — 技能数据（deepClone 自模板）",
   "skillCd": "number — 当前技能 CD 累计",
-  "buffs": "[{ stat, ratio, duration, source }]",
+  "buffs": "[buff...] — 见能力 7 数据结构",
   "isAlive": "boolean",
   "isAlly": "boolean — true=队友, false=敌方",
   "position": "number — 队列位置索引",
@@ -274,7 +275,7 @@ THEN 跳过攻击（目标为 null），不报错
 
 ### 能力 5：技能系统
 
-**描述**：四种技能类型——damage / heal / buff / debuff。
+**描述**：五种技能类型——damage / heal / buff / debuff / cleanse。
 
 **接口**：
 - `_performSkill(unit, skill, friendlies, hostiles, state)` — 内部分发
@@ -282,13 +283,14 @@ THEN 跳过攻击（目标为 null），不报错
 - `_skillHeal(...)` — 治疗型技能
 - `_skillBuff(...)` — 增益型技能
 - `_skillDebuff(...)` — 减益型技能
+- `_skillCleanse(...)` — 净化型技能
 
 **技能数据结构**：
 
 ```json
 {
   "name": "string — 技能名称",
-  "type": "'damage' | 'heal' | 'buff' | 'debuff'",
+  "type": "'damage' | 'heal' | 'buff' | 'debuff' | 'cleanse'",
   "multiplier": "number — 伤害/治疗倍率（基于 ATK）",
   "target": "'single' | 'all' | 'self' | 'ally_lowest_hp'",
   "cooldown": "number — CD 回合数",
@@ -322,6 +324,12 @@ THEN 跳过攻击（目标为 null），不报错
 - `target='single'`：随机一个敌方
 - 调用 `_applyBuff(target, effect)`（ratio 为负值）
 
+#### cleanse 型（新增）
+- `RULE-CLEANSE-1`: cleanse 技能移除目标身上所有 `type='dot'` 的 buff
+- `RULE-CLEANSE-2`: cleanse 不移除 `type='stat'` 的 debuff（`ratio < 0` 的 stat buff）
+- `RULE-CLEANSE-3`: cleanse 的 `target` 支持 `'all'`（全体友方）和 `'ally_lowest_hp'`（最低 HP 友方）
+- `RULE-CLEANSE-4`: `heal_cleanse` 终极技能同时治疗和净化（已有实现保持兼容）
+
 #### 通用规则
 - **套装双倍伤害（setDoubleDmg）和死亡免疫（setDeathImmunity）仅在普通攻击中触发，技能伤害不适用。**
 - 未识别的 `skill.type` 按 `damage` 类型处理（兜底 fallthrough）。
@@ -347,6 +355,20 @@ THEN 随机一个敌方 DEF -20%，持续 2 回合
 
 WHEN skill.type='unknown'（未识别的类型）
 THEN 按 damage 类型处理
+
+WHEN cleanse 技能 target='all'
+AND 友方 A 有 dot buff（poison）和 stat debuff（def ratio=-0.2）
+THEN A 的 dot buff 被移除
+AND A 的 stat debuff 保留
+
+WHEN cleanse 技能 target='ally_lowest_hp'
+AND 友方 A HP=50%, 友方 B HP=30%
+THEN 净化目标为 B（最低 HP）
+
+WHEN heal_cleanse 技能 multiplier=1.5, ATK=100, target='ally_lowest_hp'
+AND 目标有 2 个 dot buff, currentHp=50, maxHp=200
+THEN 先治疗 floor(100×1.5)=150，HP=min(200, 50+150)=200
+AND 移除目标所有 dot buff
 ```
 
 ---
@@ -367,10 +389,16 @@ $$
 \text{baseDamage} = \lfloor \text{ATK} \times \text{multiplier} \times \text{randomFactor} \rfloor
 $$
 $$
+\text{elemMultiplier} = \_getElementMultiplier(\text{attacker.element}, \text{defender.element})
+$$
+$$
+\text{elemDamage} = \lfloor \text{baseDamage} \times \text{elemMultiplier} \rfloor
+$$
+$$
 \text{reduction} = \frac{\text{DEF}}{\text{DEF} + 100}
 $$
 $$
-\text{damage} = \max\bigl(1,\; \lfloor \text{baseDamage} \times (1 - \text{reduction}) \rfloor\bigr)
+\text{damage} = \max\bigl(1,\; \lfloor \text{elemDamage} \times (1 - \text{reduction}) \rfloor\bigr)
 $$
 $$
 \text{critChance} = 0.05 + \text{setCritRate}
@@ -383,6 +411,20 @@ $$
 - 伤害最小值为 1，不会出现 0 伤害
 - 基础暴击率 5%，套装加成叠加
 - 暴击倍率固定 1.5×
+- `RULE-ELEM-DMG-1`: 伤害计算在基础伤害后、DEF 减伤前应用元素倍率
+- `RULE-ELEM-DMG-2`: 元素倍率 = `_getElementMultiplier(attacker.element, defender.element)`
+- `RULE-ELEM-DMG-3`: 克制(相克) ×1.25，被克 ×0.80，相生 ×1.10，被生 ×0.95，同属 ×0.90
+- `RULE-ELEM-DMG-4`: 无属性(null/undefined) → 倍率 1.00
+
+**元素相克/相生表**：
+
+| 攻击方 \ 防御方 | fire | water | wood | earth | metal |
+|----------------|------|-------|------|-------|-------|
+| fire           | 0.90 | 0.80  | 1.25 | 0.95  | 1.10  |
+| water          | 1.25 | 0.90  | 0.80 | 1.10  | 0.95  |
+| wood           | 0.80 | 1.25  | 0.90 | 0.95  | 1.10  |
+| earth          | 1.10 | 0.95  | 1.10 | 0.90  | 0.80  |
+| metal          | 0.95 | 1.10  | 0.95 | 1.25  | 0.90  |
 
 **验收场景**：
 
@@ -405,31 +447,53 @@ THEN damage = floor(原伤害 × 1.5)
 
 WHEN setCritRate=0.15
 THEN critChance = 0.20（5% + 15%）
+
+WHEN attacker.element='fire', defender.element='wood'
+THEN elemMultiplier = 1.25（克制）
+AND baseDamage 乘以 1.25 后再计算 DEF 减伤
+
+WHEN attacker.element='fire', defender.element='water'
+THEN elemMultiplier = 0.80（被克）
+
+WHEN attacker.element=null, defender.element='fire'
+THEN elemMultiplier = 1.00（无属性不受元素影响）
+
+WHEN attacker.element='fire', defender.element='fire'
+THEN elemMultiplier = 0.90（同属性减伤）
 ```
 
 ---
 
 ### 能力 7：Buff / Debuff 系统
 
-**描述**：管理战斗中的临时属性修改。
+**描述**：管理战斗中的临时属性修改和状态效果，包括属性增减、持续伤害（DoT）、护盾、嘲讽。
 
 **接口**：
 - `_applyBuff(target, effect, sourceName)` — 添加 buff
-- `_processBuffs(units)` — 每回合递减持续时间
+- `_processBuffs(units)` — 每回合递减持续时间，处理 DoT
 - `_recalcStats(unit)` — 根据 base 值和 buff 列表重算属性
 
 **Buff 数据结构**：
 
-```json
-{
-  "stat": "'atk' | 'def' | 'spd'",
-  "ratio": "number — 正值为增益，负值为减益",
-  "duration": "number — 剩余持续回合数",
-  "source": "string — 来源技能名称"
-}
+```javascript
+// stat buff（属性修改，已有功能，保持不变）
+{ type: 'stat', stat: 'atk'|'def'|'spd', ratio: number, duration: number, source: string }
+
+// DoT — 持续伤害（新增）
+{ type: 'dot', subtype: 'poison'|'burn'|'bleed', hpPercentDrain: number, duration: number, source: string }
+
+// Shield — 护盾（新增）
+{ type: 'shield', amount: number, duration: number, source: string }
+
+// Taunt — 嘲讽（新增）
+{ type: 'taunt', duration: number, source: string }
 ```
 
+> **向下兼容**：已有的 `{ stat, ratio, duration, source }` 格式（无 `type` 字段）视为 `type: 'stat'`。
+
 **行为规则**：
+
+#### stat buff（原有规则，保持不变）
 - `_applyBuff`：创建 buff 对象并 push 到 `target.buffs[]`，立即 `_recalcStats`
 - `_processBuffs`：遍历所有存活单位的 buff，`duration--`，`duration ≤ 0` 则移除，之后 `_recalcStats`
 - `_recalcStats`：从 base 值出发乘以所有 buff ratio 叠加值
@@ -439,7 +503,26 @@ THEN critChance = 0.20（5% + 15%）
   ```
 - 同属性多个 buff 的 ratio **加法叠加**（非乘法）
 - 重算后属性最低为 1
-- **buff 仅支持 `atk` / `def` / `spd` 三种属性**。传入 `stat: 'hp'` 不会产生任何效果
+- **stat buff 仅支持 `atk` / `def` / `spd` 三种属性**。传入 `stat: 'hp'` 不会产生任何效果
+
+#### DoT 处理规则
+- `RULE-DOT-1`: DoT buffs 在每回合开始时、单位行动前处理（在 `_processBuffs` 中）
+- `RULE-DOT-2`: 每个 DoT buff 造成 `floor(unit.maxHp × hpPercentDrain)` 点伤害
+- `RULE-DOT-3`: DoT 伤害无视 DEF，不触发暴击
+- `RULE-DOT-4`: DoT 可击杀单位（`currentHp <= 0` → `isAlive = false`）
+- `RULE-DOT-5`: 多个同类型 DoT 独立计算，不合并（如 2 个 poison 各自扣血）
+
+#### Shield 处理规则
+- `RULE-SHIELD-1`: Shield 优先消耗——伤害先扣 `shield.amount`，剩余扣 HP
+- `RULE-SHIELD-2`: Shield 耗尽时自动移除
+- `RULE-SHIELD-3`: Shield 有持续时间——`duration` 到期时即使未耗尽也移除
+- `RULE-SHIELD-4`: 多个 Shield 按添加顺序消耗（先进先消）
+
+#### Taunt 处理规则
+- `RULE-TAUNT-1`: 当场上存在有 taunt buff 的敌方单位时，普攻和单体技能强制指向该单位
+- `RULE-TAUNT-2`: AoE 技能（`target: 'all'`）不受 taunt 影响
+- `RULE-TAUNT-3`: 多个 taunt 同时存在时，指向最先获得 taunt 的单位
+- `RULE-TAUNT-4`: taunt 单位死亡后，taunt 效果自动解除
 
 **验收场景**：
 
@@ -462,6 +545,55 @@ THEN atk = max(1, floor(baseAtk × 0.5))
 
 WHEN debuff 极端情况 ratio=-1.5 使 atkMod=-0.5
 THEN atk = 1（最低保底）
+
+WHEN 单位有 DoT buff { type:'dot', subtype:'poison', hpPercentDrain:0.05, duration:3 }
+AND 单位 maxHp=1000, currentHp=800
+AND 回合开始处理 _processBuffs
+THEN 单位受到 floor(1000 × 0.05) = 50 点伤害
+AND currentHp = 750
+AND DoT duration 减为 2
+
+WHEN 单位有 2 个 poison DoT（各 hpPercentDrain=0.05）且 maxHp=1000
+AND 回合开始处理
+THEN 各自独立计算，总伤害 = 50 + 50 = 100
+
+WHEN 单位 currentHp=30, DoT 伤害=50
+THEN currentHp = -20 → isAlive = false（DoT 可击杀）
+
+WHEN DoT buff duration=1
+AND 回合开始处理
+THEN 先造成伤害，然后 duration 减为 0，buff 被移除
+
+WHEN 单位有 Shield { type:'shield', amount:200, duration:5 }
+AND 受到 150 点伤害
+THEN shield.amount = 50, currentHp 不变
+
+WHEN 单位有 Shield { type:'shield', amount:50, duration:5 }
+AND 受到 150 点伤害
+THEN shield 被移除，currentHp 减少 100（150 - 50 = 100 穿透伤害）
+
+WHEN 单位有 Shield { type:'shield', amount:200, duration:1 }
+AND 回合结束 duration 到期
+THEN Shield 被移除，即使 amount 仍有剩余
+
+WHEN 单位有 2 个 Shield（先加 A:100, 后加 B:150）
+AND 受到 120 点伤害
+THEN Shield A 耗尽（消耗 100），Shield B 消耗 20（剩余 130），HP 不变
+
+WHEN 敌方单位 X 有 taunt buff
+AND 我方单位普攻
+THEN 攻击目标强制为 X（即使其他敌方存活）
+
+WHEN 敌方单位 X 有 taunt buff
+AND 我方单位使用 target='all' 的 AoE 技能
+THEN 仍然攻击所有存活敌方（AoE 不受 taunt 影响）
+
+WHEN 两个敌方单位 X（先获得 taunt）和 Y（后获得 taunt）
+AND 我方单位普攻
+THEN 攻击目标为 X（最先获得 taunt 的单位）
+
+WHEN taunt 单位 X 被击杀
+THEN taunt 效果自动解除，后续普攻恢复随机选择目标
 ```
 
 ---

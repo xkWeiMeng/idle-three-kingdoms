@@ -147,7 +147,9 @@ const BattlePanel = {
         if (!template) continue;
         html += '<div class="battle-idle-unit ally">';
       html += '<div class="battle-idle-avatar">' + HeroPortrait.getImgTag(hero.id, 36) + '</div>';
-        html += '<div class="battle-idle-name">' + template.name + '</div>';
+        var allyElemInfo = template.element ? CONSTANTS.ELEMENT_INFO[template.element] : null;
+        var allyElemBadge = allyElemInfo ? '<span style="color:' + allyElemInfo.color + '">' + allyElemInfo.icon + '</span>' : '';
+        html += '<div class="battle-idle-name">' + allyElemBadge + template.name + '</div>';
         html += '<div class="battle-idle-level">Lv.' + hero.level + '</div>';
         html += '</div>';
       }
@@ -183,10 +185,20 @@ const BattlePanel = {
         var enemy = stage.enemies[j];
         html += '<div class="battle-idle-unit enemy">';
         html += '<div class="battle-idle-avatar">' + UIIcons.icon('enemy', 'ui-icon-xl') + '</div>';
-        html += '<div class="battle-idle-name">' + enemy.name + '</div>';
+        var enemyElemInfo = enemy.element ? CONSTANTS.ELEMENT_INFO[enemy.element] : null;
+        var enemyElemBadge = enemyElemInfo ? '<span style="color:' + enemyElemInfo.color + '">' + enemyElemInfo.icon + '</span>' : '';
+        html += '<div class="battle-idle-name">' + enemyElemBadge + enemy.name + '</div>';
+        if (enemy.mechanics) {
+          html += this._renderMechanicTags(enemy.mechanics);
+        }
         html += '</div>';
       }
       html += '</div>';
+    }
+    // Stage-level boss mechanics
+    if (stage && stage.isBoss && stage.mechanics) {
+      html += this._renderMechanicTags(stage.mechanics);
+      html += this._getStrategyTip(stage.mechanics);
     }
     html += '</div>';
 
@@ -254,6 +266,22 @@ const BattlePanel = {
       slots[j].addEventListener('click', (function (uid) {
         return function () { BattleManager.triggerUltimate(uid); };
       })(slots[j].getAttribute('data-uid')));
+    }
+  },
+
+  _updateActiveMechanics: function (bs) {
+    var container = this._container ? this._container.querySelector('#battle-scene') : null;
+    if (!container) return;
+    var existing = container.querySelector('.active-mechanics');
+    var html = this._renderActiveMechanics(bs);
+    if (html) {
+      if (existing) {
+        existing.outerHTML = html;
+      } else {
+        container.insertAdjacentHTML('beforeend', html);
+      }
+    } else if (existing) {
+      existing.remove();
     }
   },
 
@@ -389,6 +417,9 @@ const BattlePanel = {
 
     // 更新终极技能栏
     this._updateUltimateBar(bs);
+
+    // 更新 Boss 机制指示器
+    this._updateActiveMechanics(bs);
 
     this._updateLog();
   },
@@ -563,6 +594,61 @@ const BattlePanel = {
     return html;
   },
 
+  // ===== Boss 机制标签 =====
+
+  _MECHANIC_DISPLAY: {
+    'enrage': { icon: '⏰', name: '狂暴', tip: '回合20后攻击力暴增' },
+    'periodic_aoe': { icon: '💥', name: '范围轰击', tip: '每隔数回合全体攻击' },
+    'high_armor': { icon: '🛡️', name: '铁壁', tip: '超高防御，需要减防' },
+    'element_shield': { icon: '🔮', name: '属性护盾', tip: '免疫特定属性' },
+    'dot_apply': { icon: '☠️', name: '持续毒伤', tip: '施加持续伤害，需要净化' },
+    'summon': { icon: '📢', name: '召唤增援', tip: 'HP过低时召唤小怪' },
+    'execute': { icon: '⚡', name: '斩杀', tip: 'HP过低时直接处决' }
+  },
+
+  _renderMechanicTags: function (mechanics) {
+    if (!mechanics || mechanics.length === 0) return '';
+    var MD = this._MECHANIC_DISPLAY;
+    return '<div class="boss-mechanics">' +
+      mechanics.map(function (m) {
+        var info = MD[m.mechanic] || { icon: '❓', name: m.mechanic, tip: '' };
+        return '<span class="mechanic-tag" title="' + info.tip + '">' + info.icon + ' ' + info.name + '</span>';
+      }).join('') + '</div>';
+  },
+
+  _getStrategyTip: function (mechanics) {
+    if (!mechanics || mechanics.length === 0) return '';
+    var tips = [];
+    mechanics.forEach(function (m) {
+      switch (m.mechanic) {
+        case 'enrage': tips.push('需要足够输出'); break;
+        case 'periodic_aoe': tips.push('建议携带治疗'); break;
+        case 'high_armor': tips.push('建议携带减防'); break;
+        case 'element_shield':
+          var weakName = (CONSTANTS.ELEMENT_INFO && CONSTANTS.ELEMENT_INFO[m.weakElement]) ? CONSTANTS.ELEMENT_INFO[m.weakElement].name : '';
+          tips.push('携带' + weakName + '属性武将'); break;
+        case 'dot_apply': tips.push('建议携带净化'); break;
+        case 'summon': tips.push('需要群攻清小怪'); break;
+        case 'execute': tips.push('保持HP高于30%'); break;
+      }
+    });
+    if (tips.length === 0) return '';
+    return '<div class="strategy-tip">💡 策略建议: ' + tips.join('，') + '</div>';
+  },
+
+  _renderActiveMechanics: function (bs) {
+    if (!bs || !bs.bossMechanics) return '';
+    var mech = bs.bossMechanics;
+    var MD = this._MECHANIC_DISPLAY;
+    var tags = [];
+    if (mech._enraged) tags.push('<span class="mechanic-active enraged">⏰ 狂暴中</span>');
+    if (mech._summoned) tags.push('<span class="mechanic-active">📢 已召唤</span>');
+    if (mech._shieldActive) tags.push('<span class="mechanic-active">🔮 护盾中</span>');
+    if (mech._dotApplied) tags.push('<span class="mechanic-active">☠️ 毒伤中</span>');
+    if (tags.length === 0) return '';
+    return '<div class="active-mechanics">' + tags.join('') + '</div>';
+  },
+
   // ===== 关卡选择器 =====
 
   _chapterNames: {
@@ -666,6 +752,7 @@ const BattlePanel = {
       }
       html += '</div>';
       if (s.isBoss) html += '<div class="stage-picker-boss">BOSS</div>';
+      if (s.isBoss && s.mechanics) html += this._renderMechanicTags(s.mechanics);
       html += '</div>';
     }
     return html;

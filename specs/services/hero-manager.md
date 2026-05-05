@@ -84,7 +84,7 @@ THEN 返回 null，不修改状态
 
 ```
 WHEN getTemplate('shu_zhugeliang')
-THEN 返回诸葛亮模板 { id, name, baseAtk, baseDef, baseHp, baseSpd, skill, ... }
+THEN 返回诸葛亮模板 { id, name, faction, quality, role, element, baseAtk, baseDef, baseHp, baseSpd, skill, ... }
 
 WHEN getHeroByUid('不存在的uid')
 THEN 返回 undefined
@@ -280,6 +280,56 @@ WHEN getState()
 THEN 返回 { heroes: deepClone(武将数组), team: [uid列表] }
 AND 修改返回对象不影响内部状态
 ```
+
+## 英雄角色系统
+
+### 角色类型
+
+| 角色 | ID | 说明 | 技能特征 |
+|------|-----|------|---------|
+| 输出 | dps | 主要伤害输出 | 2+ damage 技能 |
+| 治疗 | healer | 队伍治疗续航 | 2+ heal 技能 |
+| 坦克 | tank | 吸收伤害保护队友 | 高 DEF + taunt 技能 |
+| 辅助 | support | 增益队友属性 | 2+ buff 技能 |
+| 控制 | debuffer | 削弱敌方属性 | 2+ debuff 技能 |
+
+### 规则
+
+RULE-ROLE-1: 每名英雄有且仅有一个 role，在 HeroData 模板中定义
+RULE-ROLE-2: role 不影响属性计算，仅作为分类标签用于 UI 显示和队伍建议
+RULE-ROLE-3: 每个阵营（faction）至少有 2 名 healer 角色可用
+
+### 验收场景
+
+```
+WHEN 查询英雄详情
+THEN 返回的英雄数据包含 role 字段
+AND role 值为 CONSTANTS.HERO_ROLE 中定义的有效值之一
+
+WHEN 编辑队伍阵容
+THEN UI 显示当前队伍的角色分布统计（如 "输出×3 治疗×1 辅助×1"）
+
+WHEN 队伍中没有 healer 角色
+THEN UI 显示警告提示 "队伍缺少治疗角色"
+```
+
+---
+
+### 五行属性
+
+| 五行 | ID | 说明 |
+|------|-----|------|
+| 火 | fire | 蜀阵营默认 |
+| 金 | metal | 魏阵营默认 |
+| 水 | water | 吴阵营默认 |
+| 木 | wood | 群阵营个体分配 |
+| 土 | earth | 群阵营个体分配 |
+
+RULE-ELEM-1: 每名英雄有且仅有一个 element，在 HeroData 模板中定义
+RULE-ELEM-2: 蜀(shu)=火(fire)，魏(wei)=金(metal)，吴(wu)=水(water)，群(qun)按个体分配木(wood)/土(earth)
+RULE-ELEM-3: element 影响战斗伤害计算（参见 BattleManager Cap 6）
+
+---
 
 ## 内部状态机
 

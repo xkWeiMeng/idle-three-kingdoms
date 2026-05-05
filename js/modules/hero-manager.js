@@ -441,14 +441,21 @@ const HeroManager = {
 
       // Buff / Debuff 效果
       if (def.type === 'buff' || def.type === 'debuff') {
-        var ratio = (def.baseRatio || 0) + lv * (def.growthRatio || 0);
-        if (def.type === 'debuff') ratio = -Math.abs(ratio);
-        skill.effect = {
-          stat: def.effectStat || 'atk',
-          ratio: ratio,
-          duration: def.duration || 2
-        };
-        skill.multiplier = Math.abs(ratio);
+        if (def.buffType === 'taunt') {
+          skill.effect = { type: 'taunt', duration: def.duration || 2 };
+        } else if (def.buffType === 'shield') {
+          var shieldMult = (def.shieldMult || 1.5) + lv * (def.growthMult || 0);
+          skill.effect = { type: 'shield', shieldMult: shieldMult, duration: def.duration || 3 };
+        } else {
+          var ratio = (def.baseRatio || 0) + lv * (def.growthRatio || 0);
+          if (def.type === 'debuff') ratio = -Math.abs(ratio);
+          skill.effect = {
+            stat: def.effectStat || 'atk',
+            ratio: ratio,
+            duration: def.duration || 2
+          };
+          skill.multiplier = Math.abs(ratio);
+        }
       }
 
       result.push(skill);

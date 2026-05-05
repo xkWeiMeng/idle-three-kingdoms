@@ -3,6 +3,7 @@ const HeroPanel = {
   _container: null,
   _selectedHero: null,
 
+  _roleFilter: 'all',
   _qualityColors: { 1: '#b0a898', 2: '#5d8a48', 3: '#4a7fb5', 4: '#8b5ea8', 5: '#d4a849' },
   _qualityNames: { 1: '白', 2: '绿', 3: '蓝', 4: '紫', 5: '橙' },
   _equipSlotNames: { weapon: UIIcons.iconText('weapon', '武器'), armor: UIIcons.iconText('armor', '防具'), accessory: UIIcons.iconText('accessory', '饰品'), mount: UIIcons.iconText('mount', '坐骑') },
@@ -42,6 +43,9 @@ const HeroPanel = {
     html += '<span style="color:var(--color-text-dim);font-size:0.85rem;">' + teamUids.length + '/' + CONSTANTS.MAX_TEAM_SIZE + '</span>';
     html += '</div>';
     html += this._renderTeamSlots(teamUids);
+    html += this._renderTeamElementSummary(teamUids);
+    html += this._renderTeamRoleSummary(teamUids);
+    html += this._renderTeamRoleWarning(teamUids);
     html += '</div>';
 
     // --- Hero List ---
@@ -49,7 +53,21 @@ const HeroPanel = {
     html += '<span style="font-weight:bold;">📋 全部武将</span>';
     html += '</div>';
 
+    // Role filter buttons
+    html += '<div class="hero-role-filter">';
+    html += '<button class="role-filter-btn' + (this._roleFilter === 'all' ? ' active' : '') + '" data-role="all">全部</button>';
+    var roleKeys = Object.keys(CONSTANTS.HERO_ROLE_INFO);
+    for (var ri = 0; ri < roleKeys.length; ri++) {
+      var rKey = roleKeys[ri];
+      var rInfo = CONSTANTS.HERO_ROLE_INFO[rKey];
+      html += '<button class="role-filter-btn' + (this._roleFilter === rKey ? ' active' : '') + '" data-role="' + rKey + '">' + rInfo.icon + rInfo.name + '</button>';
+    }
+    html += '</div>';
+
     for (var i = 0; i < heroes.length; i++) {
+      var tpl = HeroManager.getTemplate(heroes[i].id);
+      var heroRole = (tpl && tpl.role) ? tpl.role : '';
+      if (this._roleFilter !== 'all' && heroRole !== this._roleFilter) continue;
       html += this._renderHeroCard(heroes[i]);
     }
 
@@ -135,6 +153,18 @@ const HeroPanel = {
       html += '<span style="font-size:0.7rem;color:var(--color-gold);">' + '★'.repeat(ascendInfo.stars) + '</span>';
     }
     html += '<span style="font-size:0.65rem;padding:1px 5px;border-radius:3px;background:' + color + '22;color:' + color + ';border:1px solid ' + color + '55;">' + qName + '</span>';
+
+    // Element badge
+    var elemInfo = template.element ? CONSTANTS.ELEMENT_INFO[template.element] : null;
+    if (elemInfo) {
+      html += '<span class="hero-element" style="color:' + elemInfo.color + '">' + elemInfo.icon + elemInfo.name + '</span>';
+    }
+    // Role badge
+    var roleInfo = template.role ? CONSTANTS.HERO_ROLE_INFO[template.role] : null;
+    if (roleInfo) {
+      html += '<span class="hero-role" style="color:' + roleInfo.color + '">' + roleInfo.icon + roleInfo.name + '</span>';
+    }
+
     html += '<span style="font-size:0.8rem;color:var(--color-gold);">Lv.' + hero.level + '</span>';
     html += '<span style="margin-left:auto;font-size:0.75rem;color:var(--color-text-dim);">⚡' + Utils.formatNumber(power) + '</span>';
     html += '</div>';
@@ -310,6 +340,80 @@ const HeroPanel = {
         if (uid && typeof SkillPanel !== 'undefined') SkillPanel.show(uid);
       });
     }
+
+    // Role filter buttons
+    var filterBtns = this._container.querySelectorAll('.role-filter-btn');
+    for (var fi = 0; fi < filterBtns.length; fi++) {
+      filterBtns[fi].addEventListener('click', function () {
+        var role = this.getAttribute('data-role');
+        if (role) {
+          self._roleFilter = role;
+          self._render();
+        }
+      });
+    }
+  },
+
+  _renderTeamRoleWarning: function (teamUids) {
+    if (!teamUids || teamUids.length === 0) return '';
+    var hasHealer = false;
+    for (var i = 0; i < teamUids.length; i++) {
+      var h = HeroManager.getHeroByUid(teamUids[i]);
+      var t = h ? HeroManager.getTemplate(h.id) : null;
+      if (t && t.role === CONSTANTS.HERO_ROLE.HEALER) {
+        hasHealer = true;
+        break;
+      }
+    }
+    if (!hasHealer) {
+      return '<div class="team-role-warning">⚠️ 队伍缺少治疗角色，推图可能困难！</div>';
+    }
+    return '';
+  },
+
+  _renderTeamRoleSummary: function (teamUids) {
+    if (!teamUids || teamUids.length === 0) return '';
+    var counts = {};
+    for (var i = 0; i < teamUids.length; i++) {
+      var h = HeroManager.getHeroByUid(teamUids[i]);
+      var t = h ? HeroManager.getTemplate(h.id) : null;
+      var role = (t && t.role) ? t.role : null;
+      if (role && CONSTANTS.HERO_ROLE_INFO[role]) {
+        counts[role] = (counts[role] || 0) + 1;
+      }
+    }
+    var keys = Object.keys(counts);
+    if (keys.length === 0) return '';
+    var html = '<div class="team-role-summary">';
+    html += '角色分布: ';
+    for (var j = 0; j < keys.length; j++) {
+      var info = CONSTANTS.HERO_ROLE_INFO[keys[j]];
+      html += info.icon + info.name + '×' + counts[keys[j]] + ' ';
+    }
+    html += '</div>';
+    return html;
+  },
+
+  _renderTeamElementSummary: function (teamUids) {
+    if (!teamUids || teamUids.length === 0) return '';
+    var counts = {};
+    for (var i = 0; i < teamUids.length; i++) {
+      var h = HeroManager.getHeroByUid(teamUids[i]);
+      var t = h ? HeroManager.getTemplate(h.id) : null;
+      if (t && t.element && CONSTANTS.ELEMENT_INFO[t.element]) {
+        counts[t.element] = (counts[t.element] || 0) + 1;
+      }
+    }
+    var keys = Object.keys(counts);
+    if (keys.length === 0) return '';
+    var html = '<div class="team-element-summary">';
+    html += '阵容属性: ';
+    for (var j = 0; j < keys.length; j++) {
+      var info = CONSTANTS.ELEMENT_INFO[keys[j]];
+      html += '<span style="color:' + info.color + '">' + info.icon + '</span>×' + counts[keys[j]] + ' ';
+    }
+    html += '</div>';
+    return html;
   },
 
   _onLevelUp: function (uid) {

@@ -373,5 +373,529 @@ var UltimateSkills = {
     energyCost: 100,
     energyGainOnHit: 5,
     energyGainOnHurt: 18
+  },
+
+  // ===== Priority 1: Healers =====
+  wu_lusu: {
+    name: '纵横捭阖',
+    description: '外交斡旋，全体回复30%最大HP并防御+20%持续3回合',
+    type: 'heal_buff',
+    healPercent: 0.30,
+    buffEffect: { stat: 'def', percent: 0.20, duration: 3 },
+    target: 'all',
+    icon: '🤝',
+    energyCost: 100,
+    energyGainOnHit: 6,
+    energyGainOnHurt: 14
+  },
+  qun_zhangzhongjing: {
+    name: '伤寒杂病论',
+    description: '医圣妙术，全体回复35%最大HP并清除负面效果',
+    type: 'heal_cleanse',
+    healPercent: 0.35,
+    target: 'all',
+    icon: '📖',
+    energyCost: 100,
+    energyGainOnHit: 5,
+    energyGainOnHurt: 16
+  },
+  wu_daqiao: {
+    name: '倾国之光',
+    description: '柔光普照，全体回复40%最大HP',
+    type: 'heal',
+    healPercent: 0.40,
+    target: 'all',
+    icon: '🌸',
+    energyCost: 100,
+    energyGainOnHit: 6,
+    energyGainOnHurt: 15
+  },
+  wu_xiaoqiao: {
+    name: '天香绽放',
+    description: '花香四溢，全体回复25%最大HP并速度+25%持续3回合',
+    type: 'heal_buff',
+    healPercent: 0.25,
+    buffEffect: { stat: 'spd', percent: 0.25, duration: 3 },
+    target: 'all',
+    icon: '🌺',
+    energyCost: 100,
+    energyGainOnHit: 7,
+    energyGainOnHurt: 13
+  },
+  shu_huangyueying: {
+    name: '木牛流马阵',
+    description: '机关术加持，全体回复35%最大HP并防御+25%持续3回合',
+    type: 'heal_buff',
+    healPercent: 0.35,
+    buffEffect: { stat: 'def', percent: 0.25, duration: 3 },
+    target: 'all',
+    icon: '⚙️',
+    energyCost: 100,
+    energyGainOnHit: 6,
+    energyGainOnHurt: 15
+  },
+  wei_zhangchunhua: {
+    name: '冰魄凝心',
+    description: '冰霜净化，全体回复30%最大HP并清除负面效果',
+    type: 'heal_cleanse',
+    healPercent: 0.30,
+    target: 'all',
+    icon: '❄️',
+    energyCost: 100,
+    energyGainOnHit: 5,
+    energyGainOnHurt: 16
+  },
+
+  // ===== Priority 2: Support/Debuffer =====
+  wu_chengpu: {
+    name: '百战老将',
+    description: '老将压阵，对全体敌人造成ATK×150%伤害，全队攻击+25%持续3回合',
+    type: 'damage_buff',
+    multiplier: 1.5,
+    buffEffect: { stat: 'atk', percent: 0.25, duration: 3 },
+    target: 'all',
+    icon: '🛡️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wu_buzhi: {
+    name: '安邦定国',
+    description: '铁壁防御，全队获得相当于30%最大HP的护盾',
+    type: 'shield',
+    shieldPercent: 0.30,
+    target: 'all',
+    icon: '🏛️',
+    energyCost: 100,
+    energyGainOnHit: 7,
+    energyGainOnHurt: 12
+  },
+  wei_caoren: {
+    name: '铁壁雄关',
+    description: '坚守不退，全队获得相当于35%最大HP的护盾',
+    type: 'shield',
+    shieldPercent: 0.35,
+    target: 'all',
+    icon: '🏰',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 14
+  },
+  wei_chengyu: {
+    name: '十面埋伏',
+    description: '诡计陷阱，全体敌人攻击-30%持续3回合',
+    type: 'debuff',
+    debuffEffect: { stat: 'atk', percent: -0.30, duration: 3 },
+    target: 'all',
+    icon: '🕸️',
+    energyCost: 100,
+    energyGainOnHit: 7,
+    energyGainOnHurt: 11
+  },
+  wu_xusheng: {
+    name: '疑城之计',
+    description: '疑兵之计，对全体敌人造成ATK×180%伤害，防御-25%持续3回合',
+    type: 'damage_debuff',
+    multiplier: 1.8,
+    debuffEffect: { stat: 'def', percent: -0.25, duration: 3 },
+    target: 'all',
+    icon: '🏴',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wu_panzhang: {
+    name: '青龙偃月',
+    description: '夺刀斩敌，对全体敌人造成ATK×200%伤害，攻击-20%持续2回合',
+    type: 'damage_debuff',
+    multiplier: 2.0,
+    debuffEffect: { stat: 'atk', percent: -0.20, duration: 2 },
+    target: 'all',
+    icon: '🗡️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+
+  // ===== Priority 3: DPS — 蜀 =====
+  shu_weiyan: {
+    name: '反骨天命',
+    description: '背水一战，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '💀',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_fazheng: {
+    name: '奇谋报恩',
+    description: '精密算计，对全体敌人造成ATK×250%伤害',
+    type: 'damage',
+    multiplier: 2.5,
+    target: 'all',
+    icon: '🎯',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_guanping: {
+    name: '虎父虎子',
+    description: '继承父志，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '⚔️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_guanxing: {
+    name: '承父遗志',
+    description: '英烈之后，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🗡️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_zhangbao: {
+    name: '蛇矛横扫',
+    description: '丈八蛇矛，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🔱',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_masu: {
+    name: '纸上谈兵',
+    description: '兵法演算，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '📜',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_yanyan: {
+    name: '断头将军',
+    description: '宁死不屈，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '💢',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_liaohua: {
+    name: '先锋突阵',
+    description: '老当益壮，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🏇',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  shu_wangping: {
+    name: '街亭守卫',
+    description: '坚守阵地，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🛡️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+
+  // ===== Priority 3: DPS — 魏 =====
+  wei_xuchu: {
+    name: '裸衣血战',
+    description: '蛮力爆发，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '💪',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_zhanghe: {
+    name: '巧变如神',
+    description: '灵活机动，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🌀',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_jiaxu: {
+    name: '毒计连环',
+    description: '毒士算无遗策，对全体敌人造成ATK×250%伤害',
+    type: 'damage',
+    multiplier: 2.5,
+    target: 'all',
+    icon: '☠️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_caopi: {
+    name: '帝业初成',
+    description: '天子之威，对全体敌人造成ATK×250%伤害',
+    type: 'damage',
+    multiplier: 2.5,
+    target: 'all',
+    icon: '👑',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_yujin: {
+    name: '毅然断水',
+    description: '铁面无私，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🌊',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_lidian: {
+    name: '儒将之风',
+    description: '文武双全，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '📚',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_yuejin: {
+    name: '先登夺关',
+    description: '勇猛先登，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🏴',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_manchong: {
+    name: '严刑峻法',
+    description: '雷厉风行，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '⚖️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wei_caohong: {
+    name: '舍命护主',
+    description: '拼死一搏，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🐴',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+
+  // ===== Priority 3: DPS — 吴 =====
+  wu_ganning: {
+    name: '百骑劫营',
+    description: '夜袭敌营，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🔔',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wu_huanggai: {
+    name: '苦肉之计',
+    description: '以伤换胜，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🔥',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wu_sunce: {
+    name: '小霸王之怒',
+    description: '霸王之威，对全体敌人造成ATK×250%伤害',
+    type: 'damage',
+    multiplier: 2.5,
+    target: 'all',
+    icon: '🦁',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wu_dingfeng: {
+    name: '雪夜突袭',
+    description: '风雪奇袭，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🌨️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wu_handang: {
+    name: '百战余威',
+    description: '百战老兵，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '⚔️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  wu_lingtong: {
+    name: '舍身护主',
+    description: '舍命搏杀，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🩸',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+
+  // ===== Priority 3: DPS — 群 =====
+  qun_gongsunzan: {
+    name: '白马义从',
+    description: '白马骑兵冲锋，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🐎',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_menghuo: {
+    name: '蛮王之怒',
+    description: '蛮力暴走，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🐘',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_yuanshu: {
+    name: '僭越称帝',
+    description: '伪帝之威，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '💍',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_yanliang: {
+    name: '万军之中',
+    description: '无人可挡，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '⚔️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_wenchou: {
+    name: '骁勇冲锋',
+    description: '悍不畏死，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🗡️',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_lvlingqi: {
+    name: '虎女出征',
+    description: '巾帼英豪，对全体敌人造成ATK×250%伤害',
+    type: 'damage',
+    multiplier: 2.5,
+    target: 'all',
+    icon: '🐯',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_zhurong: {
+    name: '飞刀烈焰',
+    description: '烈火飞刀，对全体敌人造成ATK×250%伤害',
+    type: 'damage',
+    multiplier: 2.5,
+    target: 'all',
+    icon: '🔥',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_gaoshun: {
+    name: '陷阵无前',
+    description: '陷阵营冲锋，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🏹',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_chengong: {
+    name: '忠谋献策',
+    description: '殚精竭虑，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '📜',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
+  },
+  qun_zhangxiu: {
+    name: '夜袭反击',
+    description: '出其不意，对全体敌人造成ATK×200%伤害',
+    type: 'damage',
+    multiplier: 2.0,
+    target: 'all',
+    icon: '🌙',
+    energyCost: 100,
+    energyGainOnHit: 8,
+    energyGainOnHurt: 10
   }
 };

@@ -61,6 +61,78 @@ const CONSTANTS = {
     MYTHIC: 6,    // 红·神话
   },
 
+  // 五行属性
+  ELEMENT: {
+    FIRE: 'fire',     // 火 — 蜀
+    METAL: 'metal',   // 金 — 魏
+    WATER: 'water',   // 水 — 吴
+    WOOD: 'wood',     // 木 — 群(生长型)
+    EARTH: 'earth',   // 土 — 群(防御型)
+  },
+
+  ELEMENT_INFO: {
+    fire:  { name: '火', color: '#ff4757', icon: '🔥' },
+    metal: { name: '金', color: '#ffa502', icon: '⚔️' },
+    water: { name: '水', color: '#3742fa', icon: '💧' },
+    wood:  { name: '木', color: '#2ed573', icon: '🌳' },
+    earth: { name: '土', color: '#8b4513', icon: '🏔️' },
+  },
+
+  // 五行相克相生关系
+  ELEMENT_RELATIONS: {
+    // 相克 (destructive): A 克 B → A 对 B 伤害 ×1.25
+    OVERCOME: {
+      fire: 'metal',   // 火克金
+      metal: 'wood',   // 金克木
+      wood: 'earth',   // 木克土
+      earth: 'water',  // 土克水
+      water: 'fire',   // 水克火
+    },
+    // 相生 (generative): A 生 B → A 对 B 伤害 ×1.10
+    GENERATE: {
+      wood: 'fire',    // 木生火
+      fire: 'earth',   // 火生土
+      earth: 'metal',  // 土生金
+      metal: 'water',  // 金生水
+      water: 'wood',   // 水生木
+    },
+  },
+
+  // 五行伤害倍率
+  ELEMENT_MULTIPLIERS: {
+    OVERCOME: 1.25,    // 克制 +25%
+    OVERCOME_BY: 0.80, // 被克 -20%
+    GENERATE: 1.10,    // 相生 +10%
+    GENERATE_BY: 0.95, // 被生 -5%
+    SAME: 0.90,        // 同属性 -10%
+    NEUTRAL: 1.00,     // 无关系
+  },
+
+  // 阵营-五行默认映射
+  ELEMENT_FACTION_MAP: {
+    shu: 'fire',
+    wei: 'metal',
+    wu: 'water',
+    qun: null,  // 群雄按个体分配
+  },
+
+  // 英雄角色
+  HERO_ROLE: {
+    DPS: 'dps',
+    HEALER: 'healer',
+    TANK: 'tank',
+    SUPPORT: 'support',
+    DEBUFFER: 'debuffer',
+  },
+
+  HERO_ROLE_INFO: {
+    dps:      { name: '输出', icon: '⚔️', color: '#ff4757' },
+    healer:   { name: '治疗', icon: '💚', color: '#4caf50' },
+    tank:     { name: '坦克', icon: '🛡️', color: '#3742fa' },
+    support:  { name: '辅助', icon: '✨', color: '#ffa502' },
+    debuffer: { name: '控制', icon: '💀', color: '#9b59b6' },
+  },
+
   // 最大队伍人数
   MAX_TEAM_SIZE: 5,
 };
